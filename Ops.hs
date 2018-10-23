@@ -30,8 +30,8 @@ showArgsAndSuffixesWith :: Map String String -> OMap OpArg String -> String
 showArgsAndSuffixesWith argReplacements argsAndSuffixes = do
 	let fillOrShowArg = \arg -> do
 		let maybeArgValue = argName arg `lookup` argReplacements
-		debug ("Maybe replacing arg " ++ msgShow arg ++ " with value " ++ msgShow maybeArgValue ++ "...") $
-			maybe (show arg) show maybeArgValue
+		debugM ("Maybe replacing arg " ++ msgShow arg ++ " with value " ++ msgShow maybeArgValue ++ "...")
+		maybe (show arg) show maybeArgValue
 	let showArgAndSuffix = toList2 . mapFst2 fillOrShowArg . mapSnd2 showOpPrefixOrSuffix
 	let argsAndSuffixesShown = concat $ map showArgAndSuffix $ OMap.assocs argsAndSuffixes
 	let argsAndSuffixesShownWithoutTrailingEmptyString = dropSuffix [""] argsAndSuffixesShown

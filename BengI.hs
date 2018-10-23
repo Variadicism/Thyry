@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import Utils.Errors
@@ -10,7 +12,7 @@ import ReadingOps
 
 import Data.Map ((!))
 import Data.Map.Ordered as OMap (empty, fromList)
-import Data.Text.Lazy (Text, pack)
+import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text (dropEnd, isSuffixOf, null)
 import Data.Text.Lazy.IO (hGetContents)
 
@@ -54,13 +56,14 @@ readAndInterpret bengFilePath = do
 	bengFile <- tryIO $ openFile bengFilePath ReadMode
 	bengCode <- tryIO $ hGetContents bengFile
 	let bengCodeWithoutTrailingWhitespace =
-		if (pack "\n") `Text.isSuffixOf` bengCode then Text.dropEnd 1 bengCode else bengCode
+		if "\n" `Text.isSuffixOf` bengCode then Text.dropEnd 1 bengCode else bengCode
 	interpret bengCodeWithoutTrailingWhitespace
 
 main = doFallibleMain $ do
 	args <- tryIO getArgs
-	debug "Checking args..." $ if length args /= 1
-		then tryIO $ hPutStrLn stderr "This program expects exactly one argument: the file to interpret."
+	debugM "Checking args..."
+	if length args /= 1
+		then falT $ toError "This program expects exactly one argument: the file to interpret."
 		else
 			debug "Command arguments accepted" $
 			readAndInterpret $ head args

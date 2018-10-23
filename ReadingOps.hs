@@ -55,9 +55,9 @@ readNonPrefixedOp context firstArgument = \toParse -> do
 readPrefixedOp :: [OpDefinition] -> Reader Op
 readPrefixedOp context = \toParse -> do
 	let readPrefixedOp' = \remainingPrefixedDefs ->
-		if null remainingPrefixedDefs then
+		if null remainingPrefixedDefs then do
 			let noPrefixedOpError = "No prefixed op could be found at " ++ msg toParse ++ "!"
-			in debug noPrefixedOpError $
+			debugM noPrefixedOpError
 			toError noPrefixedOpError
 		else do
 			let nextDef = head remainingPrefixedDefs
