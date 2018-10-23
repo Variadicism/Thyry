@@ -26,12 +26,12 @@ readArgsAndSuffixes :: [OpDefinition] -> OpDefinition -> Map String Op -> String
 readArgsAndSuffixes context definition argsRead nextString = \toParse -> do
 	(_, afterString) <- readString nextString toParse
 	let maybeOpArgAndNextSuffix = argsAndSuffixes definition `OMap.elemAt` Map.size argsRead
-	-- maybeOpArgAndNextSuffix == Nothing -> We parsed all args and suffixes!
 	case maybeOpArgAndNextSuffix of
 		Just (opArg, nextSuffix) -> parseTheNextArgAndSuffix opArg nextSuffix context definition argsRead afterString
-		Nothing -> return $ (Op {
-			opDefinition = definition,
-			argValues = argsRead }, afterString)
+		Nothing ->  -- All args and suffixes were parsed!
+			return $ (Op {
+				opDefinition = definition,
+				argValues = argsRead }, afterString)
 
 readNonPrefixedOp :: [OpDefinition] -> Op -> Reader Op
 readNonPrefixedOp context firstArgument = \toParse -> do
