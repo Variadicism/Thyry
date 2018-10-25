@@ -22,10 +22,10 @@ import System.IO (IOMode(ReadMode), hPutStrLn, openFile, stderr)
 
 knownOps :: [OpDefinition]
 knownOps = [
-	OpDefinition { opPrefix = OpLiteral "2", argsAndSuffixes = OMap.empty, runOpWith = const 2 },
+	OpDefinition { opPrefix = OpAnd [OpLiteral "2"], argsAndSuffixes = OMap.empty, runOpWith = const 2 },
 	OpDefinition { opPrefix = OpLiteral "3", argsAndSuffixes = OMap.empty, runOpWith = const 3 },
 	OpDefinition { opPrefix = OpEmpty, argsAndSuffixes = OMap.fromList [
-			(OpArg { argName = "Augend" }, OpLiteral "+"),
+			(OpArg { argName = "Augend" }, OpAnd [OpLiteral "+"]),
 			(OpArg { argName = "Addend" }, OpEmpty)],
 		runOpWith = \args -> args ! "Augend" + args ! "Addend" }]
 
