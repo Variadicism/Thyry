@@ -12,6 +12,7 @@ import Utils.Lists
 import Utils.Messaging
 import Utils.Tuples
 
+import OpPatterns (OpPattern(OpEmpty))
 import Values
 
 import Data.List (intercalate)
@@ -23,10 +24,10 @@ import Data.String.Utils (replace)
 
 -- private utils
 
-showOpPrefixOrSuffix :: (String -> String)
-showOpPrefixOrSuffix = replace "<" "\\<" . replace ">" "\\>"
+showOpPrefixOrSuffix :: (OpPattern -> String)
+showOpPrefixOrSuffix = replace "<" "\\<" . replace ">" "\\>" . show
 
-showArgsAndSuffixesWith :: Map String String -> OMap OpArg String -> String
+showArgsAndSuffixesWith :: Map String String -> OMap OpArg OpPattern -> String
 showArgsAndSuffixesWith argReplacements argsAndSuffixes = do
 	let fillOrShowArg = \arg -> do
 		let maybeArgValue = argName arg `lookup` argReplacements
@@ -37,7 +38,7 @@ showArgsAndSuffixesWith argReplacements argsAndSuffixes = do
 	let argsAndSuffixesShownWithoutTrailingEmptyString = dropSuffix [""] argsAndSuffixesShown
 	intercalate " " argsAndSuffixesShownWithoutTrailingEmptyString
 
-showArgsAndSuffixes :: (OMap OpArg String -> String)
+showArgsAndSuffixes :: (OMap OpArg OpPattern -> String)
 showArgsAndSuffixes = showArgsAndSuffixesWith Map.empty
 
 -- OpArg
@@ -58,8 +59,8 @@ instance Ord OpArg where
 -- OpDefinition
 
 data OpDefinition = OpDefinition {
-	opPrefix :: String,
-	argsAndSuffixes :: OMap OpArg String,
+	opPrefix :: OpPattern,
+	argsAndSuffixes :: OMap OpArg OpPattern,
 	runOpWith :: Map String Value -> Value }
 
 instance Show OpDefinition where
@@ -74,7 +75,7 @@ data Op = Op {
 instance Show Op where
 	show op = do
 		let argReplacements = Map.map show $ argValues op
-		(opPrefix $ opDefinition op) ++ (showArgsAndSuffixesWith argReplacements $ argsAndSuffixes $ opDefinition op)
+		(showOpPrefixOrSuffix $ opPrefix $ opDefinition op) ++ (showArgsAndSuffixesWith argReplacements $ argsAndSuffixes $ opDefinition op)
 
 -- utils
 
@@ -83,4 +84,4 @@ runOp :: Op -> Value
 runOp op = runOpWith (opDefinition op) (Map.map runOp $ argValues op)
 
 hasPrefix :: (OpDefinition -> Bool)
-hasPrefix = not . null . opPrefix
+hasPrefix = (OpEmpty/=) . opPrefix

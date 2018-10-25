@@ -7,6 +7,7 @@ import Utils.Messaging
 import Utils.Readers
 
 import Ops
+import OpPatterns
 
 import Data.List (find, intercalate)
 import Data.Map (Map)
@@ -16,22 +17,21 @@ import qualified Data.Map.Ordered as OMap (assocs, elemAt, null, size)
 import Data.Text (Text)
 import Data.Text.Lazy.Read (Reader)
 
-parseTheNextArgAndSuffix :: OpArg -> String -> [OpDefinition] -> OpDefinition -> Map String Op -> Reader Op
+parseTheNextArgAndSuffix :: OpArg -> OpPattern -> [OpDefinition] -> OpDefinition -> Map String Op -> Reader Op
 parseTheNextArgAndSuffix opArg nextSuffix context definition argsRead = \toParse -> do
 	(opRead, afterOp) <- readOp context toParse
 	let newArgsRead = Map.insert (argName opArg) opRead argsRead
 	readArgsAndSuffixes context definition newArgsRead nextSuffix afterOp
 
-readArgsAndSuffixes :: [OpDefinition] -> OpDefinition -> Map String Op -> String -> Reader Op
-readArgsAndSuffixes context definition argsRead nextString = \toParse -> do
-	(_, afterString) <- readString nextString toParse
-	let maybeOpArgAndNextSuffix = argsAndSuffixes definition `OMap.elemAt` Map.size argsRead
-	case maybeOpArgAndNextSuffix of
-		Just (opArg, nextSuffix) -> parseTheNextArgAndSuffix opArg nextSuffix context definition argsRead afterString
+readArgsAndSuffixes :: [OpDefinition] -> OpDefinition -> Map String Op -> OpPattern -> Reader Op
+readArgsAndSuffixes context definition argsRead nextPattern = \toParse -> do
+	(_, remainder) <- readAllMatches nextPattern toParse
+	case argsAndSuffixes definition `OMap.elemAt` Map.size argsRead of
+		Just (opArg, nextSuffix) -> parseTheNextArgAndSuffix opArg nextSuffix context definition argsRead remainder
 		Nothing ->  -- All args and suffixes were parsed!
 			return $ (Op {
 				opDefinition = definition,
-				argValues = argsRead }, afterString)
+				argValues = argsRead }, remainder)
 
 readNonPrefixedOp :: [OpDefinition] -> Op -> Reader Op
 readNonPrefixedOp context firstArgument = \toParse -> do
