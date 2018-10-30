@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 
 module Main where
 
@@ -29,21 +29,27 @@ knownOps = [
 			(OpArg { argName = "Addend" }, OpEmpty)],
 		runOpWith = \args -> args ! "Augend" + args ! "Addend" }]
 
+readCodePossibilities :: Text -> [Op] -> [[Op]]
+readCodePossibilities "" previousOps = [previousOps]
+readCodePossibilities code previousOps = do
+	let opReadResults = readOp knownOps code
+	let readRemainingCode (opRead, remainingCode) = readCodePossibilities remainingCode (previousOps ++ [opRead])
+	concat $ map readRemainingCode opReadResults
+
 readCode :: Text -> Fallible [Op]
 readCode code = do
-	let readCode' = \code' previousOps ->
-		if Text.null code' then
-			fallible []
-		else do
-			(opRead, remainingCode) <- readOp knownOps code'
-			remainingOpsRead <- readCode remainingCode
-			fallible $ previousOps ++ [opRead] ++ remainingOpsRead
-	readCode' code []
+	let readPossibilities = readCodePossibilities code []
+	if null readPossibilities then
+		toError $ "There was a problem parsing this Beng code!"
+	else if length readPossibilities >= 2 then
+		toError $ "This Beng code is ambiguous! " ++ (show $ length readPossibilities) ++ " ways were found to parse it!"
+	else
+		fallible $ head readPossibilities
 
 interpret :: Text -> VoidFallible
 interpret code = do
 	opsRead <- falT $ readCode code
-	let interpret' = \opsToRun -> do
+	let interpret' opsToRun = do
 		if null opsToRun
 			then void
 		else do

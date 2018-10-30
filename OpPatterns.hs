@@ -17,24 +17,25 @@ data OpPattern = OpEmpty | OpLiteral Text | OpAnd [OpPattern]
 readAllMatches ::
 	OpPattern ->  -- ^ The OpPattern to attempt to parse from the beginning of some text
 	Text ->       -- ^ The text to attempt to parse the given OpPattern
-	Fallible (Text, Text)    -- ^ (The text matched to the given OpPattern, the text remaining after parsing) or an error if the given OpPattern was not matched at the beginning of the given Text
+	[(Text, Text)]    -- ^ For each possible way for the given OpPattern to match the start of the given Text, (The text matched to the given OpPattern, the text remaining after parsing) or an error if the given OpPattern was not matched at the beginning of the given Text
 -- OpEmpty
-readAllMatches OpEmpty toParse = fallible ("", toParse)
+readAllMatches OpEmpty toParse = [("", toParse)]
 -- OpAnd
 readAllMatches (OpAnd subpatterns) toParse =
-	let readAllMatches' = \subpatterns' charsReadSoFar ->
+	let readAllMatches' subpatterns' charsReadSoFar =
 		if null subpatterns'
-			then return $ Text.splitAt charsReadSoFar toParse
+			then [Text.splitAt charsReadSoFar toParse]
 			else do
 				let toParseRemaining = Text.drop charsReadSoFar toParse
-				(parsed, _) <- readAllMatches (head subpatterns') toParseRemaining
-				readAllMatches' (tail subpatterns') (charsReadSoFar + Text.length parsed)
+				let matches = readAllMatches (head subpatterns') toParseRemaining
+				let readAllMatchesFrom (parsed, _) = readAllMatches' (tail subpatterns') (charsReadSoFar + Text.length parsed)
+				concat $ map readAllMatchesFrom matches
 	in readAllMatches' subpatterns 0
 -- OpLiteral
 readAllMatches (OpLiteral literal) toParse =
 	if literal `Text.isPrefixOf` toParse
-		then fallible $ (literal, Text.drop (Text.length literal) toParse)
-		else toError $ msg toParse ++ " does not begin with \"" ++ msg literal ++ "\"!"
+		then [(literal, Text.drop (Text.length literal) toParse)]
+		else []
 
 instance Show OpPattern where
 	show OpEmpty = ""
