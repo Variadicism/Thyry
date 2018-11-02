@@ -29,14 +29,12 @@ showOpPrefixOrSuffix = replace "<" "\\<" . replace ">" "\\>" . show
 
 showArgsAndSuffixesWith :: Map String String -> OMap OpArg OpPattern -> String
 showArgsAndSuffixesWith argReplacements argsAndSuffixes = do
-	let fillOrShowArg = \arg -> do
+	let fillOrShowArg arg = do
 		let maybeArgValue = argName arg `lookup` argReplacements
-		debugM ("Maybe replacing arg " ++ msgShow arg ++ " with value " ++ msgShow maybeArgValue ++ "...")
-		maybe (show arg) show maybeArgValue
+		maybe (show arg) (("("++) . (++")")) maybeArgValue
 	let showArgAndSuffix = toList2 . mapFst2 fillOrShowArg . mapSnd2 showOpPrefixOrSuffix
 	let argsAndSuffixesShown = concat $ map showArgAndSuffix $ OMap.assocs argsAndSuffixes
-	let argsAndSuffixesShownWithoutTrailingEmptyString = dropSuffix [""] argsAndSuffixesShown
-	intercalate " " argsAndSuffixesShownWithoutTrailingEmptyString
+	concat $ dropSuffix [""] argsAndSuffixesShown
 
 showArgsAndSuffixes :: (OMap OpArg OpPattern -> String)
 showArgsAndSuffixes = showArgsAndSuffixesWith Map.empty

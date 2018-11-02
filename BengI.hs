@@ -11,6 +11,7 @@ import OpPatterns
 import Ops
 import ReadingOps
 
+import Data.List (intercalate)
 import Data.Map ((!))
 import Data.Map.Ordered as OMap (empty, fromList)
 import Data.Text.Lazy (Text)
@@ -22,10 +23,10 @@ import System.IO (IOMode(ReadMode), hPutStrLn, openFile, stderr)
 
 knownOps :: [OpDefinition]
 knownOps = [
-	OpDefinition { opPrefix = OpAnd [OpLiteral "2"], argsAndSuffixes = OMap.empty, runOpWith = const 2 },
+	OpDefinition { opPrefix = OpLiteral "2", argsAndSuffixes = OMap.empty, runOpWith = const 2 },
 	OpDefinition { opPrefix = OpLiteral "3", argsAndSuffixes = OMap.empty, runOpWith = const 3 },
 	OpDefinition { opPrefix = OpEmpty, argsAndSuffixes = OMap.fromList [
-			(OpArg { argName = "Augend" }, OpAnd [OpLiteral "+"]),
+			(OpArg { argName = "Augend" }, OpAnd [OpSpace, OpLiteral "+", OpSpace]),
 			(OpArg { argName = "Addend" }, OpEmpty)],
 		runOpWith = \args -> args ! "Augend" + args ! "Addend" }]
 
@@ -42,7 +43,7 @@ readCode code = do
 	if null readPossibilities then
 		toError $ "There was a problem parsing this Beng code!"
 	else if length readPossibilities >= 2 then
-		toError $ "This Beng code is ambiguous! " ++ (show $ length readPossibilities) ++ " ways were found to parse it!"
+		toError $ "This Beng code is ambiguous! " ++ (show $ length readPossibilities) ++ " ways were found to parse it:\n" ++ (intercalate (wrap "\n" $ replicate 20 '#') $ map (intercalate "\n" . map show) readPossibilities)
 	else
 		fallible $ head readPossibilities
 
