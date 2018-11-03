@@ -3,12 +3,14 @@ module Ops (
 	OpArg(..),
 	Op(..),
 	runOp,
-	hasPrefix
+	hasPrefix,
+	showOpParens
 ) where
 
 import Prelude hiding (lookup)
 
 import Utils.Lists
+import Utils.Maps
 import Utils.Messaging
 import Utils.Tuples
 
@@ -19,7 +21,7 @@ import Data.List (intercalate)
 import Data.Map (Map, lookup)
 import qualified Data.Map as Map (empty, map)
 import Data.Map.Ordered (OMap)
-import qualified Data.Map.Ordered as OMap (assocs)
+import qualified Data.Map.Ordered as OMap (assocs, null)
 import Data.String.Utils (replace)
 
 -- private utils
@@ -31,13 +33,16 @@ showArgsAndSuffixesWith :: Map String String -> OMap OpArg OpPattern -> String
 showArgsAndSuffixesWith argReplacements argsAndSuffixes = do
 	let fillOrShowArg arg = do
 		let maybeArgValue = argName arg `lookup` argReplacements
-		maybe (show arg) (("("++) . (++")")) maybeArgValue
+		maybe (show arg) id maybeArgValue
 	let showArgAndSuffix = toList2 . mapFst2 fillOrShowArg . mapSnd2 showOpPrefixOrSuffix
 	let argsAndSuffixesShown = concat $ map showArgAndSuffix $ OMap.assocs argsAndSuffixes
 	concat $ dropSuffix [""] argsAndSuffixesShown
 
 showArgsAndSuffixes :: (OMap OpArg OpPattern -> String)
 showArgsAndSuffixes = showArgsAndSuffixesWith Map.empty
+
+showOpWith :: Map String String -> Op -> String
+showOpWith argReplacements op = (showOpPrefixOrSuffix $ opPrefix $ opDefinition op) ++ (showArgsAndSuffixesWith argReplacements $ argsAndSuffixes $ opDefinition op)
 
 -- OpArg
 
@@ -71,9 +76,7 @@ data Op = Op {
 	argValues :: Map String Op }
 
 instance Show Op where
-	show op = do
-		let argReplacements = Map.map show $ argValues op
-		(showOpPrefixOrSuffix $ opPrefix $ opDefinition op) ++ (showArgsAndSuffixesWith argReplacements $ argsAndSuffixes $ opDefinition op)
+	show op = showOpWith (Map.map show $ argValues op) op
 
 -- utils
 
@@ -83,3 +86,15 @@ runOp op = runOpWith (opDefinition op) (Map.map runOp $ argValues op)
 
 hasPrefix :: (OpDefinition -> Bool)
 hasPrefix = (OpEmpty/=) . opPrefix
+
+isNullary :: (OpDefinition -> Bool)
+isNullary = OMap.null . argsAndSuffixes
+
+showOpParens :: Op -> String
+showOpParens op = do
+	let showAndParenOpIfNotNullary argOp =
+		if isNullary $ opDefinition argOp
+			then show argOp
+			else "(" ++ showOpParens argOp ++ ")"
+	let argReplacements = Map.map showAndParenOpIfNotNullary $ argValues op
+	showOpWith argReplacements op
