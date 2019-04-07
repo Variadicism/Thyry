@@ -1,4 +1,4 @@
-module Ops (
+module Beng.Read.Ops (
 	OpDefinition(..),
 	OpArg(..),
 	Op(..),
@@ -10,12 +10,11 @@ module Ops (
 import Prelude hiding (lookup)
 
 import Utils.Lists
-import Utils.Maps
 import Utils.Messaging
 import Utils.Tuples
 
-import OpPatterns (OpPattern(OpEmpty))
-import Values
+import Beng.Read.OpPatterns (OpPattern(OpEmpty))
+import Beng.Read.Values
 
 import Data.List (intercalate)
 import Data.Map (Map, lookup)

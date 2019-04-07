@@ -1,6 +1,6 @@
 {-# LANGUAGE InstanceSigs, OverloadedStrings #-}
 
-module OpPatterns (
+module Beng.Read.OpPatterns (
 	OpPattern(..),
 	readAllMatches
 ) where
@@ -13,7 +13,7 @@ import Data.Char (isAlphaNum, isSpace)
 import Data.Text.Lazy (Text, pack, unpack)
 import qualified Data.Text.Lazy as Text (drop, head, index, isPrefixOf, last, length, splitAt, takeWhile)
 
-data OpPattern = OpEmpty | OpSpace | OpLiteral Text | OpAnd [OpPattern]
+data OpPattern = OpEmpty | OpSpace | OpLiteral Text | OpAnd [OpPattern] | OpDelimited String OpPattern
 
 -- In the future, the Maybe will become a list so that all possible matches can be given and the tuple at the end will include capturing group data (Map String String).
 readAllMatches ::
@@ -60,16 +60,29 @@ readAllMatches (OpLiteral literal) _ toParse = do
 	if literal `Text.isPrefixOf` toParse
 		then [(literal, Text.drop (Text.length literal) toParse)]
 		else []
+-- OpDelimiter
+readAllMatches delimited@(OpDelimited delimiter delimitedGroup) previousCharIsAlphanum toParse = do
+	debugM $ "Attempting to read " ++ msg delimiter ++ " delimited " ++ msgShow delimitedGroup ++ " from " ++ msg toParse ++ "..."
+	let group1Matches = readAllMatches delimitedGroup previousCharIsAlphanum toParse
+	let parseDelimiterAndMore = \toParse' -> do
+		if (pack delimiter) `Text.isPrefixOf` toParse' then do
+			let previousCharIsAlphaNum' = isAlphaNum $ last delimiter
+			readAllMatches delimited previousCharIsAlphaNum' $ Text.drop (fromIntegral $ length delimiter) toParse'
+		else
+			[]
+	concat $ map (\group1Match@(_, afterGroup1) -> group1Match:(parseDelimiterAndMore afterGroup1)) group1Matches
 
 instance Show OpPattern where
 	show OpEmpty = ""
 	show OpSpace = " "
 	show (OpAnd subpatterns) = foldl (++) "" $ map show subpatterns
 	show (OpLiteral literal) = unpack literal
+	show (OpDelimited delimiter subpattern) = "(" ++ show subpattern ++ "){" ++ wrap "\"" delimiter ++ "}"
 
 instance Eq OpPattern where
 	(==) OpEmpty OpEmpty = True
 	(==) OpSpace OpSpace = True
 	(==) (OpAnd ps1) (OpAnd ps2) = ps1 == ps2
 	(==) (OpLiteral l1) (OpLiteral l2) = l1 == l2
+	(==) (OpDelimited d1 p1) (OpDelimited d2 p2) = d1 == d2 && p1 == p2
 	(==) _ _ = False

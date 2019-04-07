@@ -1,4 +1,4 @@
-module ReadingOps (
+module Beng.Read.ReadingOps (
 	readOp
 ) where
 
@@ -6,8 +6,8 @@ import Utils.Errors
 import Utils.Messaging
 import Utils.Readers
 
-import Ops
-import OpPatterns
+import Beng.Read.Ops
+import Beng.Read.OpPatterns
 
 import Data.Char (isAlphaNum)
 import Data.List (find, intercalate)

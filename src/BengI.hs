@@ -7,9 +7,9 @@ import Utils.Lists
 import Utils.Messaging
 import Utils.Monads
 
-import OpPatterns
-import Ops
-import ReadingOps
+import Beng.Read.OpPatterns
+import Beng.Read.Ops
+import Beng.Read.ReadingOps
 
 import Data.List (intercalate)
 import Data.Map ((!))

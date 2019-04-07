@@ -1,1 +1,6 @@
 BengI
+.cabal*
+**/*.hi
+**/*.o
+dist*/
+cabal.sandbox.config

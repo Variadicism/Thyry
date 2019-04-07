@@ -1,4 +1,4 @@
-module Values (
+module Beng.Read.Values (
 	Value
 ) where
 
