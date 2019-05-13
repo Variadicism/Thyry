@@ -42,9 +42,10 @@ readCode code = do
 	let readPossibilities = readCodePossibilities code []
 	if null readPossibilities then
 		toError $ "There was a problem parsing this Beng code!"
-	else if length readPossibilities >= 2 then
-		toError $ "This Beng code is ambiguous! " ++ (show $ length readPossibilities) ++ " ways were found to parse it:\n" ++ (intercalate (wrap "\n" $ replicate 20 '#') $ map (intercalate "\n" . map showOpParens) readPossibilities)
 	else
+		(if length readPossibilities >= 2 then
+			debug $ "This Beng code is ambiguous! " ++ (show $ length readPossibilities) ++ " ways were found to parse it:\n" ++ (intercalate (wrap "\n" $ replicate 20 '#') $ map (intercalate "\n" . map showOpParens) readPossibilities)
+		else id) $
 		fallible $ head readPossibilities
 
 interpret :: Text -> VoidFallible
