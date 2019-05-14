@@ -4,7 +4,8 @@ module Beng.Read.Ops (
 	Op(..),
 	runOp,
 	hasPrefix,
-	showOpParens
+	showOpParens,
+	newLiteralOp,
 ) where
 
 import Prelude hiding (lookup)
@@ -13,15 +14,16 @@ import Utils.Lists
 import Utils.Messaging
 import Utils.Tuples
 
-import Beng.Read.OpPatterns (OpPattern(OpEmpty))
+import Beng.Read.OpPatterns (OpPattern(OpEmpty, OpLiteral))
 import Beng.Read.Values
 
 import Data.List (intercalate)
 import Data.Map (Map, lookup)
 import qualified Data.Map as Map (empty, map)
 import Data.Map.Ordered (OMap)
-import qualified Data.Map.Ordered as OMap (assocs, null)
+import qualified Data.Map.Ordered as OMap (assocs, empty, null)
 import Data.String.Utils (replace)
+import Data.Text.Lazy (pack)
 
 -- private utils
 
@@ -97,3 +99,9 @@ showOpParens op = do
 			else "(" ++ showOpParens argOp ++ ")"
 	let argReplacements = Map.map showAndParenOpIfNotNullary $ argValues op
 	showOpWith argReplacements op
+
+newLiteralOp :: String -> Value -> OpDefinition
+newLiteralOp literal value = OpDefinition {
+		opPrefix = OpLiteral $ pack literal,
+		argsAndSuffixes = OMap.empty,
+		runOpWith = const value }
