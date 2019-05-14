@@ -28,7 +28,11 @@ knownOps = [
 	OpDefinition { opPrefix = OpEmpty, argsAndSuffixes = OMap.fromList [
 			(OpArg { argName = "Augend" }, OpAnd [OpSpace, OpLiteral "+", OpSpace]),
 			(OpArg { argName = "Addend" }, OpEmpty)],
-		runOpWith = \args -> args ! "Augend" + args ! "Addend" }]
+		runOpWith = \args -> args ! "Augend" + args ! "Addend" },
+	OpDefinition { opPrefix = OpEmpty, argsAndSuffixes = OMap.fromList [
+			(OpArg { argName = "Minuend" }, OpAnd [OpSpace, OpLiteral "-", OpSpace]),
+			(OpArg { argName = "Subtrahend" }, OpEmpty)],
+		runOpWith = \args -> args ! "Minuend" - args ! "Subtrahend" }]
 
 readCodePossibilities :: Text -> [Op] -> [[Op]]
 readCodePossibilities "" previousOps = [previousOps]
