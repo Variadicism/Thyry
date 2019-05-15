@@ -3,10 +3,10 @@ version:             0.1.0.0
 synopsis:            This is the interpreter for the Beng programming language.
 -- description:
 license:             AllRightsReserved
--- license-file:        LICENSE
+license-file:        LICENSE
 author:              Variadicism
 maintainer:          conman.davey@gmail.com
--- copyright:
+copyright:           Beng 2016-2019
 category:            Language
 build-type:          Simple
 extra-source-files:  ChangeLog.md, README.md
