@@ -20,6 +20,7 @@ executable BengI
     Beng.Read.Ops,
     Beng.Read.ReadingOps,
     Beng.Read.Values
+  ghc-options:       -fno-warn-tabs
   other-extensions:
     InstanceSigs,
     OverloadedStrings,
