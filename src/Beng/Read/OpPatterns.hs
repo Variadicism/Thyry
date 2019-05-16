@@ -20,7 +20,7 @@ readAllMatches ::
 	OpPattern ->  -- ^ The OpPattern to attempt to parse from the beginning of some text
 	Bool ->       -- ^ The previous character exists (i.e., not the beginning of a code stream) and is an alphanumeric character
 	Text ->       -- ^ The text to attempt to parse the given OpPattern
-	[(Text, Text)]    -- ^ For each possible way for the given OpPattern to match the start of the given Text, (The text matched to the given OpPattern, the text remaining after parsing) or an error if the given OpPattern was not matched at the beginning of the given Text
+	[(Text, Text)]    -- ^ For each possible way for the given OpPattern to match the start of the given Text, (the text matched to the given OpPattern, the text remaining after parsing)
 -- OpEmpty
 readAllMatches OpEmpty _ toParse = do
 	debugM ("Reading nothing from " ++ msg toParse ++ "...")
@@ -32,16 +32,20 @@ readAllMatches OpSpace _ "" = do
 readAllMatches OpSpace previousCharIsAlphaNum toParse = do
 	debugM $ "Attempting to read a space or word boundary from " ++ msg toParse ++ "..."
 	let numberOfLeadingSpaces = Text.length $ Text.takeWhile isSpace toParse
-	if numberOfLeadingSpaces > 0 then do
-		debugM $ show numberOfLeadingSpaces ++ " space chars were parsed as an OpSpace"
-		map (flip Text.splitAt toParse) [0..numberOfLeadingSpaces]
-	else if previousCharIsAlphaNum /= isAlphaNum (Text.head toParse) then do
-		let previousAlphanumDesc = (if previousCharIsAlphaNum then "an " else "a non") ++ "alphanumeric"
-		debugM $ "A word boundary was matched for this OpSpace going from " ++ previousAlphanumDesc ++ " to '" ++ [Text.head toParse] ++ "'."
-		[("", toParse)]
-	else do
-		debugM $ "No spaces were found and the previous char and the next, '" ++ [Text.head toParse] ++ "', were both " ++ (orEmpty (not previousCharIsAlphaNum) "non") ++ "alphanumeric."
-		[]
+	let spaceParses = do
+		let subjectVerb =
+			if numberOfLeadingSpaces == 1
+				then "1 space char was"
+				else show numberOfLeadingSpaces ++ " space chars were"
+		debugM $ subjectVerb ++ " parsed as an OpSpace."
+		map (flip Text.splitAt toParse) [1..numberOfLeadingSpaces]
+
+	let hasBoundary = previousCharIsAlphaNum /= isAlphaNum (Text.head toParse)
+	let wordBoundaryExistence = if hasBoundary then "A" else "No"
+	let previousAlphanumDesc = (if previousCharIsAlphaNum then "an " else "a non") ++ "alphanumeric"
+	debugM $ wordBoundaryExistence ++ " word boundary was matched for this OpSpace going from " ++ previousAlphanumDesc ++ " to '" ++ [Text.head toParse] ++ "'."
+
+	listIf [(hasBoundary, ("", toParse))] ++ spaceParses
 -- OpAnd
 readAllMatches (OpAnd subpatterns) previousCharIsAlphaNum toParse = do
 	debugM $ "Attempting to read 'and' of " ++ (showWithAnd $ map show subpatterns) ++ " from " ++ msg toParse ++ "..."
