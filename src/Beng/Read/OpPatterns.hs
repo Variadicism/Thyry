@@ -8,12 +8,14 @@ module Beng.Read.OpPatterns (
 import Utils.Errors
 import Utils.Lists
 import Utils.Messaging
+import Utils.Tuples (mapFst2)
 
 import Data.Char (isAlphaNum, isSpace)
 import Data.Text.Lazy (Text, pack, unpack)
-import qualified Data.Text.Lazy as Text (drop, head, index, isPrefixOf, last, length, splitAt, takeWhile)
+import qualified Data.Text.Lazy as Text (concat, drop, head, index, isPrefixOf, last, length, splitAt, takeWhile)
 
 data OpPattern = OpEmpty | OpSpace | OpLiteral Text | OpAnd [OpPattern] | OpDelimited String OpPattern
+	deriving (Eq)
 
 -- In the future, the Maybe will become a list so that all possible matches can be given and the tuple at the end will include capturing group data (Map String String).
 readAllMatches ::
@@ -64,7 +66,7 @@ readAllMatches (OpLiteral literal) _ toParse = do
 	if literal `Text.isPrefixOf` toParse
 		then [(literal, Text.drop (Text.length literal) toParse)]
 		else []
--- OpDelimiter
+-- OpDelimited
 readAllMatches delimited@(OpDelimited delimiter delimitedGroup) previousCharIsAlphanum toParse = do
 	debugM $ "Attempting to read " ++ msg delimiter ++ " delimited " ++ msgShow delimitedGroup ++ " from " ++ msg toParse ++ "..."
 	let group1Matches = readAllMatches delimitedGroup previousCharIsAlphanum toParse
@@ -74,7 +76,12 @@ readAllMatches delimited@(OpDelimited delimiter delimitedGroup) previousCharIsAl
 			readAllMatches delimited previousCharIsAlphaNum' $ Text.drop (fromIntegral $ length delimiter) toParse'
 		else
 			[]
-	concat $ map (\group1Match@(_, afterGroup1) -> group1Match:(parseDelimiterAndMore afterGroup1)) group1Matches
+	let parseDelimitedGroups = \group1Match@(group1MatchText, afterGroup1) -> do
+		let afterGroup1DelimitedParses = parseDelimiterAndMore afterGroup1
+		let addGroup1AndDelimiter = \t -> Text.concat [group1MatchText, pack delimiter, t]
+		let groupNMatches = map (mapFst2 addGroup1AndDelimiter) afterGroup1DelimitedParses
+		group1Match:groupNMatches
+	concat $ map parseDelimitedGroups group1Matches
 
 instance Show OpPattern where
 	show OpEmpty = ""
@@ -82,11 +89,3 @@ instance Show OpPattern where
 	show (OpAnd subpatterns) = foldl (++) "" $ map show subpatterns
 	show (OpLiteral literal) = unpack literal
 	show (OpDelimited delimiter subpattern) = "(" ++ show subpattern ++ "){" ++ wrap "\"" delimiter ++ "}"
-
-instance Eq OpPattern where
-	(==) OpEmpty OpEmpty = True
-	(==) OpSpace OpSpace = True
-	(==) (OpAnd ps1) (OpAnd ps2) = ps1 == ps2
-	(==) (OpLiteral l1) (OpLiteral l2) = l1 == l2
-	(==) (OpDelimited d1 p1) (OpDelimited d2 p2) = d1 == d2 && p1 == p2
-	(==) _ _ = False
