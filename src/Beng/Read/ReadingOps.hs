@@ -1,20 +1,26 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Beng.Read.ReadingOps (
-	readOp
+	readOp,
+	readCode,
+	standardOps
 ) where
 
 import Utils.Errors
+import Utils.Lists
 import Utils.Messaging
 import Utils.Readers
 
 import Beng.Read.Ops
 import Beng.Read.OpPatterns
+import Beng.StandardOps (standardOps)
 
 import Data.Char (isAlphaNum)
 import Data.List (find, intercalate)
-import Data.Map (Map)
+import Data.Map (Map, (!))
 import qualified Data.Map as Map (empty, fromList, insert, size)
 import Data.Map.Ordered (OMap, (<|))
-import qualified Data.Map.Ordered as OMap (assocs, elemAt, null, size)
+import qualified Data.Map.Ordered as OMap (assocs, elemAt, fromList, null, size)
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text (index, last, length)
 
@@ -77,10 +83,33 @@ readOp context = \toParse -> do
 	let readEnclosingOpOrUseFirstOp enclosedOpResults@(opRead, afterReadOp) = do
 		let opReadEndsWithAlphanum = isAlphaNum $ Text.index toParse (Text.length toParse - Text.length afterReadOp - 1)
 		let enclosingOpReadResults = readNonPrefixedOp context opRead opReadEndsWithAlphanum afterReadOp
-		if null enclosingOpReadResults then
-			debug "No enclosing op was found." $
+		if null enclosingOpReadResults then do
+			debugM "No enclosing op was found."
 			[enclosedOpResults]
 		else do
 			debugM $ msgShow opRead ++ " can be enclosed " ++ (show $ length enclosingOpReadResults) ++ " way(s)."
 			[enclosedOpResults] ++ (concat $ map readEnclosingOpOrUseFirstOp enclosingOpReadResults)
 	concat $ map readEnclosingOpOrUseFirstOp allPrefixedOpMatches
+
+readCodePossibilities :: Text -> [OpDefinition] -> [[Op]]
+readCodePossibilities code context = do
+	let readCodePossibilities' code' previousOps =
+		if code' == "" then
+			[previousOps]
+		else do
+			let opReadResults = readOp context code'
+			let readRemainingCode (opRead, remainingCode) = readCodePossibilities' remainingCode (previousOps ++ [opRead])
+			concat $ map readRemainingCode opReadResults
+	readCodePossibilities' code []
+
+readCode :: Text -> Fallible [Op]
+readCode code = do
+	let readPossibilities = readCodePossibilities code standardOps
+	if null readPossibilities then
+		toError "There was a problem parsing this Beng code!"
+	else do
+		if (length readPossibilities >= 2) then
+			debugM ("This Beng code is ambiguous! " ++ (show $ length readPossibilities) ++ " ways were found to parse it:\n" ++ (intercalate (wrap "\n" $ replicate 20 '#') $ map (intercalate "\n" . map showOpParens) readPossibilities))
+		else return ()
+		fallible $ head readPossibilities
+
