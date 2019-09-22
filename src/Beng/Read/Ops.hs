@@ -15,7 +15,7 @@ import Utils.Messaging
 import Utils.Tuples
 
 import Beng.Read.OpPatterns (OpPattern(OpEmpty, OpLiteral))
-import Beng.Read.Values
+import Beng.Values
 
 import Data.List (intercalate)
 import Data.Map (Map, lookup)

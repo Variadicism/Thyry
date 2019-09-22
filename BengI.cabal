@@ -16,10 +16,11 @@ cabal-version:       >=1.10
 executable BengI
   main-is:           Beng/BengI.hs
   other-modules:
+    Beng.StandardOps,
+    Beng.Values,
     Beng.Read.OpPatterns,
     Beng.Read.Ops,
-    Beng.Read.ReadingOps,
-    Beng.Read.Values
+    Beng.Read.ReadingOps
   ghc-options:       -fno-warn-tabs
   other-extensions:
     InstanceSigs,

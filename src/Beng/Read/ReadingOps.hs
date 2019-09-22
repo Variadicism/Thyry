@@ -19,7 +19,7 @@ import Data.Char (isAlphaNum)
 import Data.List (find, intercalate)
 import Data.Map (Map, (!))
 import qualified Data.Map as Map (empty, fromList, insert, size)
-import Data.Map.Ordered (OMap, (<|))
+import Data.Map.Ordered (OMap)
 import qualified Data.Map.Ordered as OMap (assocs, elemAt, fromList, null, size)
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text (index, last, length)
@@ -91,6 +91,7 @@ readOp context = \toParse -> do
 			[enclosedOpResults] ++ (concat $ map readEnclosingOpOrUseFirstOp enclosingOpReadResults)
 	concat $ map readEnclosingOpOrUseFirstOp allPrefixedOpMatches
 
+-- TODO: refactor this to return [Fallible [Op]] to give helpful errors when parsing fails.
 readCodePossibilities :: Text -> [OpDefinition] -> [[Op]]
 readCodePossibilities code context = do
 	let readCodePossibilities' code' previousOps =
