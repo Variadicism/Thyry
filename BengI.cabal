@@ -1,5 +1,5 @@
 name:                BengI
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            This is the interpreter for the Beng programming language.
 -- description:
 license:             AllRightsReserved
@@ -29,10 +29,10 @@ executable BengI
   build-depends:
     base >=4.11 && <4.12,
     containers >=0.5 && <0.6,
-    ordered-containers >=0.1 && <0.2,
+    ordered-containers >=0.2.1 && <0.3,
     text >=1.2 && <1.3,
     MissingH >=1.4 && <1.5,
-    Utils >= 0.2 && < 0.3
+    Utils >= 0.3 && < 0.4
   hs-source-dirs:     src
   default-language:   Haskell2010
 
@@ -45,6 +45,26 @@ test-suite OpPatterns-test
   build-depends:
     base >=4.11 && <4.12,
     text >=1.2 && <1.3,
-    Utils >= 0.2 && < 0.3
+    Utils >= 0.3 && < 0.4
+  hs-source-dirs:     src
+  default-language:   Haskell2010
+
+test-suite ReadingOps-test
+  type:               exitcode-stdio-1.0
+  main-is:            Testing/Beng/Read/ReadingOps.hs
+  ghc-options:        -fno-warn-tabs
+  other-modules:
+    Beng.Read.OpPatterns
+    Beng.Read.Ops
+    Beng.Read.ReadingOps
+    Beng.StandardOps
+    Beng.Values
+  build-depends:
+    base >=4.11 && <4.12,
+    containers >=0.5 && <0.6,
+    ordered-containers >=0.2.1 && <0.3,
+    text >=1.2 && <1.3,
+    MissingH >=1.4 && <1.5,
+    Utils >= 0.3 && < 0.4
   hs-source-dirs:     src
   default-language:   Haskell2010

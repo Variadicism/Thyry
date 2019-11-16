@@ -103,9 +103,9 @@ readCodePossibilities code context = do
 			concat $ map readRemainingCode opReadResults
 	readCodePossibilities' code []
 
-readCode :: Text -> Fallible [Op]
-readCode code = do
-	let readPossibilities = readCodePossibilities code standardOps
+readCode :: [OpDefinition] -> AllReader [Op]
+readCode context = \code -> do
+	let readPossibilities = readCodePossibilities code context
 	if null readPossibilities then
 		toError "There was a problem parsing this Beng code!"
 	else do

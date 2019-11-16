@@ -9,6 +9,7 @@ import Utils.Monads
 import Beng.Read.OpPatterns
 import Beng.Read.Ops
 import Beng.Read.ReadingOps
+import Beng.StandardOps (standardOps)
 
 import Data.List (intercalate)
 import Data.Text.Lazy (Text)
@@ -20,7 +21,7 @@ import System.IO (IOMode(ReadMode), hPutStrLn, openFile, stderr)
 
 interpret :: Text -> VoidFallible
 interpret code = do
-	opsRead <- falT $ readCode code
+	opsRead <- falT $ readCode standardOps code
 	let interpret' opsToRun = do
 		if null opsToRun
 			then void

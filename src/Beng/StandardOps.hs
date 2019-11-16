@@ -1,7 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Beng.StandardOps (
-	standardOps
+	standardOps,
+	e,
+	s,
+	l,
+	andPatterns,
+	(<.>),
+	(<*+>),
+	(<),
+	(>),
+	(<>=>),
+	define,
 ) where
 
 import Prelude hiding ((<), (>))

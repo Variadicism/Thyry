@@ -7,9 +7,6 @@ import Utils.Testing
 
 import Beng.Read.OpPatterns (OpPattern(..), readAllMatches)
 
-isNullElse :: (Show a, Eq a) => [a] -> (Error -> IO ())
-isNullElse list = (([], list) `isEqualElse`)
-
 main = do
 	-- OpEmpty
 	(readAllMatches OpEmpty False "", [("", "")]) `isEqualElse` "OpEmpty should always parse nothing and return the same text that it received, even if the input was empty."
