@@ -24,13 +24,24 @@ main = do
 	([("l", "l")], readLit "l" "ll") `isEqualElse` "OpLiteral must parse exactly one instance of its literal."
 	([("", "")], readLit "" "") `isEqualElse` "OpLiteral must be able to parse an empty string from any string, including empty."
 
+	-- OpOr; WARNING: uses OpLiteral for testing because it has to have subgroups
+	let readAllOrs = \literals -> readAllMatches (OpOr (map OpLiteral literals)) False
+	readAllOrs ["k"] "l" `isNullElse` "OpOr must parse nothing if its subgroup(s) do not prefix the text."
+	([("k", "p")], readAllOrs ["k"] "kp") `isEqualElse` "OpOr must parse its only subgroup(s)."
+	([("k", "k")], readAllOrs ["k"] "kk") `isEqualElse` "OpOr must parse only the first instance of its subgroup(s)."
+	let readAllKsLsOrPs = readAllOrs ["k", "l", "p"]
+	([("k", "n")], readAllKsLsOrPs "kn") `isEqualElse` "OpOr must parse its first subgroup."
+	([("l", "n")], readAllKsLsOrPs "ln") `isEqualElse` "OpOr must parse its middle subgroup(s)."
+	([("p", "n")], readAllKsLsOrPs "pn") `isEqualElse` "OpOr must parse its last subgroup."
+	([("", "n")], readAllOrs [] "n") `isEqualElse` "OpOr must parse an empty string if given no subgroups."
+
 	-- OpAnd; WARNING: uses OpLiteral for testing because it has to have subgroups
 	let readAllAnds = \literals -> readAllMatches (OpAnd (map OpLiteral literals)) False
 	readAllAnds ["k"] "l" `isNullElse` "OpAnd must parse nothing if its subgroup(s) do not prefix the text."
-	([("k", "p")], readAllAnds ["k"] "kp") `isEqualElse` "OpAnd must parse its subgroup(s)."
+	([("k", "p")], readAllAnds ["k"] "kp") `isEqualElse` "OpAnd must parse its only subgroup(s)."
 	([("k", "k")], readAllAnds ["k"] "kk") `isEqualElse` "OpAnd must parse only the first instance of its subgroup(s)."
 	([("klp", "n")], readAllAnds ["k", "l", "p"] "klpn") `isEqualElse` "OpAnd must parse all of its subgroups."
-	([("", "")], readAllAnds [] "") `isEqualElse` "OpAnd must parse an empty string if given no subgroups."
+	([("", "n")], readAllAnds [] "n") `isEqualElse` "OpAnd must parse an empty string if given no subgroups."
 
 	-- OpDelimited; WARNING: uses OpLiteral for testing because it has to have subgroups
 	let readCommaPs = readAllMatches (OpDelimited "," (OpLiteral "p")) True

@@ -14,7 +14,7 @@ import Data.Char (isAlphaNum, isSpace)
 import Data.Text.Lazy (Text, pack, unpack)
 import qualified Data.Text.Lazy as Text (concat, drop, head, index, isPrefixOf, last, length, splitAt, takeWhile)
 
-data OpPattern = OpEmpty | OpSpace | OpLiteral Text | OpAnd [OpPattern] | OpDelimited String OpPattern
+data OpPattern = OpEmpty | OpSpace | OpLiteral Text | OpOr [OpPattern] | OpAnd [OpPattern] | OpDelimited String OpPattern
 	deriving (Eq)
 
 -- In the future, the Maybe will become a list so that all possible matches can be given and the tuple at the end will include capturing group data (Map String String).
@@ -48,16 +48,22 @@ readAllMatches OpSpace previousCharIsAlphaNum toParse = do
 	debugM $ wordBoundaryExistence ++ " word boundary was matched for this OpSpace going from " ++ previousAlphanumDesc ++ " to '" ++ [Text.head toParse] ++ "'."
 
 	listIf [(hasBoundary, ("", toParse))] ++ spaceParses
+-- OpOr
+readAllMatches (OpOr subpatterns) previousCharIsAlphaNum toParse = do
+	debugM $ "Attempting to read " ++ (showWithOr $ map show subpatterns) ++ " from " ++ msg toParse ++ "..."
+	case subpatterns of
+		[] -> [("", toParse)]
+		_ -> concat $ map (\subpattern -> readAllMatches subpattern previousCharIsAlphaNum toParse) subpatterns
 -- OpAnd
 readAllMatches (OpAnd subpatterns) previousCharIsAlphaNum toParse = do
-	debugM $ "Attempting to read 'and' of " ++ (showWithAnd $ map show subpatterns) ++ " from " ++ msg toParse ++ "..."
+	debugM $ "Attempting to read " ++ (showWithAnd $ map show subpatterns) ++ " from " ++ msg toParse ++ "..."
 	let readAllMatches' subpatterns' previousCharIsAlphaNum' charsReadSoFar =
-		if null subpatterns'
-			then [Text.splitAt charsReadSoFar toParse]
-			else do
+		case subpatterns' of
+			[] -> [Text.splitAt charsReadSoFar toParse]
+			(nextSubpattern:remainingSubpatterns) -> do
 				let toParseRemaining = Text.drop charsReadSoFar toParse
-				let matches = readAllMatches (head subpatterns') previousCharIsAlphaNum' toParseRemaining
-				let readAllMatchesFrom (parsed, _) = readAllMatches' (tail subpatterns') (isAlphaNum $ Text.last parsed) (charsReadSoFar + Text.length parsed)
+				let matches = readAllMatches nextSubpattern previousCharIsAlphaNum' toParseRemaining
+				let readAllMatchesFrom (parsed, _) = readAllMatches' remainingSubpatterns (isAlphaNum $ Text.last parsed) (charsReadSoFar + Text.length parsed)
 				concat $ map readAllMatchesFrom matches
 	readAllMatches' subpatterns previousCharIsAlphaNum 0
 -- OpLiteral
