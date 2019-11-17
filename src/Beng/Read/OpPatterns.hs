@@ -17,6 +17,7 @@ import qualified Data.Text.Lazy as Text (concat, drop, head, index, isPrefixOf, 
 data OpPattern = OpEmpty | OpSpace | OpLiteral Text | OpOr [OpPattern] | OpAnd [OpPattern] | OpDelimited String OpPattern
 	deriving (Eq)
 
+-- Theory note: no OpPatterns can contain OpArgs; OpArgs can never be in any kind of "optional" group and will be included in `argsAndSuffixes` rather than `OpAnd`s.
 -- In the future, the Maybe will become a list so that all possible matches can be given and the tuple at the end will include capturing group data (Map String String).
 readAllMatches ::
 	OpPattern ->  -- ^ The OpPattern to attempt to parse from the beginning of some text
