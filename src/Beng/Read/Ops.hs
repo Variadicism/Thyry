@@ -18,11 +18,11 @@ import Beng.Read.OpPatterns (OpPattern(OpEmpty, OpLiteral))
 import Beng.Values
 
 import Data.List (intercalate)
+import Data.List.Extra (replace)
 import Data.Map (Map, lookup)
 import qualified Data.Map as Map (empty, map)
 import Data.Map.Ordered (OMap)
 import qualified Data.Map.Ordered as OMap (assocs, empty, null)
-import Data.String.Utils (replace)
 import Data.Text.Lazy (pack)
 
 -- private utils
