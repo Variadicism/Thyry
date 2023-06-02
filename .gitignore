@@ -4,3 +4,4 @@ BengI
 **/*.o
 dist*/
 cabal.sandbox.config
+cabal.project*
