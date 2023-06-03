@@ -2,13 +2,19 @@
 
 module Beng.Types.Ops (
 	Op(..),
-	OpValueType(..),
+	OpValuePrimitiveType(..),
 	OpValue(..),
 	OpArg(..),
+	OpArgValues,
+	PreOpContexts,
+	PreOpContextsBuilder,
+	OpRunner,
+	OpDeclaration(..),
 	OpDefinition(..),
 	showOpWith
 ) where
 
+import Utils.Lists (wrap)
 import Utils.Tuples (mapFst2, mapSnd2, toList2)
 
 import Beng.Types.OpPatterns (OpPattern(..))
@@ -18,7 +24,7 @@ import Data.Map (Map, (!?))
 import qualified Data.Map as Map
 import Data.Map.Ordered (OMap)
 import qualified Data.Map.Ordered as OMap
-import Data.Text.Lazy (Text)
+import Data.Text.Lazy (Text, unpack)
 
 -- private
 
@@ -38,29 +44,52 @@ showArgsAndSuffixes :: (OMap OpArg OpPattern -> String)
 showArgsAndSuffixes = showArgsAndSuffixesWith Map.empty
 
 showOpWith :: Map String String -> Op -> String
-showOpWith argReplacements Op{..} = (showOpPrefixOrSuffix $ opPrefix opDefinition) ++
-	(showArgsAndSuffixesWith argReplacements $ argsAndSuffixes opDefinition)
+showOpWith argReplacements Op{opDefinition=OpDefinition{opDeclaration=OpDeclaration{..}}} =
+	showOpPrefixOrSuffix opPrefix ++ showArgsAndSuffixesWith argReplacements opArgsAndSuffixes
 
 -- types
 
-data OpValueType = IntValueType
+data OpValuePrimitiveType =
+	PreOpValueType |
+	OpOpValueType |
+	IntValueType
 	deriving (Bounded, Enum, Eq, Show)
 
-data OpValue = IntValue Int
-	deriving (Eq)
+data OpValue =
+	PreOpValue PreOp |
+	OpOpValue Op |
+	IntValue Int
+
+data PreOp = PreOp {
+	preOpArgName :: String,
+	preOpContent :: Text }
 
 data Op = Op {
 	opDefinition :: OpDefinition,
 	argValues :: Map String Op }
 
 data OpArg = OpArg {
-	-- In the future, arg type information will also be kept here.
-	argName :: String }
+	argName :: String,
+	argPrimitiveType :: OpValuePrimitiveType }
 
-data OpDefinition = OpDefinition {
+-- TODO: when ops can be declared dynamically, this will be the same for builtins, but will need locational metadata for dynamic ones.
+data OpDeclaration = OpDeclaration {
 	opPrefix :: OpPattern,
-	argsAndSuffixes :: OMap OpArg OpPattern,
-	runOpWith :: Map String OpValue -> OpValue }
+	opArgsAndSuffixes :: OMap OpArg OpPattern }
+
+type OpArgValues = Map String OpValue
+
+type PreOpContexts = Map String [OpDefinition]
+
+type PreOpContextsBuilder = OpArgValues -> PreOpContexts
+
+type OpRunner = OpArgValues -> OpValue
+
+-- TODO: when ops can be defined dynamically, only the op declaration will apply; buildContexts and runOpWith are only to be defined for builtin ops because ops defined in code just run their body for both.
+data OpDefinition = OpDefinition {
+	opDeclaration :: OpDeclaration,
+	buildPreOpContexts :: OpArgValues -> PreOpContexts,
+	runOpWith :: OpRunner }
 
 -- instances
 
@@ -77,7 +106,13 @@ instance Ord OpArg where
 	(<=) opArg1 opArg2 = argName opArg1 <= argName opArg2
 
 instance Show OpDefinition where
-	show OpDefinition{..} = showOpPrefixOrSuffix opPrefix ++ showArgsAndSuffixes argsAndSuffixes
+	show OpDefinition{opDeclaration=OpDeclaration{..}} =
+		showOpPrefixOrSuffix opPrefix ++ showArgsAndSuffixes opArgsAndSuffixes
 
 instance Show OpValue where
+	show (PreOpValue preop) = show preop
+	show (OpOpValue op) = show op
 	show (IntValue int) = show int
+
+instance Show PreOp where
+	show PreOp{..} = preOpArgName ++ ":\n" ++ wrap "```" (unpack preOpContent)

@@ -21,6 +21,8 @@ Builtins:
 
 	types:
 - bit
+- op
+- preop
 
 	primitives:
 - 0b0

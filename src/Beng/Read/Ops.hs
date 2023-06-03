@@ -1,5 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Beng.Read.Ops (
 	readOp,
@@ -14,7 +16,7 @@ import Utils.Readers (AllReader, MultiReader)
 import Beng.Ops (hasPrefix, showOpParens)
 import qualified Beng.Read.OpPatterns as OpPattern
 import Beng.Types.OpPatterns (OpPattern(..))
-import Beng.Types.Ops (Op(..), OpDefinition(..), OpArg(..))
+import Beng.Types.Ops (Op(..), OpDefinition(..), OpDeclaration(..), OpArg(..))
 
 import Data.Char (isAlphaNum)
 import Data.List (find, intercalate)
@@ -36,10 +38,11 @@ parseTheNextArgAndSuffix opArg nextSuffix context definition argsRead prevCharIs
 
 readArgsAndSuffixes ::
 	[OpDefinition] -> OpDefinition -> Map String Op -> OpPattern -> Bool -> MultiReader Op
-readArgsAndSuffixes context definition argsRead nextPattern prevCharIsAlphanum toParse = do
+readArgsAndSuffixes context definition@OpDefinition{opDeclaration=OpDeclaration{..}}
+		argsRead nextPattern prevCharIsAlphanum toParse = do
 	let allNextPatternMatches = OpPattern.readAllMatches nextPattern prevCharIsAlphanum toParse
 	let readRemainingArgsAndSuffixes (textRead, remainder) =
-		case argsAndSuffixes definition `OMap.elemAt` Map.size argsRead of
+		case opArgsAndSuffixes `OMap.elemAt` Map.size argsRead of
 			Just (opArg, nextSuffix) ->
 				parseTheNextArgAndSuffix opArg nextSuffix context definition argsRead
 					(isAlphaNum $ Text.last textRead) remainder
@@ -51,12 +54,12 @@ readArgsAndSuffixes context definition argsRead nextPattern prevCharIsAlphanum t
 
 readNonPrefixedOp :: [OpDefinition] -> Op -> Bool -> MultiReader Op
 readNonPrefixedOp context firstArgument prevCharIsAlphanum = \toParse -> do
-	let readNonPrefixedOp' remainingNonPrefixedDefs =
-		if null remainingNonPrefixedDefs
-			then []
-		else do
-			let nextDef = head remainingNonPrefixedDefs
-			let (firstOpArgDef, firstSuffix) = head $ OMap.assocs $ argsAndSuffixes nextDef
+	let readNonPrefixedOp' :: [OpDefinition] -> [(Op, Text)] = \case
+		[] -> []
+		(nextDef:remainingDefs) -> do
+			-- An Op with no prefix must have args and suffixes, so `head` is safe to use.
+			let (firstOpArgDef, firstSuffix) =
+				head $ OMap.assocs $ opArgsAndSuffixes $ opDeclaration nextDef
 			let argsReadFirst = Map.fromList [(argName firstOpArgDef, firstArgument)]
 			let opReadResults = readArgsAndSuffixes context nextDef argsReadFirst firstSuffix
 				prevCharIsAlphanum toParse
@@ -64,8 +67,8 @@ readNonPrefixedOp context firstArgument prevCharIsAlphanum = \toParse -> do
 				then "Attempting to parse the non-prefixed op " ++ msgShow nextDef ++ " failed."
 				else "Non-prefixed ops were successfully read " ++
 					show (length opReadResults) ++ " way(s).")
-			opReadResults ++ (readNonPrefixedOp' $ tail remainingNonPrefixedDefs)
-	readNonPrefixedOp' $ filter (not . hasPrefix) context
+			opReadResults ++ readNonPrefixedOp' remainingDefs
+	readNonPrefixedOp' $ filter (not . hasPrefix . opDeclaration) context
 
 readPrefixedOp :: [OpDefinition] -> MultiReader Op
 readPrefixedOp context = \toParse -> do
@@ -73,13 +76,13 @@ readPrefixedOp context = \toParse -> do
 		[] -> []
 		(nextDef:remainingPrefixedDefs) -> do
 			let opReadResults = readArgsAndSuffixes context nextDef
-				Map.empty (opPrefix nextDef) False toParse
+				Map.empty (opPrefix $ opDeclaration nextDef) False toParse
 			debugM (if null opReadResults
 				then "Attempting to parse the prefixed op " ++ msgShow nextDef ++ " failed."
 				else "Prefixed ops were successfully read " ++
 					show (length opReadResults) ++ " way(s).")
 			opReadResults ++ readPrefixedOp' remainingPrefixedDefs
-	readPrefixedOp' $ filter hasPrefix context
+	readPrefixedOp' $ filter (hasPrefix . opDeclaration) context
 
 readOp :: [OpDefinition] -> MultiReader Op
 readOp context = \toParse -> do

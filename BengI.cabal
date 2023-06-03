@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name:                BengI
-version:             0.2.1.3
+version:             0.3.0.0
 synopsis:            This is the interpreter for the Beng programming language.
 -- description:
 license:             Artistic-2.0
@@ -16,6 +16,7 @@ executable BengI
   main-is:           Beng/BengI.hs
   other-modules:
     Beng.BuiltinOps
+    Beng.Ops
     Beng.Types.OpPatterns
     Beng.Types.Ops
     Beng.Read.OpPatterns
@@ -35,7 +36,7 @@ executable BengI
   hs-source-dirs:     src
   default-language:   Haskell2010
 
-test-suite ReadingOpPatterns-test
+test-suite reading-OpPatterns-test
   type:               exitcode-stdio-1.0
   main-is:            Testing/Beng/Read/OpPatterns.hs
   ghc-options:        -fno-warn-tabs
@@ -49,9 +50,9 @@ test-suite ReadingOpPatterns-test
   hs-source-dirs:     src
   default-language:   Haskell2010
 
-test-suite ReadingOps-test
+test-suite building-Ops-test
   type:               exitcode-stdio-1.0
-  main-is:            Testing/Beng/Read/ReadingOps.hs
+  main-is:            Testing/Beng/Build/Ops.hs
   ghc-options:        -fno-warn-tabs
   other-modules:
     Beng.BuiltinOps
