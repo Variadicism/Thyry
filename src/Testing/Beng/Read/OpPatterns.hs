@@ -5,7 +5,8 @@ module Main where
 import Utils.Errors (Error)
 import Utils.Testing
 
-import Beng.Read.OpPatterns (OpPattern(..), readAllMatches)
+import Beng.Types.OpPatterns (OpPattern(..))
+import Beng.Read.OpPatterns (readAllMatches)
 
 main = do
 	-- OpEmpty

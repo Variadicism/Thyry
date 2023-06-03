@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Beng.StandardOps (
-	standardOps,
+module Beng.BuiltinOps (
+	builtinOps,
 	e,
 	s,
 	l,
@@ -11,19 +11,21 @@ module Beng.StandardOps (
 	(<),
 	(>),
 	(<>=>),
-	define,
+	define
 ) where
 
 import Prelude hiding ((<), (>))
 
-import Beng.Read.Ops
-import Beng.Read.OpPatterns
-import Beng.Values
+import Beng.Ops (newLiteralOp)
+import Beng.Types.OpPatterns (OpPattern(..))
+import Beng.Types.Ops (OpArg(..), OpDefinition(..), OpValue(..))
 
 import Data.Map (Map, (!))
 import Data.Map.Ordered ((>|))
 import qualified Data.Map.Ordered as OMap (empty, fromList, lookup, elemAt, null, size)
 import Data.Text.Lazy (Text, pack)
+
+-- private utils
 
 e :: OpPattern
 e = OpEmpty
@@ -63,7 +65,7 @@ infixl 5 <
 	argsAndSuffixes = argsAndSuffixes previousDefinition >| (OpArg { argName = argName }, nextPattern) }
 infixl 5 >
 
-(<>=>) :: OpDefinition -> (Map String Value -> Value) -> OpDefinition
+(<>=>) :: OpDefinition -> (Map String OpValue -> OpValue) -> OpDefinition
 (<>=>) definition runner = definition{ runOpWith = runner }
 infixl 1 <>=>
 
@@ -72,20 +74,20 @@ define prefix = OpDefinition { opPrefix = prefix,
 	argsAndSuffixes = OMap.empty,
 	runOpWith = error "This op definition has no runner!" }
 
-standardOps :: [OpDefinition]
--- standardOps = map (\v -> newLiteralOp (show v) v) [2, 3] ++ [
---	-- Augend + Addend
---	OpDefinition { opPrefix = e, argsAndSuffixes = OMap.fromList [
---			(OpArg { argName = "Augend" }, OpAnd [OpSpace, OpLiteral "+", OpSpace]),
---			(OpArg { argName = "Addend" }, OpEmpty)],
---		runOpWith = \args -> args ! "Augend" + args ! "Addend" },
---	-- Minuend - Subtrahend
---	OpDefinition { opPrefix = OpEmpty, argsAndSuffixes = OMap.fromList [
---			(OpArg { argName = "Minuend" }, OpAnd [OpSpace, OpLiteral "-", OpSpace]),
---			(OpArg { argName = "Subtrahend" }, OpEmpty)],
---		runOpWith = \args -> args ! "Minuend" - args ! "Subtrahend" }]
-standardOps = map (\v -> newLiteralOp (show v) v) [2, 3] ++ [
-		define e < "Augend" > s <.> l "+" <.> s < "Addend" > e <>=>
-			\args -> args ! "Augend" + args ! "Addend",
-		define e < "Minuend" > s <.> l "-" <.> s < "Subtrahend" > e <>=>
-			\args -> args ! "Minuend" - args ! "Subtrahend" ]
+-- These builtins are currently placeholders for testing the parsing and running capabilities.
+builtinOps :: [OpDefinition]
+builtinOps =
+	-- Define 2 and 3 as basic operators.
+	map (\v -> newLiteralOp (show v) (IntValue v)) [2, 3] ++ [
+		-- Augend + Addend
+		define e < "Augend" > s <.> l "+" <.> s < "Addend" > e <>=> \args -> do
+			-- It's so annoying that the types of the arguments and the values in here are disjointed,
+			-- losing all type guarantees. This will not be an issue in Beng!
+			let (IntValue augend) = args ! "Augend"
+			let (IntValue addend) = args ! "Addend"
+			IntValue $ augend + addend,
+		-- Minuend - Subtrahend
+		define e < "Minuend" > s <.> l "-" <.> s < "Subtrahend" > e <>=> \args -> do
+			let (IntValue minuend) = args ! "Minuend"
+			let (IntValue subtrahend) = args ! "Subtrahend"
+			IntValue $ minuend - subtrahend ]

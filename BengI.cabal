@@ -15,15 +15,15 @@ extra-source-files:  README.md
 executable BengI
   main-is:           Beng/BengI.hs
   other-modules:
-    Beng.StandardOps,
-    Beng.Values,
-    Beng.Read.OpPatterns,
-    Beng.Read.Ops,
-    Beng.Read.ReadingOps
+    Beng.BuiltinOps
+    Beng.Types.OpPatterns
+    Beng.Types.Ops
+    Beng.Read.OpPatterns
+    Beng.Read.Ops
   ghc-options:       -fno-warn-tabs
   other-extensions:
-    InstanceSigs,
-    OverloadedStrings,
+    InstanceSigs
+    OverloadedStrings
     ScopedTypeVariables
   build-depends:
     base ^>= 4.15.1.0,
@@ -35,12 +35,13 @@ executable BengI
   hs-source-dirs:     src
   default-language:   Haskell2010
 
-test-suite OpPatterns-test
+test-suite ReadingOpPatterns-test
   type:               exitcode-stdio-1.0
   main-is:            Testing/Beng/Read/OpPatterns.hs
   ghc-options:        -fno-warn-tabs
   other-modules:
     Beng.Read.OpPatterns
+    Beng.Types.OpPatterns
   build-depends:
     base ^>= 4.15.1.0,
     Utils ^>= 0.13.0.0,
@@ -53,11 +54,12 @@ test-suite ReadingOps-test
   main-is:            Testing/Beng/Read/ReadingOps.hs
   ghc-options:        -fno-warn-tabs
   other-modules:
-    Beng.Read.OpPatterns
+    Beng.BuiltinOps
+    Beng.Ops
     Beng.Read.Ops
-    Beng.Read.ReadingOps
-    Beng.StandardOps
-    Beng.Values
+    Beng.Read.OpPatterns
+    Beng.Types.OpPatterns
+    Beng.Types.Ops
   build-depends:
     base ^>= 4.15.1.0,
     Utils ^>= 0.13.0.0,

@@ -1,7 +1,6 @@
 {-# LANGUAGE InstanceSigs, OverloadedStrings #-}
 
 module Beng.Read.OpPatterns (
-	OpPattern(..),
 	readAllMatches
 ) where
 
@@ -10,12 +9,11 @@ import Utils.Lists
 import Utils.Messaging
 import Utils.Tuples (mapFst2)
 
+import Beng.Types.OpPatterns (OpPattern(..))
+
 import Data.Char (isAlphaNum, isSpace)
 import Data.Text.Lazy (Text, pack, unpack)
 import qualified Data.Text.Lazy as Text (concat, drop, head, index, isPrefixOf, last, length, splitAt, takeWhile)
-
-data OpPattern = OpEmpty | OpSpace | OpLiteral Text | OpOr [OpPattern] | OpAnd [OpPattern] | OpDelimited String OpPattern
-	deriving (Eq)
 
 -- Theory note: no OpPatterns can contain OpArgs; OpArgs can never be in any kind of "optional" group and will be included in `argsAndSuffixes` rather than `OpAnd`s.
 -- In the future, the Maybe will become a list so that all possible matches can be given and the tuple at the end will include capturing group data (Map String String).
@@ -89,10 +87,3 @@ readAllMatches delimited@(OpDelimited delimiter delimitedGroup) previousCharIsAl
 		let groupNMatches = map (mapFst2 addGroup1AndDelimiter) afterGroup1DelimitedParses
 		group1Match:groupNMatches
 	concat $ map parseDelimitedGroups group1Matches
-
-instance Show OpPattern where
-	show OpEmpty = ""
-	show OpSpace = " "
-	show (OpAnd subpatterns) = foldl (++) "" $ map show subpatterns
-	show (OpLiteral literal) = unpack literal
-	show (OpDelimited delimiter subpattern) = "(" ++ show subpattern ++ "){" ++ wrap "\"" delimiter ++ "}"

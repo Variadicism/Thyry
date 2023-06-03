@@ -1,0 +1,57 @@
+Definitions:
+- op declaration ::= op pattern + return type
+- op definition ::= op declaration + body
+- op ::= op definition + some or all arguments
+
+Builtins:
+
+	builders:
+- declare <op pattern> as <type>         # creates an op declaration
+- define <op pattern> as <type>: <body>  # creates an op definition
+	# body's return type matches type
+- build <preops> with <op declarations>  # applies op declarations & definitions to code to create ops
+- run <op> (with <values>)?              # evaluates ops to obtain values
+	# values' names and types align with op's parameters
+- use (<op patterns> from) <file path>           # imports ops from other files
+
+	op modifiers:
+- right-associative <op definition>
+- priority-(0-255) <op definition>
+- overridden <op definition>
+
+	types:
+- bit
+
+	primitives:
+- 0b0
+- 0b1
+
+	primitive manipulation:
+- <bits> + <bits>
+- <bits> - <bits>
+- <bits> * <bits>
+- <bits> / <bits>
+
+	op patterns:
+- \<parameter>
+- `string`
+- ("<string>"<op pattern>)
++ regex operators
+
+Standard ops:
+
+	builders:
+- ("Name"[\w_][\w_- ]+) := <thing>                # declares a constant
+- ("Name"[\w_][\w_- ]+), a(n?) <type> <- <thing>  # declares a variable
+	# thing should be an instance of Type
+
+	op modifiers:
+- implicit <op definition>
+- associative  # tells the compiler that reordering is okay
+
+	types:
+- thing
+- type
+- list of <type>
+- body  # a type of preops
+- scope  # a type of preops

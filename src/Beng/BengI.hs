@@ -6,10 +6,9 @@ import Utils.Errors
 import Utils.Messaging
 import Utils.Monads
 
-import Beng.Read.OpPatterns
-import Beng.Read.Ops
-import Beng.Read.ReadingOps
-import Beng.StandardOps (standardOps)
+import Beng.BuiltinOps (builtinOps)
+import Beng.Ops (runOp)
+import Beng.Read.Ops (readCode)
 
 import Data.List (intercalate)
 import Data.Text.Lazy (Text)
@@ -21,7 +20,7 @@ import System.IO (IOMode(ReadMode), hPutStrLn, openFile, stderr)
 
 interpret :: Text -> VoidFallible
 interpret code = do
-	opsRead <- falT $ readCode standardOps code
+	opsRead <- falT $ readCode builtinOps code
 	let interpret' opsToRun = do
 		if null opsToRun
 			then void
@@ -35,6 +34,7 @@ readAndInterpret :: FilePath -> VoidFallible
 readAndInterpret bengFilePath = do
 	bengFile <- tryIO $ openFile bengFilePath ReadMode
 	bengCode <- tryIO $ hGetContents bengFile
+	-- TODO: remove this when extraneous whitespace can be allowed anywhere.
 	let bengCodeWithoutTrailingWhitespace =
 		if "\n" `Text.isSuffixOf` bengCode then Text.dropEnd 1 bengCode else bengCode
 	interpret bengCodeWithoutTrailingWhitespace

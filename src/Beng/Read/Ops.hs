@@ -1,107 +1,125 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Beng.Read.Ops (
-	OpDefinition(..),
-	OpArg(..),
-	Op(..),
-	runOp,
-	hasPrefix,
-	showOpParens,
-	newLiteralOp,
+	readOp,
+	readCode
 ) where
 
-import Prelude hiding (lookup)
+import Utils.Errors (toError)
+import Utils.Lists (wrap)
+import Utils.Messaging (debugM, msgShow)
+import Utils.Readers (AllReader, MultiReader)
 
-import Utils.Lists
-import Utils.Messaging
-import Utils.Tuples
+import Beng.Ops (hasPrefix, showOpParens)
+import qualified Beng.Read.OpPatterns as OpPattern
+import Beng.Types.OpPatterns (OpPattern(..))
+import Beng.Types.Ops (Op(..), OpDefinition(..), OpArg(..))
 
-import Beng.Read.OpPatterns (OpPattern(OpEmpty, OpLiteral))
-import Beng.Values
-
-import Data.List (intercalate)
-import Data.List.Extra (replace)
-import Data.Map (Map, lookup)
-import qualified Data.Map as Map (empty, map)
+import Data.Char (isAlphaNum)
+import Data.List (find, intercalate)
+import Data.Map (Map, (!))
+import qualified Data.Map as Map (empty, fromList, insert, size)
 import Data.Map.Ordered (OMap)
-import qualified Data.Map.Ordered as OMap (assocs, empty, null)
-import Data.Text.Lazy (pack)
+import qualified Data.Map.Ordered as OMap (assocs, elemAt, fromList, null, size)
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as Text (index, last, length)
 
--- private utils
+parseTheNextArgAndSuffix ::
+	OpArg -> OpPattern -> [OpDefinition] -> OpDefinition -> Map String Op -> Bool -> MultiReader Op
+parseTheNextArgAndSuffix opArg nextSuffix context definition argsRead prevCharIsAlphanum = \toParse -> do
+	(opRead, afterOp) <- readOp context toParse
+	let newArgsRead = Map.insert (argName opArg) opRead argsRead
+	let stringReadLength = Text.length toParse - Text.length afterOp
+	let lastCharReadIsAlphanum = isAlphaNum $ Text.index toParse stringReadLength
+	readArgsAndSuffixes context definition newArgsRead nextSuffix lastCharReadIsAlphanum afterOp
 
-showOpPrefixOrSuffix :: (OpPattern -> String)
-showOpPrefixOrSuffix = replace "<" "\\<" . replace ">" "\\>" . show
+readArgsAndSuffixes ::
+	[OpDefinition] -> OpDefinition -> Map String Op -> OpPattern -> Bool -> MultiReader Op
+readArgsAndSuffixes context definition argsRead nextPattern prevCharIsAlphanum toParse = do
+	let allNextPatternMatches = OpPattern.readAllMatches nextPattern prevCharIsAlphanum toParse
+	let readRemainingArgsAndSuffixes (textRead, remainder) =
+		case argsAndSuffixes definition `OMap.elemAt` Map.size argsRead of
+			Just (opArg, nextSuffix) ->
+				parseTheNextArgAndSuffix opArg nextSuffix context definition argsRead
+					(isAlphaNum $ Text.last textRead) remainder
+			Nothing ->  -- All args and suffixes were parsed!
+				return (Op {
+					opDefinition = definition,
+					argValues = argsRead }, remainder)
+	concatMap readRemainingArgsAndSuffixes allNextPatternMatches
 
-showArgsAndSuffixesWith :: Map String String -> OMap OpArg OpPattern -> String
-showArgsAndSuffixesWith argReplacements argsAndSuffixes = do
-	let fillOrShowArg arg = do
-		let maybeArgValue = argName arg `lookup` argReplacements
-		maybe (show arg) id maybeArgValue
-	let showArgAndSuffix = toList2 . mapFst2 fillOrShowArg . mapSnd2 showOpPrefixOrSuffix
-	let argsAndSuffixesShown = concat $ map showArgAndSuffix $ OMap.assocs argsAndSuffixes
-	concat $ dropSuffix [""] argsAndSuffixesShown
+readNonPrefixedOp :: [OpDefinition] -> Op -> Bool -> MultiReader Op
+readNonPrefixedOp context firstArgument prevCharIsAlphanum = \toParse -> do
+	let readNonPrefixedOp' remainingNonPrefixedDefs =
+		if null remainingNonPrefixedDefs
+			then []
+		else do
+			let nextDef = head remainingNonPrefixedDefs
+			let (firstOpArgDef, firstSuffix) = head $ OMap.assocs $ argsAndSuffixes nextDef
+			let argsReadFirst = Map.fromList [(argName firstOpArgDef, firstArgument)]
+			let opReadResults = readArgsAndSuffixes context nextDef argsReadFirst firstSuffix
+				prevCharIsAlphanum toParse
+			debugM (if null opReadResults
+				then "Attempting to parse the non-prefixed op " ++ msgShow nextDef ++ " failed."
+				else "Non-prefixed ops were successfully read " ++
+					show (length opReadResults) ++ " way(s).")
+			opReadResults ++ (readNonPrefixedOp' $ tail remainingNonPrefixedDefs)
+	readNonPrefixedOp' $ filter (not . hasPrefix) context
 
-showArgsAndSuffixes :: (OMap OpArg OpPattern -> String)
-showArgsAndSuffixes = showArgsAndSuffixesWith Map.empty
+readPrefixedOp :: [OpDefinition] -> MultiReader Op
+readPrefixedOp context = \toParse -> do
+	let readPrefixedOp' = \case
+		[] -> []
+		(nextDef:remainingPrefixedDefs) -> do
+			let opReadResults = readArgsAndSuffixes context nextDef
+				Map.empty (opPrefix nextDef) False toParse
+			debugM (if null opReadResults
+				then "Attempting to parse the prefixed op " ++ msgShow nextDef ++ " failed."
+				else "Prefixed ops were successfully read " ++
+					show (length opReadResults) ++ " way(s).")
+			opReadResults ++ readPrefixedOp' remainingPrefixedDefs
+	readPrefixedOp' $ filter hasPrefix context
 
-showOpWith :: Map String String -> Op -> String
-showOpWith argReplacements op = (showOpPrefixOrSuffix $ opPrefix $ opDefinition op) ++ (showArgsAndSuffixesWith argReplacements $ argsAndSuffixes $ opDefinition op)
+readOp :: [OpDefinition] -> MultiReader Op
+readOp context = \toParse -> do
+	-- First, we must read an op that has a prefix -- any kind of content before an argument.
+	let allPrefixedOpMatches = readPrefixedOp context toParse
+	-- After that, we can try reading ops without prefixes to see if one uses the first op as its first argument.
+	-- Remember that this is recursive because an op without a prefix can take as its first argument an op without a prefix that takes as its first argument an op without a prefix... indefinitely.
+	let readEnclosingOpOrUseFirstOp enclosedOpResults@(opRead, afterReadOp) = do
+		let opReadEndsWithAlphanum = isAlphaNum $ Text.index toParse
+			(Text.length toParse - Text.length afterReadOp - 1)
+		let enclosingOpReadResults = readNonPrefixedOp context opRead opReadEndsWithAlphanum afterReadOp
+		if null enclosingOpReadResults then do
+			debugM "No enclosing op was found."
+			[enclosedOpResults]
+		else do
+			debugM $ msgShow opRead ++ " can be enclosed " ++
+				show (length enclosingOpReadResults) ++ " way(s)."
+			enclosedOpResults:concatMap readEnclosingOpOrUseFirstOp enclosingOpReadResults
+	concatMap readEnclosingOpOrUseFirstOp allPrefixedOpMatches
 
--- OpArg
+-- TODO: refactor this to return [Fallible [Op]] to give helpful errors when parsing fails.
+readCodePossibilities :: Text -> [OpDefinition] -> [[Op]]
+readCodePossibilities code context = do
+	let readCodePossibilities' code' previousOps = case code' of
+		"" -> [previousOps]
+		_ -> do
+			let opReadResults = readOp context code'
+			let readRemainingCode (opRead, remainingCode) =
+				readCodePossibilities' remainingCode (previousOps ++ [opRead])
+			concatMap readRemainingCode opReadResults
+	readCodePossibilities' code []
 
-data OpArg = OpArg {
-	-- In the future, arg type information will also be kept here.
-	argName :: String }
+readCode :: [OpDefinition] -> AllReader [Op]
+readCode context = \code -> case readCodePossibilities code context of
+	[] -> toError "There was a problem parsing this Beng code!"
+	[onlyRead] -> return onlyRead
+	readPossibilities@(firstPossibility:(_:_)) -> do
+		debugM ("This Beng code is ambiguous! " ++
+			show (length readPossibilities) ++ " ways were found to parse it:\n" ++
+			(intercalate (wrap "\n" $ replicate 20 '#') $
+				map (intercalate "\n" . map showOpParens) readPossibilities))
+		return firstPossibility
 
-instance Show OpArg where
-	show opArg = "<" ++ argName opArg ++ ">"
-
-instance Eq OpArg where
-	(==) opArg1 opArg2 = argName opArg1 == argName opArg2
-
-instance Ord OpArg where
-	(<=) opArg1 opArg2 = argName opArg1 <= argName opArg2
-
--- OpDefinition
-
-data OpDefinition = OpDefinition {
-	opPrefix :: OpPattern,
-	argsAndSuffixes :: OMap OpArg OpPattern,
-	runOpWith :: Map String Value -> Value }
-
-instance Show OpDefinition where
-	show definition = (showOpPrefixOrSuffix $ opPrefix definition) ++ (showArgsAndSuffixes $ argsAndSuffixes definition)
-
--- Op
-
-data Op = Op {
-	opDefinition :: OpDefinition,
-	argValues :: Map String Op }
-
-instance Show Op where
-	show op = showOpWith (Map.map show $ argValues op) op
-
--- utils
-
--- There is a subtly represented but CRUCIAL property of Beng noted here. Notice how running an op returns a value -- JUST a value. It is INFALLIBLE! This should ALWAYS HOLD TRUE! If this language compiles, it should be able to run without EVER throwing an error!! Errors will be handled inside the program and can print messages and close or whatever, but the program CANNOT CRASH!
-runOp :: Op -> Value
-runOp op = runOpWith (opDefinition op) (Map.map runOp $ argValues op)
-
-hasPrefix :: (OpDefinition -> Bool)
-hasPrefix = (OpEmpty/=) . opPrefix
-
-isNullary :: (OpDefinition -> Bool)
-isNullary = OMap.null . argsAndSuffixes
-
-showOpParens :: Op -> String
-showOpParens op = do
-	let showAndParenOpIfNotNullary argOp =
-		if isNullary $ opDefinition argOp
-			then show argOp
-			else "(" ++ showOpParens argOp ++ ")"
-	let argReplacements = Map.map showAndParenOpIfNotNullary $ argValues op
-	showOpWith argReplacements op
-
-newLiteralOp :: String -> Value -> OpDefinition
-newLiteralOp literal value = OpDefinition {
-		opPrefix = OpLiteral $ pack literal,
-		argsAndSuffixes = OMap.empty,
-		runOpWith = const value }
