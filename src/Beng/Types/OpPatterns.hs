@@ -4,6 +4,7 @@ module Beng.Types.OpPatterns (
 
 import Utils.Lists (wrap)
 
+import Data.List (intercalate)
 import Data.Text.Lazy (Text, unpack)
 
 -- types
@@ -22,5 +23,6 @@ instance Show OpPattern where
 	show OpEmpty = ""
 	show OpSpace = " "
 	show (OpAnd subpatterns) = concatMap show subpatterns
+	show (OpOr subpatterns) = intercalate "|" $ map show subpatterns
 	show (OpLiteral literal) = unpack literal
 	show (OpDelimited delimiter subpattern) = "(" ++ show subpattern ++ "){" ++ wrap "\"" delimiter ++ "}"

@@ -107,7 +107,8 @@ builtinOps =
 		defineUsing
 			(declare (l "a") <.> s <.> l ":=" <.> s < ("Value", IntValueType) >
 				s < ("Scope", PreOpValueType) > e)
-			(\args -> Map.singleton "Scope" [define (declare $ l "a") $ const $ args ! "Value"])
+			(\args -> Map.singleton "Scope" [
+				define (declare $ l "a") $ const $ args ! "Value"])
 			\args -> do
 				let (OpOpValue scope) = args ! "Scope"
 				runOp scope ]
