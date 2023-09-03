@@ -10,29 +10,29 @@ import Utils.Testing
 import Beng.Read.OpPatterns (readAllMatches)
 import Beng.Types.OpPatterns (OpPattern(OpLiteral, OpOr))
 
-testOpOr :: Void
-testOpOr = do
-	let readAllOrs = \literals -> readAllMatches (OpOr (map OpLiteral literals)) False
-
-	readAllOrs ["k"] "l" `isNullElse`
-		"OpOr must parse nothing if its subgroup(s) do not prefix the text."
-
-	([("k", "p")], readAllOrs ["k"] "kp") `isEqualElse`
-		"OpOr must parse its only subgroup(s)."
-
-	([("k", "k")], readAllOrs ["k"] "kk") `isEqualElse`
-		"OpOr must parse only the first instance of its subgroup(s)."
-
-	let readAllKsLsOrPs = readAllOrs ["k", "l", "p"]
-
-	([("k", "n")], readAllKsLsOrPs "kn") `isEqualElse`
-		"OpOr must parse its first subgroup."
-
-	([("l", "n")], readAllKsLsOrPs "ln") `isEqualElse`
-		"OpOr must parse its middle subgroup(s)."
-
-	([("p", "n")], readAllKsLsOrPs "pn") `isEqualElse`
-		"OpOr must parse its last subgroup."
-
-	([("", "n")], readAllOrs [] "n") `isEqualElse`
-		"OpOr must parse an empty string if given no subgroups."
+testOpOr :: TestCategory
+testOpOr = PureTests "OpOr" [
+	("read nothing",
+		readAllOrs ["k"] "l" `isNullElse`
+			"OpOr must read nothing if its subpattern(s) do not prefix the text."),
+	("read with remainder",
+		([("k", "p")], readAllOrs ["k"] "kp") `isEqualElse`
+			"OpOr must read its only subpattern(s)."),
+	("read one not repeats",
+		([("k", "k")], readAllOrs ["k"] "kk") `isEqualElse`
+			"OpOr must read only the first instance of its subpattern(s)."),
+	("read first subpattern",
+		([("k", "n")], readAllKsLsOrPs "kn") `isEqualElse`
+			"OpOr must read its first subpattern."),
+	("read middle subpattern",
+		([("l", "n")], readAllKsLsOrPs "ln") `isEqualElse`
+			"OpOr must read its middle subpattern(s)."),
+	("read last subpattern",
+		([("p", "n")], readAllKsLsOrPs "pn") `isEqualElse`
+			"OpOr must read its last subpattern."),
+	("read empty when empty",
+		([("", "n")], readAllOrs [] "n") `isEqualElse`
+			"OpOr must read an empty string if given no subpatterns.") ]
+	where
+		readAllOrs = \literals -> readAllMatches (OpOr (map OpLiteral literals)) False
+		readAllKsLsOrPs = readAllOrs ["k", "l", "p"]

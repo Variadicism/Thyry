@@ -5,6 +5,7 @@ module Main where
 
 import Prelude hiding ((<), (>))
 
+import Utils.Errors
 import Utils.Monads (void)
 import Utils.Testing
 
@@ -54,7 +55,7 @@ main = do
 	let aReadPossibilities = readOp mockContext oneNullaryOpCode
 	(length aReadPossibilities, 1) `isEqualElse` "This mock code should have been parsed as one nullary op!"
 	let (aRead, afterA) = head aReadPossibilities
-	(Map.null $ argValues aRead) `isTrueElse` "The op parsed should have been nullary!"
+	assert (Map.null $ argValues aRead) "The op parsed should have been nullary!"
 	(getRunValue aRead, aValue) `isEqualElse` "The one op parsed did not have the expected run value!"
 	("", afterA) `isEqualElse` "There should be no code remaining after parsing code with one nullary mock op!"
 
@@ -63,7 +64,7 @@ main = do
 	(1, length aPrefixReadPossibilities) `isEqualElse` "There should have only been one possibility when reading one code beginning with an op and ending with junk!"
 	let (aPrefixRead, afterAPrefix) = head aPrefixReadPossibilities
 	(aValue, getRunValue aPrefixRead) `isEqualElse` "The op read from mock code starting with a mock op and ending with junk did not have the expected run value!"
-	(Map.null $ argValues aPrefixRead) `isTrueElse` "A mock op should have been read from code starting with a mock op and ending with junk without accepting any arguments!"
+	assert (Map.null $ argValues aPrefixRead) "A mock op should have been read from code starting with a mock op and ending with junk without accepting any arguments!"
 	(" j", afterAPrefix) `isEqualElse` "All text after the mock up should be given as the remainder after reading the first mock op!"
 
 	-- Return no parses if the code does not start with a known op.
@@ -74,20 +75,20 @@ main = do
 
 	-- readCode
 	-- Read one nullary op from all code.
-	let errorOrOneOpRead = readCode mockContext oneNullaryOpCode
-	errorOrOneOpRead `orFail` "The mock code with one nullary op should have been parsed successfully!"
+	errorOrOneOpRead <- prependToError "The mock code with one nullary op should have been parsed successfully: " $
+		readCode mockContext oneNullaryOpCode
 	let Right onlyOpRead = errorOrOneOpRead
 	([aValue], map getRunValue onlyOpRead) `isEqualElse` "The mock code's singular op's run value was not the one expected!"
 
 	-- Read two nullary ops from all code.
-	let errorOrABReadCode = readCode mockContext twoNullaryOpCode
-	errorOrABReadCode `orFail` "The mock code with two nullary ops should have been parsed successfully!"
+	errorOrABReadCode <- prependToError "The mock code with two nullary ops should have been parsed successfully: " $
+		readCode mockContext twoNullaryOpCode
 	let Right abReadCode = errorOrABReadCode
 	([aValue, bValue], map getRunValue abReadCode) `isEqualElse` "The mock ops parsed from the mock code with two nullary mock ops should have had the expected run values!"
 
 	-- Read no ops for an empty code string.
-	let errorOrEmptyReadCode = readCode mockContext ""
-	errorOrEmptyReadCode `orFail` "Reading empty code should not result in an error!"
+	errorOrEmptyReadCode <- prependToError "Reading empty code should not result in an error: " $
+		readCode mockContext ""
 	let Right emptyReadCode = errorOrEmptyReadCode
 	emptyReadCode `isNullElse` "Reading empty code should result in an empty list of ops!"
 

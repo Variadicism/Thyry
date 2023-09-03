@@ -10,21 +10,21 @@ import Utils.Testing
 import Beng.Read.OpPatterns (readAllMatches)
 import Beng.Types.OpPatterns (OpPattern(OpAnd, OpLiteral))
 
-testOpAnd :: Void
-testOpAnd = do
-	let readAllAnds = \literals -> readAllMatches (OpAnd (map OpLiteral literals)) False
-
-	readAllAnds ["k"] "l" `isNullElse`
-		"OpAnd must parse nothing if its subgroup(s) do not prefix the text."
-
-	([("k", "p")], readAllAnds ["k"] "kp") `isEqualElse`
-		"OpAnd must parse its only subgroup(s)."
-
-	([("k", "k")], readAllAnds ["k"] "kk") `isEqualElse`
-		"OpAnd must parse only the first instance of its subgroup(s)."
-
-	([("klp", "n")], readAllAnds ["k", "l", "p"] "klpn") `isEqualElse`
-		"OpAnd must parse all of its subgroups."
-
-	([("", "n")], readAllAnds [] "n") `isEqualElse`
-		"OpAnd must parse an empty string if given no subgroups."
+testOpAnd :: TestCategory
+testOpAnd = PureTests "OpAnd" [
+	("no read",
+		readAllAnds ["k"] "l" `isNullElse`
+			"OpAnd must read nothing if its subpattern(s) do not prefix the text."),
+	("one subpattern",
+		([("k", "p")], readAllAnds ["k"] "kp") `isEqualElse`
+			"OpAnd must read its only subpattern(s)."),
+	("no repeats",
+		([("k", "k")], readAllAnds ["k"] "kk") `isEqualElse`
+			"OpAnd must read only the first instance of its subpattern(s)."),
+	("multiple subpatterns",
+		([("klp", "n")], readAllAnds ["k", "l", "p"] "klpn") `isEqualElse`
+			"OpAnd must read all of its subpatterns."),
+	("no subpatterns",
+		([("", "n")], readAllAnds [] "n") `isEqualElse`
+			"OpAnd must read an empty string if given no subpatterns.") ]
+	where readAllAnds = \literals -> readAllMatches (OpAnd (map OpLiteral literals)) False

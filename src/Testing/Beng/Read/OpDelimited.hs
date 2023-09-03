@@ -10,24 +10,24 @@ import Utils.Testing
 import Beng.Read.OpPatterns (readAllMatches)
 import Beng.Types.OpPatterns (OpPattern(OpDelimited, OpLiteral))
 
-testOpDelimited :: Void
-testOpDelimited = do
-	let readCommaPs = readAllMatches (OpDelimited "," (OpLiteral "p")) True
-
-	readCommaPs "k" `isNullElse`
-		"OpDelimited must parse nothing if its subgroup does not prefix the text."
-
-	readCommaPs ",p,p" `isNullElse`
-		"OpDelimited must parse nothing if its delimited prefixes the text and the subgroup cannot match an empty string."
-
-	([("p", "")], readCommaPs "p") `isEqualElse`
-		"OpDelimited must parse an instance of its subgroup first."
-
-	([("p", "p")], readCommaPs "pp") `isEqualElse`
-		"OpDelimited must parse only the first instance of its subgroup if the next instance is not preceded by the delimiter."
-
-	([("p", ",pp"), ("p,p", "p")], readCommaPs "p,pp") `isEqualElse`
-		"OpDelimited must parse multiple instances of its subgroup delimited by the given delimiter with each subgroup instances creating a new possible parsing."
-
-	([("p", ",p,p"), ("p,p", ",p"), ("p,p,p", "")], readCommaPs "p,p,p") `isEqualElse`
-		"OpDelimited must parse all instances -- even if more than 2 -- of its subgroup delimited right up to the end of the string."
+testOpDelimited :: TestCategory
+testOpDelimited = PureTests "OpDelimited" [
+	("no read",
+		readCommaPs "k" `isNullElse`
+			"OpDelimited must read nothing if its subpattern does not prefix the text."),
+	("no read while delimited",
+		readCommaPs ",p,p" `isNullElse`
+			"OpDelimited must read nothing if its delimited prefixes the text and the subpattern cannot match an empty string."),
+	("read one subpattern",
+		([("p", "")], readCommaPs "p") `isEqualElse`
+			"OpDelimited must read an instance of its subpattern first."),
+	("read one without delimiters",
+		([("p", "p")], readCommaPs "pp") `isEqualElse`
+			"OpDelimited must read only the first instance of its subgroup if the next instance is not preceded by the delimiter."),
+	("read both options with 2 delimited subpatterns",
+		([("p", ",pp"), ("p,p", "p")], readCommaPs "p,pp") `isEqualElse`
+			"OpDelimited must read multiple instances of its subgroup delimited by the given delimiter with each subgroup instances creating a new possible parsing."),
+	("read all options with 3+ delimited subpatterns",
+		([("p", ",p,p"), ("p,p", ",p"), ("p,p,p", "")], readCommaPs "p,p,p") `isEqualElse`
+			"OpDelimited must read all instances -- even if more than 2 -- of its subgroup delimited right up to the end of the string.") ]
+	where readCommaPs = readAllMatches (OpDelimited "," (OpLiteral "p")) True

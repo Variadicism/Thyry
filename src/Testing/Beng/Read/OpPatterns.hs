@@ -10,10 +10,10 @@ import Testing.Beng.Read.OpOr (testOpOr)
 import Testing.Beng.Read.OpAnd (testOpAnd)
 import Testing.Beng.Read.OpDelimited (testOpDelimited)
 
-main = do
-	testOpEmpty
-	testOpLiteral
-	testOpSpace
-	testOpOr
-	testOpAnd
-	testOpDelimited
+main = test $ TestCategories "reading OpPatterns" [
+	testOpEmpty,
+	testOpLiteral,
+	testOpSpace,
+	testOpOr,
+	testOpAnd,
+	testOpDelimited ]

@@ -28,7 +28,7 @@ executable BengI
     ScopedTypeVariables
   build-depends:
     base ^>= 4.15.1.0,
-    Utils ^>= 0.13.0.0,
+    Utils ^>= 0.14.2.0,
     containers ^>= 0.6.4.1,
     extra ^>= 1.7.10,
     ordered-containers ^>= 0.2.2,
@@ -51,7 +51,7 @@ test-suite reading-OpPatterns-test
     Testing.Beng.Read.OpSpace
   build-depends:
     base ^>= 4.15.1.0,
-    Utils ^>= 0.13.0.0,
+    Utils ^>= 0.14.2.0,
     text ^>= 1.2.4.1
   hs-source-dirs:     src
   default-language:   Haskell2010
@@ -69,7 +69,7 @@ test-suite building-Ops-test
     Beng.Types.Ops
   build-depends:
     base ^>= 4.15.1.0,
-    Utils ^>= 0.13.0.0,
+    Utils ^>= 0.14.2.0,
     containers ^>= 0.6.4.1,
     extra ^>= 1.7.10,
     ordered-containers ^>= 0.2.2,
