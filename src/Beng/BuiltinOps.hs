@@ -13,7 +13,7 @@ module Beng.BuiltinOps (
 	declare
 ) where
 
-import Prelude hiding ((<), (>))
+import Prelude hiding ((<), (>), subtract)
 
 import Beng.Ops (newLiteralOp, runOp)
 import Beng.Types.OpPatterns (OpPattern(..))
@@ -25,7 +25,7 @@ import Data.Map.Ordered ((>|))
 import qualified Data.Map.Ordered as OMap (empty, elemAt, null, size)
 import Data.Text.Lazy (Text)
 
--- private utils
+-- builders
 
 e :: OpPattern
 e = OpEmpty
@@ -69,42 +69,55 @@ infixl 5 >
 defineUsing :: OpDeclaration -> PreOpContextsBuilder -> OpRunner -> OpDefinition
 defineUsing = OpDefinition
 
-define :: OpDeclaration -> OpRunner -> OpDefinition
-define declaration runner = defineUsing declaration (const Map.empty) runner
+define :: OpDeclaration -> (OpRunner -> OpDefinition)
+define declaration = defineUsing declaration (const Map.empty)
 
 declare :: OpPattern -> OpDeclaration
 declare prefix = OpDeclaration {
 	opPrefix = prefix,
 	opArgsAndSuffixes = OMap.empty }
 
+-- builtin ops
+
+-- These primitive builtins are placeholders for testing.
+
+two :: OpDefinition
+two = newLiteralOp "2" $ IntValue 2
+
+three :: OpDefinition
+three = newLiteralOp "3" $ IntValue 3
+
+add :: OpDefinition
+add = define
+	(declare e < ("Augend", IntValueType) > s <.> l "+" <.> s < ("Addend", IntValueType) > e)
+	\args -> do
+		-- It's so annoying that the types of the arguments and the values in here are disjointed,
+		-- losing all type guarantees. This will not be an issue in Beng! :)
+		let (IntValue augend) = args ! "Augend"
+		let (IntValue addend) = args ! "Addend"
+		IntValue $ augend + addend
+
+subtract :: OpDefinition
+subtract = define
+	(declare e < ("Minuend", IntValueType) > s <.> l "-" <.> s < ("Subtrahend", IntValueType) > e)
+	\args -> do
+		let (IntValue minuend) = args ! "Minuend"
+		let (IntValue subtrahend) = args ! "Subtrahend"
+		IntValue $ minuend - subtrahend
+
+declareVarA :: OpDefinition  -- a := 'Value' 'Scope'
+declareVarA = defineUsing
+	(declare (l "a") <.> s <.> l ":=" <.> s < ("Value", IntValueType) >
+		s < ("Scope", PreOpValueType) > e)
+	(\args -> Map.singleton "Scope" [
+		define (declare $ l "a") $ const $ args ! "Value"])
+	\args -> do
+		let (OpOpValue scope) = args ! "Scope"
+		runOp scope
+
 -- These builtins are currently placeholders for testing the parsing and running capabilities.
 builtinOps :: [OpDefinition]
-builtinOps =
-	-- Define 2 and 3 as basic operators.
-	map (\v -> newLiteralOp (show v) (IntValue v)) [2, 3] ++ [
-		-- Augend + Addend
-		define
-			(declare e < ("Augend", IntValueType) > s <.> l "+" <.> s < ("Addend", IntValueType) > e)
-			\args -> do
-				-- It's so annoying that the types of the arguments and the values in here are disjointed,
-				-- losing all type guarantees. This will not be an issue in Beng!
-				let (IntValue augend) = args ! "Augend"
-				let (IntValue addend) = args ! "Addend"
-				IntValue $ augend + addend,
-		-- Minuend - Subtrahend
-		define
-			(declare e < ("Minuend", IntValueType) > s <.> l "-" <.> s < ("Subtrahend", IntValueType) > e)
-			\args -> do
-				let (IntValue minuend) = args ! "Minuend"
-				let (IntValue subtrahend) = args ! "Subtrahend"
-				IntValue $ minuend - subtrahend,
-		-- a := Value SCOPE
-		-- TODO: Scope should be a list of preops, but lists will come later.
-		defineUsing
-			(declare (l "a") <.> s <.> l ":=" <.> s < ("Value", IntValueType) >
-				s < ("Scope", PreOpValueType) > e)
-			(\args -> Map.singleton "Scope" [
-				define (declare $ l "a") $ const $ args ! "Value"])
-			\args -> do
-				let (OpOpValue scope) = args ! "Scope"
-				runOp scope ]
+builtinOps = [
+	two, three,
+	add, subtract,
+	declareVarA ]
