@@ -1,8 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Beng.Read.Ops (
 	readOp,
 	readCode
@@ -19,17 +14,16 @@ import Beng.Types.OpPatterns (OpPattern(..))
 import Beng.Types.Ops (Op(..), OpDefinition(..), OpDeclaration(..), OpArg(..))
 
 import Data.Char (isAlphaNum)
-import Data.List (find, intercalate)
-import Data.Map (Map, (!))
+import Data.List (intercalate)
+import Data.Map (Map)
 import qualified Data.Map as Map (empty, fromList, insert, size)
-import Data.Map.Ordered (OMap)
-import qualified Data.Map.Ordered as OMap (assocs, elemAt, fromList, null, size)
+import qualified Data.Map.Ordered as OMap (assocs, elemAt)
 import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as Text (index, last, length)
+import qualified Data.Text.Lazy as Text (index, length)
 
 parseTheNextArgAndSuffix ::
-	OpArg -> OpPattern -> [OpDefinition] -> OpDefinition -> Map String Op -> Bool -> MultiReader Op
-parseTheNextArgAndSuffix opArg nextSuffix context definition argsRead prevCharIsAlphanum = \toParse -> do
+	OpArg -> OpPattern -> [OpDefinition] -> OpDefinition -> Map String Op -> MultiReader Op
+parseTheNextArgAndSuffix opArg nextSuffix context definition argsRead = \toParse -> do
 	(opRead, afterOp) <- readOp context toParse
 	let newArgsRead = Map.insert (argName opArg) opRead argsRead
 	let stringReadLength = Text.length toParse - Text.length afterOp
@@ -41,11 +35,10 @@ readArgsAndSuffixes ::
 readArgsAndSuffixes context definition@OpDefinition{opDeclaration=OpDeclaration{..}}
 		argsRead nextPattern prevCharIsAlphanum toParse = do
 	let allNextPatternMatches = OpPattern.readAllMatches nextPattern prevCharIsAlphanum toParse
-	let readRemainingArgsAndSuffixes (textRead, remainder) =
+	let readRemainingArgsAndSuffixes (_, remainder) =
 		case opArgsAndSuffixes `OMap.elemAt` Map.size argsRead of
 			Just (opArg, nextSuffix) ->
-				parseTheNextArgAndSuffix opArg nextSuffix context definition argsRead
-					(isAlphaNum $ Text.last textRead) remainder
+				parseTheNextArgAndSuffix opArg nextSuffix context definition argsRead remainder
 			Nothing ->  -- All args and suffixes were parsed!
 				return (Op {
 					opDefinition = definition,

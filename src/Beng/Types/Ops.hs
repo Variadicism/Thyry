@@ -1,5 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
-
 module Beng.Types.Ops (
 	Op(..),
 	OpValuePrimitiveType(..),

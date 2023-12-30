@@ -1,19 +1,54 @@
 cabal-version: 2.4
-name:                BengI
-version:             0.3.0.1
-synopsis:            This is the interpreter for the Beng programming language.
+name: BengI
+version: 0.3.0.2
+synopsis: This is the interpreter for the Beng programming language.
 -- description:
-license:             Artistic-2.0
-license-file:        LICENSE
-author:              Variadicism (Connor Davey)
-maintainer:          conman.davey@gmail.com
-copyright:           Beng 2016-2023
-category:            Language
-build-type:          Simple
-extra-source-files:  README.md
+license: Artistic-2.0
+license-file: LICENSE
+author: Variadicism (Connor Davey)
+maintainer: conman.davey@gmail.com
+copyright: Beng 2016-2023
+category: Language
+build-type: Simple
+extra-source-files: README.md
+
+common options
+  build-depends:
+    base ^>= 4.17.0.0,
+    Utils ^>= 0.16,
+    containers ^>= 0.6.7,
+    extra ^>= 1.7.14,
+    ordered-containers ^>= 0.2.1,
+    text ^>= 2.0.2
+  default-extensions:
+    BlockArguments,
+    DataKinds,
+    DeriveLift,
+    DuplicateRecordFields,
+    ExistentialQuantification,
+    FlexibleInstances,
+    LambdaCase,
+    LiberalTypeSynonyms,
+    NamedFieldPuns,
+    OverloadedRecordDot,
+    -- OverloadedRecordUpdate,
+    OverloadedStrings,
+    InstanceSigs,
+    PackageImports,
+    QuasiQuotes,
+    RecordWildCards,
+    ScopedTypeVariables,
+    TemplateHaskellQuotes,
+    TupleSections,
+    TypeSynonymInstances,
+    UndecidableInstances
+  ghc-options: -W -Wno-tabs -Werror
+  hs-source-dirs: src
+  default-language: Haskell2010
 
 executable BengI
-  main-is:           Beng/BengI.hs
+  import: options
+  main-is: Beng/BengI.hs
   other-modules:
     Beng.BuiltinOps
     Beng.Ops
@@ -21,25 +56,11 @@ executable BengI
     Beng.Types.Ops
     Beng.Read.OpPatterns
     Beng.Read.Ops
-  ghc-options:       -fno-warn-tabs
-  other-extensions:
-    InstanceSigs
-    OverloadedStrings
-    ScopedTypeVariables
-  build-depends:
-    base ^>= 4.15.1.0,
-    Utils ^>= 0.14.2.0,
-    containers ^>= 0.6.4.1,
-    extra ^>= 1.7.10,
-    ordered-containers ^>= 0.2.2,
-    text ^>= 1.2.4.1,
-  hs-source-dirs:     src
-  default-language:   Haskell2010
 
 test-suite reading-OpPatterns-test
-  type:               exitcode-stdio-1.0
-  main-is:            Testing/Beng/Read/OpPatterns.hs
-  ghc-options:        -fno-warn-tabs
+  import: options
+  type: exitcode-stdio-1.0
+  main-is: Testing/Beng/Read/OpPatterns.hs
   other-modules:
     Beng.Read.OpPatterns
     Beng.Types.OpPatterns
@@ -49,17 +70,11 @@ test-suite reading-OpPatterns-test
     Testing.Beng.Read.OpLiteral
     Testing.Beng.Read.OpOr
     Testing.Beng.Read.OpSpace
-  build-depends:
-    base ^>= 4.15.1.0,
-    Utils ^>= 0.14.2.0,
-    text ^>= 1.2.4.1
-  hs-source-dirs:     src
-  default-language:   Haskell2010
 
 test-suite building-Ops-test
-  type:               exitcode-stdio-1.0
-  main-is:            Testing/Beng/Build/Ops.hs
-  ghc-options:        -fno-warn-tabs
+  import: options
+  type: exitcode-stdio-1.0
+  main-is: Testing/Beng/Build/Ops.hs
   other-modules:
     Beng.BuiltinOps
     Beng.Ops
@@ -67,12 +82,3 @@ test-suite building-Ops-test
     Beng.Read.OpPatterns
     Beng.Types.OpPatterns
     Beng.Types.Ops
-  build-depends:
-    base ^>= 4.15.1.0,
-    Utils ^>= 0.14.2.0,
-    containers ^>= 0.6.4.1,
-    extra ^>= 1.7.10,
-    ordered-containers ^>= 0.2.2,
-    text ^>= 1.2.4.1
-  hs-source-dirs:     src
-  default-language:   Haskell2010

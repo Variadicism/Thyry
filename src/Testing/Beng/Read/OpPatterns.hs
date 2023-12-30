@@ -1,6 +1,5 @@
 module Main where
 
-import Utils.Errors (Error)
 import Utils.Testing
 
 import Testing.Beng.Read.OpEmpty (testOpEmpty)

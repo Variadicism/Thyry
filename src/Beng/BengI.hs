@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
-
 module Main where
 
 import Utils.Errors
@@ -10,20 +8,19 @@ import Beng.BuiltinOps (builtinOps)
 import Beng.Ops (runOp)
 import Beng.Read.Ops (readCode)
 
-import Data.List (intercalate)
 import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as Text (dropEnd, isSuffixOf, null)
+import qualified Data.Text.Lazy as Text (dropEnd, isSuffixOf)
 import Data.Text.Lazy.IO (hGetContents)
 
 import System.Environment (getArgs)
-import System.IO (IOMode(ReadMode), hPutStrLn, openFile, stderr)
+import System.IO (IOMode(ReadMode), openFile)
 
 interpret :: Text -> VoidFallible
 interpret code = do
 	opsRead <- falT $ readCode builtinOps code
 	let interpret' opsToRun = do
 		if null opsToRun
-			then void
+			then return ()
 		else do
 			let result = runOp $ head opsToRun
 			putStrLn $ show result

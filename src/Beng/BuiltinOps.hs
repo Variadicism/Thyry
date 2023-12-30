@@ -1,7 +1,3 @@
-{-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
-
 module Beng.BuiltinOps (
 	builtinOps,
 	e,
@@ -23,11 +19,11 @@ import Beng.Ops (newLiteralOp, runOp)
 import Beng.Types.OpPatterns (OpPattern(..))
 import Beng.Types.Ops (OpArg(..), OpDefinition(..), OpDeclaration(..), OpRunner, OpValue(..), OpValuePrimitiveType(..), PreOpContextsBuilder)
 
-import Data.Map (Map, (!))
+import Data.Map ((!))
 import qualified Data.Map as Map
 import Data.Map.Ordered ((>|))
-import qualified Data.Map.Ordered as OMap (empty, fromList, lookup, elemAt, null, size)
-import Data.Text.Lazy (Text, pack)
+import qualified Data.Map.Ordered as OMap (empty, elemAt, null, size)
+import Data.Text.Lazy (Text)
 
 -- private utils
 

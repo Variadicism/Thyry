@@ -1,10 +1,7 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Testing.Beng.Read.OpOr (
 	testOpOr
 ) where
 
-import Utils.Monads
 import Utils.Testing
 
 import Beng.Read.OpPatterns (readAllMatches)

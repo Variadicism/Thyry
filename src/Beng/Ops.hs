@@ -1,5 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
-
 module Beng.Ops (
 	runOp,
 	hasPrefix,
@@ -10,19 +8,11 @@ module Beng.Ops (
 
 import Prelude hiding (lookup)
 
-import Utils.Lists
-import Utils.Messaging
-import Utils.Tuples
-
 import Beng.Types.OpPatterns (OpPattern(..))
 import Beng.Types.Ops (Op(..), OpValue, OpDeclaration(..), OpDefinition(..), showOpWith)
 
-import Data.List (intercalate)
-import Data.List.Extra (replace)
-import Data.Map (Map, lookup)
 import qualified Data.Map as Map (empty, map)
-import Data.Map.Ordered (OMap)
-import qualified Data.Map.Ordered as OMap (assocs, empty, null)
+import qualified Data.Map.Ordered as OMap (empty, null)
 import Data.Text.Lazy (pack)
 
 -- builtins
