@@ -27,4 +27,4 @@ testOpDelimited = PureTests "OpDelimited" [
 	("read all options with 3+ delimited subpatterns",
 		([("p", ",p,p"), ("p,p", ",p"), ("p,p,p", "")], readCommaPs "p,p,p") `isEqualElse`
 			"OpDelimited must read all instances -- even if more than 2 -- of its subgroup delimited right up to the end of the string.") ]
-	where readCommaPs = readAllMatches (OpDelimited "," (OpLiteral "p")) True
+	where readCommaPs = readAllMatches (OpDelimited (OpLiteral ",") (OpLiteral "p")) True

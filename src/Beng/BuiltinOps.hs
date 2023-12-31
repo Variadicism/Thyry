@@ -51,7 +51,7 @@ andPatterns previousPattern nextPattern = OpAnd [previousPattern, nextPattern]
 		previousDec{ opArgsAndSuffixes = newArgsAndSuffixes }
 infixl 5 <.>
 
-(<*+>) :: (OpPattern -> String -> OpPattern)  -- OpDelimited
+(<*+>) :: (OpPattern -> OpPattern -> OpPattern)  -- OpDelimited
 (<*+>) = flip OpDelimited
 infixl 7 <*+>
 
