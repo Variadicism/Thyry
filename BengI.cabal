@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name: BengI
-version: 0.3.0.3
+version: 0.3.0.4
 synopsis: This is the interpreter for the Beng programming language.
 -- description:
 license: Artistic-2.0
@@ -52,10 +52,16 @@ executable BengI
   other-modules:
     Beng.BuiltinOps
     Beng.Ops
+    Beng.Read.OpPatterns
+    Beng.Read.OpPatterns.OpAnd
+    Beng.Read.OpPatterns.OpDelimited
+    Beng.Read.OpPatterns.OpEmpty
+    Beng.Read.OpPatterns.OpLiteral
+    Beng.Read.OpPatterns.OpOr
+    Beng.Read.OpPatterns.OpSpace
+    Beng.Read.Ops
     Beng.Types.OpPatterns
     Beng.Types.Ops
-    Beng.Read.OpPatterns
-    Beng.Read.Ops
 
 test-suite reading-OpPatterns-test
   import: options
@@ -63,6 +69,12 @@ test-suite reading-OpPatterns-test
   main-is: Testing/Beng/Read/OpPatterns.hs
   other-modules:
     Beng.Read.OpPatterns
+    Beng.Read.OpPatterns.OpAnd
+    Beng.Read.OpPatterns.OpDelimited
+    Beng.Read.OpPatterns.OpEmpty
+    Beng.Read.OpPatterns.OpLiteral
+    Beng.Read.OpPatterns.OpOr
+    Beng.Read.OpPatterns.OpSpace
     Beng.Types.OpPatterns
     Testing.Beng.Read.OpAnd
     Testing.Beng.Read.OpDelimited
@@ -80,5 +92,11 @@ test-suite building-Ops-test
     Beng.Ops
     Beng.Read.Ops
     Beng.Read.OpPatterns
+    Beng.Read.OpPatterns.OpAnd
+    Beng.Read.OpPatterns.OpDelimited
+    Beng.Read.OpPatterns.OpEmpty
+    Beng.Read.OpPatterns.OpLiteral
+    Beng.Read.OpPatterns.OpOr
+    Beng.Read.OpPatterns.OpSpace
     Beng.Types.OpPatterns
     Beng.Types.Ops
