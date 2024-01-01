@@ -4,7 +4,7 @@ import Utils.Errors
 import Utils.Messaging
 import Utils.Monads
 
-import Beng.BuiltinOps (builtinOps)
+import Beng.BuiltinOps (builtinContext)
 import Beng.Ops (runOp)
 import Beng.Read.Ops (readCode)
 
@@ -17,7 +17,7 @@ import System.IO (IOMode(ReadMode), openFile)
 
 interpret :: Text -> VoidFallible
 interpret code = do
-	opsRead <- falT $ readCode builtinOps code
+	opsRead <- falT $ readCode builtinContext code
 	let interpret' opsToRun = do
 		if null opsToRun
 			then return ()

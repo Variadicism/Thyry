@@ -72,10 +72,11 @@ data OpArg = OpArg {
 	argName :: String,
 	argPrimitiveType :: OpValuePrimitiveType }
 
--- TODO: when ops can be declared dynamically, this will be the same for builtins, but will need locational metadata for dynamic ones.
 data OpDeclaration = OpDeclaration {
 	opPrefix :: OpPattern,
 	opArgsAndSuffixes :: OMap OpArg OpPattern }
+	-- When OpDeclarations can be dynamic, equality will include location.
+	deriving (Eq)
 
 type OpArgValues = Map String OpValue
 

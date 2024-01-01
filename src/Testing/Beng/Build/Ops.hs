@@ -7,6 +7,7 @@ import Utils.Testing
 
 import Beng.BuiltinOps (e, l, (<), (>), declare, define)
 import Beng.Read.Ops (readOp, readCode)
+import Beng.Read.Types.Context (Context(..))
 import Beng.Types.Ops (Op(..), OpDefinition(..), OpValue(..), OpValuePrimitiveType(..))
 
 import Data.Map ((!))
@@ -19,16 +20,23 @@ aValue = 2
 bValue :: Int
 bValue = 4
 
-mockContext :: [OpDefinition]
-mockContext = [
+divide :: OpDefinition
+divide = define
+	(declare e < ("Dividend", IntValueType) > l "/" < ("Divisor", IntValueType) > e)
+	\args -> do
+		let (IntValue dividend) = args ! "Dividend"
+		let (IntValue divisor) = args ! "Divisor"
+		IntValue $ dividend `div` divisor 
+
+mockDefinitions :: [OpDefinition]
+mockDefinitions = [
 	define (declare $ l "a") \_ -> IntValue aValue,
 	define (declare $ l "b") \_ -> IntValue bValue,
-	define
-		(declare e < ("Dividend", IntValueType) > l "/" < ("Divisor", IntValueType) > e)
-		\args -> do
-			let (IntValue dividend) = args ! "Dividend"
-			let (IntValue divisor) = args ! "Divisor"
-			IntValue $ dividend `div` divisor ]
+	divide ]
+
+mockContext = Context {
+	precedence = [[divide.opDeclaration]],
+	definitions = mockDefinitions }
 
 oneNullaryOpCode = "a"
 

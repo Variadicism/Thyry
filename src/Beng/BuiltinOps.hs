@@ -1,5 +1,7 @@
 module Beng.BuiltinOps (
 	builtinOps,
+	builtinPrecedence,
+	builtinContext,
 	e,
 	s,
 	l,
@@ -16,6 +18,7 @@ module Beng.BuiltinOps (
 import Prelude hiding ((<), (>), subtract)
 
 import Beng.Ops (newLiteralOp, runOp)
+import Beng.Read.Types.Context (Context(..))
 import Beng.Types.OpPatterns (OpPattern(..))
 import Beng.Types.Ops (OpArg(..), OpDefinition(..), OpDeclaration(..), OpRunner, OpValue(..), OpValuePrimitiveType(..), PreOpContextsBuilder)
 
@@ -121,3 +124,14 @@ builtinOps = [
 	two, three,
 	add, subtract,
 	declareVarA ]
+
+builtinPrecedence :: [[OpDeclaration]]
+builtinPrecedence = map (map opDeclaration) [
+	[declareVarA],       -- When the scope constructor is ready, this precedence may decrease.
+	[add, subtract]]     -- Of course these have the same precedence.
+-- Only ops lacking a prefix or suffix need precedence.
+
+builtinContext :: Context
+builtinContext = Context {
+	precedence = builtinPrecedence,
+	definitions = builtinOps }

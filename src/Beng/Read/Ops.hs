@@ -10,6 +10,7 @@ import Utils.Readers (AllReader, MultiReader)
 
 import Beng.Ops (hasPrefix, showOpParens)
 import qualified Beng.Read.OpPatterns as OpPattern
+import Beng.Read.Types.Context (Context(..))
 import Beng.Types.OpPatterns (OpPattern(..))
 import Beng.Types.Ops (Op(..), OpDefinition(..), OpDeclaration(..), OpArg(..))
 
@@ -22,7 +23,7 @@ import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text (index, length)
 
 parseTheNextArgAndSuffix ::
-	OpArg -> OpPattern -> [OpDefinition] -> OpDefinition -> Map String Op -> MultiReader Op
+	OpArg -> OpPattern -> Context -> OpDefinition -> Map String Op -> MultiReader Op
 parseTheNextArgAndSuffix opArg nextSuffix context definition argsRead = \toParse -> do
 	(opRead, afterOp) <- readOp context toParse
 	let newArgsRead = Map.insert (argName opArg) opRead argsRead
@@ -31,7 +32,7 @@ parseTheNextArgAndSuffix opArg nextSuffix context definition argsRead = \toParse
 	readArgsAndSuffixes context definition newArgsRead nextSuffix lastCharReadIsAlphanum afterOp
 
 readArgsAndSuffixes ::
-	[OpDefinition] -> OpDefinition -> Map String Op -> OpPattern -> Bool -> MultiReader Op
+	Context -> OpDefinition -> Map String Op -> OpPattern -> Bool -> MultiReader Op
 readArgsAndSuffixes context definition@OpDefinition{opDeclaration=OpDeclaration{..}}
 		argsRead nextPattern prevCharIsAlphanum toParse = do
 	let allNextPatternMatches = OpPattern.readAllMatches nextPattern prevCharIsAlphanum toParse
@@ -45,7 +46,7 @@ readArgsAndSuffixes context definition@OpDefinition{opDeclaration=OpDeclaration{
 					argValues = argsRead }, remainder)
 	concatMap readRemainingArgsAndSuffixes allNextPatternMatches
 
-readNonPrefixedOp :: [OpDefinition] -> Op -> Bool -> MultiReader Op
+readNonPrefixedOp :: Context -> Op -> Bool -> MultiReader Op
 readNonPrefixedOp context firstArgument prevCharIsAlphanum = \toParse -> do
 	let readNonPrefixedOp' :: [OpDefinition] -> [(Op, Text)] = \case
 		[] -> []
@@ -61,9 +62,9 @@ readNonPrefixedOp context firstArgument prevCharIsAlphanum = \toParse -> do
 				else "Non-prefixed ops were successfully read " ++
 					show (length opReadResults) ++ " way(s).")
 			opReadResults ++ readNonPrefixedOp' remainingDefs
-	readNonPrefixedOp' $ filter (not . hasPrefix . opDeclaration) context
+	readNonPrefixedOp' $ filter (not . hasPrefix . opDeclaration) context.definitions
 
-readPrefixedOp :: [OpDefinition] -> MultiReader Op
+readPrefixedOp :: Context -> MultiReader Op
 readPrefixedOp context = \toParse -> do
 	let readPrefixedOp' = \case
 		[] -> []
@@ -75,9 +76,9 @@ readPrefixedOp context = \toParse -> do
 				else "Prefixed ops were successfully read " ++
 					show (length opReadResults) ++ " way(s).")
 			opReadResults ++ readPrefixedOp' remainingPrefixedDefs
-	readPrefixedOp' $ filter (hasPrefix . opDeclaration) context
+	readPrefixedOp' $ filter (hasPrefix . opDeclaration) context.definitions
 
-readOp :: [OpDefinition] -> MultiReader Op
+readOp :: Context -> MultiReader Op
 readOp context = \toParse -> do
 	-- First, we must read an op that has a prefix -- any kind of content before an argument.
 	let allPrefixedOpMatches = readPrefixedOp context toParse
@@ -97,7 +98,7 @@ readOp context = \toParse -> do
 	concatMap readEnclosingOpOrUseFirstOp allPrefixedOpMatches
 
 -- TODO: refactor this to return [Fallible [Op]] to give helpful errors when parsing fails.
-readCodePossibilities :: Text -> [OpDefinition] -> [[Op]]
+readCodePossibilities :: Text -> Context -> [[Op]]
 readCodePossibilities code context = do
 	let readCodePossibilities' code' previousOps = case code' of
 		"" -> [previousOps]
@@ -108,7 +109,7 @@ readCodePossibilities code context = do
 			concatMap readRemainingCode opReadResults
 	readCodePossibilities' code []
 
-readCode :: [OpDefinition] -> AllReader [Op]
+readCode :: Context -> AllReader [Op]
 readCode context = \code -> case readCodePossibilities code context of
 	[] -> toError "There was a problem parsing this Beng code!"
 	[onlyRead] -> return onlyRead
