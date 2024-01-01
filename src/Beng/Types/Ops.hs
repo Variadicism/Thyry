@@ -12,7 +12,7 @@ module Beng.Types.Ops (
 	showOpWith
 ) where
 
-import Utils.Lists (wrap)
+import Utils.Lists (showWithAnd, wrap)
 import Utils.Tuples (mapFst2, mapSnd2, toList2)
 
 import Beng.Types.OpPatterns (OpPattern(..))
@@ -50,12 +50,14 @@ showOpWith argReplacements Op{opDefinition=OpDefinition{opDeclaration=OpDeclarat
 data OpValuePrimitiveType =
 	PreOpValueType |
 	OpOpValueType |
+	ListOpValueType OpValuePrimitiveType |
 	IntValueType
-	deriving (Bounded, Enum, Eq, Show)
+	deriving (Eq, Show)
 
 data OpValue =
 	PreOpValue PreOp |
 	OpOpValue Op |
+	ListOpValue [OpValue] |
 	IntValue Int
 
 data PreOp = PreOp {
@@ -91,6 +93,10 @@ data OpDefinition = OpDefinition {
 
 -- instances
 
+instance Show PreOp where
+	show PreOp{..} = wrap "'" preOpArgName ++ " := " ++
+		wrap "`" (unpack preOpContent)
+
 instance Show Op where
 	show op = showOpWith (Map.map show $ argValues op) op
 
@@ -110,7 +116,5 @@ instance Show OpDefinition where
 instance Show OpValue where
 	show (PreOpValue preop) = show preop
 	show (OpOpValue op) = show op
+	show (ListOpValue values) = showWithAnd values
 	show (IntValue int) = show int
-
-instance Show PreOp where
-	show PreOp{..} = preOpArgName ++ ":\n" ++ wrap "```" (unpack preOpContent)
