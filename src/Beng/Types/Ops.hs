@@ -14,6 +14,8 @@ module Beng.Types.Ops (
 	mustHaveSuffix,
 	canHavePrefix,
 	canHaveSuffix,
+	hasPrefix,
+	hasSuffix,
 	isNullary,
 	showOpParens,
 ) where
@@ -158,6 +160,14 @@ canHaveSuffix = checkSuffixWith canBeSuffix
 
 isNullary :: (OpDeclaration -> Bool)
 isNullary = OMap.null . opArgsAndSuffixes
+
+hasPrefix :: (Op -> Bool)
+-- TODO: put text captured as a field in Op and use that to tell if it actually captured a prefix.
+hasPrefix = mustHavePrefix . opDeclaration . opDefinition
+
+hasSuffix :: (Op -> Bool)
+-- TODO: put text captured as a field in Op and use that to tell if it actually captured a suffix.
+hasSuffix = mustHaveSuffix . opDeclaration . opDefinition
 
 showOpParens :: Op -> String
 showOpParens op = do
