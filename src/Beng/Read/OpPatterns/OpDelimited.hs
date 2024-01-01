@@ -35,4 +35,5 @@ readAllMatches delimiter delimitend wordPrecedes = \toParse -> do
 	debugM $ "Attempting to read " ++ msgShow delimiter ++
 		" delimited by " ++ msgShow delimitend ++ " from " ++ msg toParse ++ "..."
 	let group1Matches = OpPattern.readAllMatches delimitend wordPrecedes toParse
-	concatMap (parseFromPrevious $ parseTail delimiter delimitend) group1Matches
+	let groupNMatches = concatMap (parseFromPrevious $ parseTail delimiter delimitend) group1Matches
+	group1Matches ++ groupNMatches
