@@ -9,19 +9,26 @@ module Beng.Types.Ops (
 	OpRunner,
 	OpDeclaration(..),
 	OpDefinition(..),
-	showOpWith
+	showOpWith,
+	mustHavePrefix,
+	mustHaveSuffix,
+	canHavePrefix,
+	canHaveSuffix,
+	isNullary,
+	showOpParens,
 ) where
 
 import Utils.Lists (showWithAnd, wrap)
 import Utils.Tuples (mapFst2, mapSnd2, toList2)
 
-import Beng.Types.OpPatterns (OpPattern(..))
+import Beng.Types.OpPatterns (OpPattern(..), canBePrefix, canBeSuffix, mustBePrefix, mustBeSuffix)
 
 import Data.List.Extra (dropSuffix, replace)
 import Data.Map (Map, (!?))
 import qualified Data.Map as Map
 import Data.Map.Ordered (OMap)
 import qualified Data.Map.Ordered as OMap
+import Data.Maybe (fromJust)
 import Data.Text.Lazy (Text, unpack)
 
 -- private
@@ -122,3 +129,41 @@ instance Show OpValue where
 	show (OpOpValue op) = show op
 	show (ListOpValue values) = showWithAnd values
 	show (IntValue int) = show int
+
+checkPrefixWith :: (OpPattern -> Bool) -> OpDeclaration -> Bool
+checkPrefixWith checker OpDeclaration{opPrefix} = checker opPrefix
+
+checkSuffixWith :: (OpPattern -> Bool) -> OpDeclaration -> Bool
+checkSuffixWith checker declaration@OpDeclaration{opArgsAndSuffixes=aas} =
+	if OMap.null aas then
+		checkPrefixWith checker declaration
+	else
+		-- `elemAt` is guaranteed to be Just when we get the last index from a non-null OMap.
+		-- Beng won't have to hack around such type system inadequacies. :|
+		checker $ snd $ fromJust $ aas `OMap.elemAt` (OMap.size aas - 1)
+
+-- exported
+
+mustHavePrefix :: (OpDeclaration -> Bool)
+mustHavePrefix = checkPrefixWith mustBePrefix
+
+mustHaveSuffix :: (OpDeclaration -> Bool)
+mustHaveSuffix = checkSuffixWith mustBeSuffix
+
+canHavePrefix :: (OpDeclaration -> Bool)
+canHavePrefix = checkPrefixWith canBePrefix
+
+canHaveSuffix :: (OpDeclaration -> Bool)
+canHaveSuffix = checkSuffixWith canBeSuffix
+
+isNullary :: (OpDeclaration -> Bool)
+isNullary = OMap.null . opArgsAndSuffixes
+
+showOpParens :: Op -> String
+showOpParens op = do
+	let showAndParenOpIfNotNullary argOp =
+		if isNullary $ opDeclaration $ opDefinition argOp
+			then show argOp
+			else "(" ++ showOpParens argOp ++ ")"
+	let argReplacements = Map.map showAndParenOpIfNotNullary $ argValues op
+	showOpWith argReplacements op

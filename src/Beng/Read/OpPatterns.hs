@@ -1,6 +1,4 @@
 module Beng.Read.OpPatterns (
-	isPrefix,
-	isSuffix,
 	readAllMatches
 ) where
 
@@ -15,20 +13,6 @@ import qualified Beng.Read.OpPatterns.OpSpace as OpSpace (readAllMatches)
 import Beng.Types.OpPatterns (OpPattern(..))
 
 import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as Text
-
-isPrefix :: OpPattern -> Bool
-isPrefix = \case
-	OpEmpty -> False
-	OpSpace -> False
-	OpLiteral literal -> not $ Text.null literal
-	OpAnd subpatterns -> any isPrefix subpatterns
-	OpOr subpatterns -> all isPrefix subpatterns
-	OpDelimited _ delimitend -> isPrefix delimitend
-
-isSuffix :: (OpPattern -> Bool)
--- These will not be equivalent when OpArgs mix with OpPatterns.
-isSuffix = isPrefix
 
 -- Theory note: no OpPatterns can contain OpArgs; OpArgs can never be in any kind of "optional" group and will be included in `argsAndSuffixes` rather than `OpAnd`s.
 -- In the future, the Maybe will become a list so that all possible matches can be given and the tuple at the end will include capturing group data (Map String String).

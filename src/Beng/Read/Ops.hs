@@ -8,11 +8,10 @@ import Utils.Lists (wrap)
 import Utils.Messaging (debugM, msgShow)
 import Utils.Readers (AllReader, MultiReader)
 
-import Beng.Ops (hasPrefix, showOpParens)
 import qualified Beng.Read.OpPatterns as OpPattern
 import Beng.Read.Types.Context (Context(..))
 import Beng.Types.OpPatterns (OpPattern(..))
-import Beng.Types.Ops (Op(..), OpDefinition(..), OpDeclaration(..), OpArg(..))
+import Beng.Types.Ops (Op(..), OpDefinition(..), OpDeclaration(..), OpArg(..), canHavePrefix, mustHavePrefix, showOpParens)
 
 import Data.Char (isAlphaNum)
 import Data.List (intercalate)
@@ -62,7 +61,7 @@ readNonPrefixedOp context firstArgument prevCharIsAlphanum = \toParse -> do
 				else "Non-prefixed ops were successfully read " ++
 					show (length opReadResults) ++ " way(s).")
 			opReadResults ++ readNonPrefixedOp' remainingDefs
-	readNonPrefixedOp' $ filter (not . hasPrefix . opDeclaration) context.definitions
+	readNonPrefixedOp' $ filter (not . mustHavePrefix . opDeclaration) context.definitions
 
 readPrefixedOp :: Context -> MultiReader Op
 readPrefixedOp context = \toParse -> do
@@ -76,7 +75,7 @@ readPrefixedOp context = \toParse -> do
 				else "Prefixed ops were successfully read " ++
 					show (length opReadResults) ++ " way(s).")
 			opReadResults ++ readPrefixedOp' remainingPrefixedDefs
-	readPrefixedOp' $ filter (hasPrefix . opDeclaration) context.definitions
+	readPrefixedOp' $ filter (canHavePrefix . opDeclaration) context.definitions
 
 readOp :: Context -> MultiReader Op
 readOp context = \toParse -> do
