@@ -12,6 +12,7 @@ import Beng.Types.Ops (Op(..), OpDefinition(..), OpValue(..), OpValuePrimitiveTy
 
 import Data.Map ((!))
 import qualified Data.Map as Map (empty, null)
+import qualified Data.Set as Set
 
 
 aValue :: Int
@@ -35,7 +36,7 @@ mockDefinitions = [
 	divide ]
 
 mockContext = Context {
-	precedence = [[divide.opDeclaration]],
+	precedence = [Set.singleton 0],
 	definitions = mockDefinitions }
 
 oneNullaryOpCode = "a"

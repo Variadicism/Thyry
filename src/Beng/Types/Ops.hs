@@ -110,6 +110,9 @@ instance Eq OpArg where
 instance Ord OpArg where
 	(<=) opArg1 opArg2 = argName opArg1 <= argName opArg2
 
+instance Eq OpDefinition where
+	(==) d1 d2 = d1.opDeclaration == d2.opDeclaration
+
 instance Show OpDefinition where
 	show OpDefinition{opDeclaration=OpDeclaration{..}} =
 		showOpPrefixOrSuffix opPrefix ++ showArgsAndSuffixes opArgsAndSuffixes

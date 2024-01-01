@@ -22,10 +22,14 @@ import Beng.Read.Types.Context (Context(..))
 import Beng.Types.OpPatterns (OpPattern(..))
 import Beng.Types.Ops (OpArg(..), OpDefinition(..), OpDeclaration(..), OpRunner, OpValue(..), OpValuePrimitiveType(..), PreOpContextsBuilder)
 
+import Data.List (findIndex)
 import Data.Map ((!))
 import qualified Data.Map as Map
 import Data.Map.Ordered ((>|))
 import qualified Data.Map.Ordered as OMap (empty, elemAt, null, size)
+import Data.Maybe (fromJust)
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Text.Lazy (Text)
 
 -- builders
@@ -118,6 +122,12 @@ declareVarA = defineUsing
 		let (OpOpValue scope) = args ! "Scope"
 		runOp scope
 
+toPrecedenceIDs :: [OpDefinition] -> Set Int
+toPrecedenceIDs definitions = do
+	let toPrecedenceID definition =
+		length builtinOps - 1 - fromJust (findIndex (==definition) builtinOps)
+	Set.fromList $ map toPrecedenceID definitions
+
 -- These builtins are currently placeholders for testing the parsing and running capabilities.
 builtinOps :: [OpDefinition]
 builtinOps = [
@@ -125,11 +135,11 @@ builtinOps = [
 	add, subtract,
 	declareVarA ]
 
-builtinPrecedence :: [[OpDeclaration]]
-builtinPrecedence = map (map opDeclaration) [
+builtinPrecedence :: [Set Int]
+builtinPrecedence = map toPrecedenceIDs [
 	[declareVarA],       -- When the scope constructor is ready, this precedence may decrease.
 	[add, subtract]]     -- Of course these have the same precedence.
--- Only ops lacking a prefix or suffix need precedence.
+-- Ops with both a prefix and suffix have no need for precedence.
 
 builtinContext :: Context
 builtinContext = Context {
