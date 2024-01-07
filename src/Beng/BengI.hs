@@ -4,43 +4,15 @@ import Utils.Errors
 import Utils.Messaging
 import Utils.Monads
 
-import Beng.BuiltinOps (builtinContext)
-import Beng.Ops (runOp)
-import Beng.Read.Ops (readCode)
-
-import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as Text (dropEnd, isSuffixOf)
-import Data.Text.Lazy.IO (hGetContents)
+import Beng.Interpret (interpret)
 
 import System.Environment (getArgs)
-import System.IO (IOMode(ReadMode), openFile)
-
-interpret :: Text -> VoidFallible
-interpret code = do
-	opsRead <- falT $ readCode builtinContext code
-	let interpret' opsToRun = do
-		if null opsToRun
-			then return ()
-		else do
-			let result = runOp $ head opsToRun
-			putStrLn $ show result
-			interpret' $ tail opsToRun	
-	mFal $ interpret' opsRead
-
-readAndInterpret :: FilePath -> VoidFallible
-readAndInterpret bengFilePath = do
-	bengFile <- tryIO $ openFile bengFilePath ReadMode
-	bengCode <- tryIO $ hGetContents bengFile
-	-- TODO: remove this when extraneous whitespace can be allowed anywhere.
-	let bengCodeWithoutTrailingWhitespace =
-		if "\n" `Text.isSuffixOf` bengCode then Text.dropEnd 1 bengCode else bengCode
-	interpret bengCodeWithoutTrailingWhitespace
 
 main = doFallibleMain $ do
 	args <- tryIO getArgs
 	debugM "Checking args..."
-	if length args /= 1
-		then falT $ toError "This program expects exactly one argument: the file to interpret."
-		else do
+	case args of
+		[path] -> do
 			debugM "Command arguments accepted"
-			readAndInterpret $ head args
+			interpret path
+		_ -> falT $ toError "This program expects exactly one argument: the file to interpret."

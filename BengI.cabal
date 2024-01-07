@@ -1,13 +1,13 @@
 cabal-version: 2.4
 name: BengI
-version: 0.4.2.0
+version: 0.5.0.0
 synopsis: This is the interpreter for the Beng programming language.
 -- description:
 license: Artistic-2.0
 license-file: LICENSE
 author: Variadicism (Connor Davey)
 maintainer: conman.davey@gmail.com
-copyright: Beng 2016-2023
+copyright: Beng 2016-2024
 category: Language
 build-type: Simple
 extra-source-files: README.md
@@ -50,39 +50,59 @@ executable BengI
   import: options
   main-is: Beng/BengI.hs
   other-modules:
-    Beng.BuiltinOps
+    Beng.Interpret
     Beng.Ops
-    Beng.Read.OpPatterns
-    Beng.Read.OpPatterns.OpAnd
-    Beng.Read.OpPatterns.OpDelimited
-    Beng.Read.OpPatterns.OpEmpty
-    Beng.Read.OpPatterns.OpLiteral
-    Beng.Read.OpPatterns.OpOr
-    Beng.Read.OpPatterns.OpSpace
-    Beng.Read.Ops
-    Beng.Read.Types.Context
-    Beng.Types.OpPatterns
+    Beng.Ops.Builtin
+    Beng.Ops.Declarations
+    Beng.Ops.Definitions
+    Beng.Parse
+    Beng.Parse.Matches
+    Beng.Parse.Patterns
+    Beng.Parse.Patterns.And
+    Beng.Parse.Patterns.Arg
+    Beng.Parse.Patterns.Delimited
+    Beng.Parse.Patterns.Empty
+    Beng.Parse.Patterns.Literal
+    Beng.Parse.Patterns.Or
+    Beng.Parse.Patterns.Space
+    Beng.Parse.Arguments
+    Beng.Parse.Ops
+    Beng.Parse.Context
+    Beng.Parse.Matches
+    Beng.Parse.Matches.NonPrefixed
+    Beng.Parse.Parsers
+    Beng.Parse.Types.Arguments
+    Beng.Parse.Types.Context
+    Beng.Parse.Types.Matches
+    Beng.Parse.Types.Matches.NonPrefixed
+    Beng.Parse.Types.Parsers
+    Beng.Parse.Types.Patterns
+    Beng.Types.Declarations
+    Beng.Types.Definitions
     Beng.Types.Ops
+    Beng.Run.Ops
+    Beng.Run.Types.Values
+    Beng.Run.Values
 
 test-suite reading-OpPatterns-test
   import: options
   type: exitcode-stdio-1.0
   main-is: Testing/Beng/Read/OpPatterns.hs
   other-modules:
-    Beng.Read.OpPatterns
-    Beng.Read.OpPatterns.OpAnd
-    Beng.Read.OpPatterns.OpDelimited
-    Beng.Read.OpPatterns.OpEmpty
-    Beng.Read.OpPatterns.OpLiteral
-    Beng.Read.OpPatterns.OpOr
-    Beng.Read.OpPatterns.OpSpace
-    Beng.Types.OpPatterns
-    Testing.Beng.Read.OpAnd
-    Testing.Beng.Read.OpDelimited
-    Testing.Beng.Read.OpEmpty
-    Testing.Beng.Read.OpLiteral
-    Testing.Beng.Read.OpOr
-    Testing.Beng.Read.OpSpace
+    Beng.Parse.Patterns
+    Beng.Parse.Patterns.And
+    Beng.Parse.Patterns.Delimited
+    Beng.Parse.Patterns.Empty
+    Beng.Parse.Patterns.Literal
+    Beng.Parse.Patterns.Or
+    Beng.Parse.Patterns.Space
+    Beng.Types.Patterns
+    Testing.Beng.Parse.OpAnd
+    Testing.Beng.Parse.OpDelimited
+    Testing.Beng.Parse.OpEmpty
+    Testing.Beng.Parse.OpLiteral
+    Testing.Beng.Parse.OpOr
+    Testing.Beng.Parse.OpSpace
 
 test-suite building-Ops-test
   import: options
@@ -91,14 +111,13 @@ test-suite building-Ops-test
   other-modules:
     Beng.BuiltinOps
     Beng.Ops
-    Beng.Read.Ops
-    Beng.Read.OpPatterns
-    Beng.Read.OpPatterns.OpAnd
-    Beng.Read.OpPatterns.OpDelimited
-    Beng.Read.OpPatterns.OpEmpty
-    Beng.Read.OpPatterns.OpLiteral
-    Beng.Read.OpPatterns.OpOr
-    Beng.Read.OpPatterns.OpSpace
-    Beng.Read.Types.Context
-    Beng.Types.OpPatterns
+    Beng.Parse.Ops
+    Beng.Parse.Patterns
+    Beng.Parse.Patterns.And
+    Beng.Parse.Patterns.Delimited
+    Beng.Parse.Patterns.Empty
+    Beng.Parse.Patterns.Literal
+    Beng.Parse.Patterns.Or
+    Beng.Parse.Patterns.Space
+    Beng.Parse.Types.Context
     Beng.Types.Ops

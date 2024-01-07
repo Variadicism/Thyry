@@ -1,29 +1,45 @@
 module Beng.Ops (
-	runOp,
-	newLiteralOp,
+	Op(..),
+	PreOp(..),
+	hasPrefix,
+	hasSuffix,
+	getArgs,
+	showParens
 ) where
 
 import Prelude hiding (lookup)
 
-import Beng.Types.OpPatterns (OpPattern(..))
-import Beng.Types.Ops (Op(..), OpValue, OpDeclaration(..), OpDefinition(..))
+import Utils.Lists (wrap)
 
-import qualified Data.Map as Map (empty, map)
-import qualified Data.Map.Ordered as OMap
-import Data.Text.Lazy (pack)
+import qualified Beng.Ops.Definitions as Definition
+import qualified Beng.Parse.Types.Arguments as Arg
+import qualified Beng.Parse.Matches as Match
+import Beng.Types.Ops (Op(..), PreOp(..))
 
--- builtins
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Text.Lazy (unpack)
 
--- There is a subtly represented but CRUCIAL property of Beng noted here. Notice how running an op returns a value -- JUST a value. It is INFALLIBLE! This should ALWAYS HOLD TRUE! If this language compiles, it should be able to run without EVER throwing an error!! Errors will be handled inside the program and can print messages and close or whatever, but the program CANNOT CRASH!
-runOp :: Op -> OpValue
-runOp Op{opDefinition=OpDefinition{..},..} = runOpWith $ Map.map runOp argValues
+-- instances
 
--- utilities
+instance Show PreOp where
+	show preop = wrap "'" preop.name ++ " := " ++
+		wrap "`" (unpack preop.content)
 
-newLiteralOp :: String -> OpValue -> OpDefinition
-newLiteralOp literal value = OpDefinition {
-	opDeclaration = OpDeclaration {
-		opPrefix = OpLiteral $ pack literal,
-		opArgsAndSuffixes = OMap.empty },
-	buildPreOpContexts = const Map.empty,
-	runOpWith = const value }
+instance Show Op where
+	show op = Definition.showWith (getArgs op) op.definition where
+
+-- exports
+
+hasPrefix :: Op -> Bool
+hasPrefix = Match.hasPrefix . match
+
+hasSuffix :: Op -> Bool
+hasSuffix = Match.hasSuffix . match
+
+getArgs :: Op -> Map String Op
+getArgs op = Map.fromList $ map (\arg -> (arg.definition.name, arg.op)) $ Match.getArgs op.match
+
+showParens :: Op -> String
+showParens op = flip Definition.showWithStrings op.definition $
+	Map.map (\argOp -> "(" ++ show argOp ++ ")") $ getArgs op
