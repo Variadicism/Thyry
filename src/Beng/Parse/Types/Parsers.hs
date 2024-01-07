@@ -6,7 +6,7 @@ module Beng.Parse.Types.Parsers (
 	State(..)
 ) where
 
-import Beng.Parse.Types.Context (Context)
+import Beng.Build.Types.Context (Context)
 
 import Data.Text.Lazy (Text)
 

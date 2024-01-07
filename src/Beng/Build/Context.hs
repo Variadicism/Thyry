@@ -1,4 +1,4 @@
-module Beng.Parse.Context (
+module Beng.Build.Context (
 	Context(..),
 	PrecedenceBound(..),
 	comparePrecedence,
@@ -11,7 +11,7 @@ import Data.Maybe (fromJust)
 import qualified Data.Set as Set
 
 import Beng.Ops.Definitions (Definition(..))
-import Beng.Parse.Types.Context (Context(..), PrecedenceBound(..))
+import Beng.Build.Types.Context (Context(..), PrecedenceBound(..))
 
 -- private
 

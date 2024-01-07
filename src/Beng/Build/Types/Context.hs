@@ -1,4 +1,4 @@
-module Beng.Parse.Types.Context (
+module Beng.Build.Types.Context (
 	Context(..),
 	PrecedenceBound(..)
 ) where

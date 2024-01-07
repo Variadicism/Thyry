@@ -50,12 +50,15 @@ executable BengI
   import: options
   main-is: Beng/BengI.hs
   other-modules:
+    Beng.Build
+    Beng.Build.Context
+    Beng.Build.Ops
+    Beng.Build.Types.Context
     Beng.Interpret
     Beng.Ops
     Beng.Ops.Builtin
     Beng.Ops.Declarations
     Beng.Ops.Definitions
-    Beng.Parse
     Beng.Parse.Matches
     Beng.Parse.Patterns
     Beng.Parse.Patterns.And
@@ -66,13 +69,10 @@ executable BengI
     Beng.Parse.Patterns.Or
     Beng.Parse.Patterns.Space
     Beng.Parse.Arguments
-    Beng.Parse.Ops
-    Beng.Parse.Context
     Beng.Parse.Matches
     Beng.Parse.Matches.NonPrefixed
     Beng.Parse.Parsers
     Beng.Parse.Types.Arguments
-    Beng.Parse.Types.Context
     Beng.Parse.Types.Matches
     Beng.Parse.Types.Matches.NonPrefixed
     Beng.Parse.Types.Parsers

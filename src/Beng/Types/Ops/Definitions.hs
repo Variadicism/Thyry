@@ -4,7 +4,7 @@ module Beng.Types.Ops.Definitions (
 	Runner
 ) where
 
-import Beng.Parse.Types.Context (Context)
+import Beng.Build.Types.Context (Context)
 import Beng.Run.Types.Values (Value)
 import Beng.Types.Ops.Declarations (Declaration)
 

@@ -1,6 +1,11 @@
-module Beng.Parse (
-	parseCode,
-	parseFile
+{- "Building" in Beng may seem similar to parsing, but there is more to it:
+   building also includes evaluating the bodies of Ops to find the contexts
+   they build, which will be used to parse the PreOps they take in.
+   Parsing and running must intertwine for this to work. -}
+
+module Beng.Build (
+	buildCode,
+	buildFile
 ) where
 
 import Utils.Errors (Fallible, toError)
@@ -8,10 +13,10 @@ import Utils.Lists (wrap)
 import Utils.Messaging (debugM)
 import Utils.Monads (IOFallible, falT, tryIO)
 
+import qualified Beng.Build.Ops as Op
 import Beng.Ops (Op)
 import qualified Beng.Ops as Op
 import Beng.Ops.Builtin (builtinContext)
-import qualified Beng.Parse.Ops as Op
 import Beng.Parse.Parsers ((<<<), Result(..), SpaceState(Space), State(..), parseWhile)
 
 import Data.List (intercalate)
@@ -22,8 +27,8 @@ import System.IO (IOMode(ReadMode), openFile)
 
 -- exports
 
-parseCode :: String -> Text -> Fallible [Op]
-parseCode contextDescription rawCode = do
+buildCode :: String -> Text -> Fallible [Op]
+buildCode contextDescription rawCode = do
 	-- TODO: remove this when extraneous whitespace can be allowed anywhere.
 	let code = if "\n" `Text.isSuffixOf` rawCode
 		then Text.dropEnd 1 rawCode
@@ -32,7 +37,7 @@ parseCode contextDescription rawCode = do
 		context = builtinContext,
 		spaceState = Space,
 		rest = code }
-	let results = parseWhile (Op.parse contextDescription) <<< initialState
+	let results = parseWhile (Op.build contextDescription) <<< initialState
 	let completeResults = map target $ filter (Text.null . rest . state) results
 	-- TODO: include last state information in errors
 	case completeResults of
@@ -45,8 +50,8 @@ parseCode contextDescription rawCode = do
 					map (intercalate "\n" . map Op.showParens) readPossibilities))
 			return firstPossibility
 
-parseFile :: FilePath -> IOFallible [Op]
-parseFile path = do
+buildFile :: FilePath -> IOFallible [Op]
+buildFile path = do
 	file <- tryIO $ openFile path ReadMode
 	code <- tryIO $ Text.hGetContents file
-	falT $ parseCode path code
+	falT $ buildCode path code

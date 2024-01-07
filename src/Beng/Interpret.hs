@@ -4,12 +4,12 @@ module Beng.Interpret (
 
 import Utils.Monads
 
-import Beng.Parse (parseFile)
+import Beng.Build (buildFile)
 import Beng.Run.Ops (run)
 
 interpret :: FilePath -> VoidFallible
 interpret path = do
-	ops <- parseFile path
+	ops <- buildFile path
 	let interpret' = \case
 		[] -> return ()
 		nextOp:remainingOps -> do

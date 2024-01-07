@@ -1,6 +1,6 @@
-module Beng.Parse.Ops where
+module Beng.Build.Ops where
 
 import Beng.Parse.Types.Parsers (Parser)
 import Beng.Types.Ops (Op)
 
-parse :: String -> Parser Op
+build :: String -> Parser Op

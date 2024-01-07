@@ -11,11 +11,11 @@ module Beng.Ops.Builtin (
 
 import Prelude hiding (subtract)
 
+import Beng.Build.Context (Context(..), push)
 import Beng.Ops.Declarations (Declaration(..))
 import Beng.Ops.Definitions (ArgContextsBuilder, Definition(..), Runner)
 import Beng.Parse.Patterns (Pattern(..))
 import qualified Beng.Parse.Types.Arguments as Arg
-import Beng.Parse.Context (Context(..), push)
 import Beng.Run.Ops (run)
 import Beng.Run.Values (Value(..), ValueType(..))
 
