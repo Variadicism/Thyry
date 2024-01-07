@@ -12,7 +12,7 @@ module Beng.Ops.Declarations (
 
 import Beng.Types.Ops (Op)
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
-import Beng.Types.Declarations (Declaration(..))
+import Beng.Types.Ops.Declarations (Declaration(..))
 
 import Data.Map (Map)
 

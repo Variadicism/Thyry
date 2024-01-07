@@ -1,4 +1,4 @@
-module Beng.Types.Definitions (
+module Beng.Types.Ops.Definitions (
 	ArgContextsBuilder,
 	Definition(..),
 	Runner
@@ -6,7 +6,7 @@ module Beng.Types.Definitions (
 
 import Beng.Parse.Types.Context (Context)
 import Beng.Run.Types.Values (Value)
-import Beng.Types.Declarations (Declaration)
+import Beng.Types.Ops.Declarations (Declaration)
 
 import Data.Map (Map)
 

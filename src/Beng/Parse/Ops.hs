@@ -9,9 +9,9 @@ import Beng.Parse.Parsers ((<<<), (@>), (@+>), (>|>), (>^\>), (>-\>), (>\>), Par
 import qualified Beng.Parse.Patterns as Pattern
 import Beng.Parse.Types.Context (Context(..))
 import qualified Beng.Parse.Types.Matches.NonPrefixed as NP
-import Beng.Types.Declarations (Declaration(..))
-import Beng.Types.Definitions (Definition(..))
 import Beng.Types.Ops (Op(..))
+import Beng.Types.Ops.Declarations (Declaration(..))
+import Beng.Types.Ops.Definitions (Definition(..))
 
 parseNonPrefixed :: Op -> Parser Op
 parseNonPrefixed previousOp = "non-prefixed op" @> \state -> do

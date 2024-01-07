@@ -4,7 +4,7 @@ module Beng.Types.Ops (
 ) where
 
 import Beng.Parse.Types.Matches (Match)
-import Beng.Types.Definitions (Definition)
+import Beng.Types.Ops.Definitions (Definition)
 
 import Data.Text.Lazy (Text)
 

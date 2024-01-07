@@ -6,8 +6,8 @@ module Beng.Run.Ops (
 import Beng.Parse.Types.Arguments (definition, name, op)
 import qualified Beng.Parse.Matches as Match
 import Beng.Run.Values (Value)
-import Beng.Types.Definitions (Definition(..))
 import Beng.Types.Ops (Op(..))
+import Beng.Types.Ops.Definitions (Definition(..))
 
 import qualified Data.Map as Map
 

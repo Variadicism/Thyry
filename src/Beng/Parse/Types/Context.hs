@@ -3,8 +3,8 @@ module Beng.Parse.Types.Context (
 	PrecedenceBound(..)
 ) where
 
-import Beng.Types.Declarations (Declaration)
-import {-# SOURCE #-} Beng.Types.Definitions (Definition)
+import Beng.Types.Ops.Declarations (Declaration)
+import {-# SOURCE #-} Beng.Types.Ops.Definitions (Definition)
 
 import Data.Set (Set)
 

@@ -1,4 +1,4 @@
-module Beng.Types.Declarations (
+module Beng.Types.Ops.Declarations (
 	Declaration(..)
 ) where
 
