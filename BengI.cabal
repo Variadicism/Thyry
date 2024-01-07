@@ -52,11 +52,11 @@ executable BengI
   other-modules:
     Beng.Build
     Beng.Build.Context
+    Beng.Build.Context.Builtin
     Beng.Build.Ops
     Beng.Build.Types.Context
     Beng.Interpret
     Beng.Ops
-    Beng.Ops.Builtin
     Beng.Ops.Declarations
     Beng.Ops.Definitions
     Beng.Parse.Matches

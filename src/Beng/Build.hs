@@ -13,10 +13,10 @@ import Utils.Lists (wrap)
 import Utils.Messaging (debugM)
 import Utils.Monads (IOFallible, falT, tryIO)
 
+import qualified Beng.Build.Context.Builtin as Builtin
 import qualified Beng.Build.Ops as Op
 import Beng.Ops (Op)
 import qualified Beng.Ops as Op
-import Beng.Ops.Builtin (builtinContext)
 import Beng.Parse.Parsers ((<<<), Result(..), SpaceState(Space), State(..), parseWhile)
 
 import Data.List (intercalate)
@@ -34,7 +34,7 @@ buildCode contextDescription rawCode = do
 		then Text.dropEnd 1 rawCode
 		else rawCode
 	let initialState = State {
-		context = builtinContext,
+		context = Builtin.context,
 		spaceState = Space,
 		rest = code }
 	let results = parseWhile (Op.build contextDescription) <<< initialState

@@ -1,12 +1,12 @@
-module Beng.Ops.Builtin (
-	builtinOps,
-	builtinPrecedence,
-	builtinContext,
+module Beng.Build.Context.Builtin (
+	context,
+	-- The following shouldn't be used outside of this module except in Testing.
 	e,
 	s,
 	l,
 	define,
-	defineUsing
+	defineUsing,
+	defineLiteral
 ) where
 
 import Prelude hiding (subtract)
@@ -32,7 +32,8 @@ import Data.Text.Lazy (Text, pack)
 toPrecedenceIDs :: [Definition] -> Set Int
 toPrecedenceIDs definitions = do
 	let toPrecedenceID definition =
-		length builtinOps - 1 - fromJust (findIndex (==definition) builtinOps)
+		-- TODO: if a precedence ID is not found, use the default precedence.
+		length context.definitions - 1 - fromJust (findIndex (==definition) context.definitions)
 	Set.fromList $ map toPrecedenceID definitions
 
 -- builders
@@ -99,20 +100,19 @@ declareVarA = defineUsing
 		let (OpValue scope) = args ! "Scope"
 		run scope
 
--- These builtins are currently placeholders for testing the parsing and running capabilities.
-builtinOps :: [Definition]
-builtinOps = [
-	two, three,
-	add, subtract,
-	declareVarA ]
+-- exported
 
-builtinPrecedence :: [Set Int]
-builtinPrecedence = map toPrecedenceIDs [
-	[declareVarA],       -- When the scope constructor is ready, this precedence may decrease.
-	[add, subtract]]     -- Of course these have the same precedence.
--- Ops with both a prefix and suffix have no need for precedence.
+context :: Context
+context = Context { precedence, definitions } where
+	-- These builtins are currently placeholders for testing the parsing and running capabilities.
+	definitions :: [Definition]
+	definitions = [
+		two, three,
+		add, subtract,
+		declareVarA ]
 
-builtinContext :: Context
-builtinContext = Context {
-	precedence = builtinPrecedence,
-	definitions = builtinOps }
+	precedence :: [Set Int]
+	precedence = map toPrecedenceIDs [
+		[declareVarA],       -- When the scope constructor is ready, this precedence may decrease.
+		[add, subtract]]     -- Of course these have the same precedence.
+	-- Ops with both a prefix and suffix have no need for precedence.
