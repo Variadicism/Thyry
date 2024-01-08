@@ -140,6 +140,7 @@ parseWhile parser = parser.name ++ " indefinitely" @+> parseWhile' []
 -- "Run": Run the parser with the given state and get the results.
 (<<<) :: (Parser t -> ParseRunner t)
 (<<<) = parse
+infix 0 <<<
 
 -- "Construct": make a parser form the name and how to run it.
 (@>) :: String -> ParseRunner t -> Parser t
