@@ -23,7 +23,7 @@ import Data.Text.Lazy (Text, pack)
 (=~) name valueType = Argument $ Arg.Definition { name, valueType }
 
 e :: Pattern
-e = Empty
+e = Literal ""
 
 s :: Pattern
 s = Space

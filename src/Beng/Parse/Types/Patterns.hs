@@ -7,7 +7,6 @@ import qualified Beng.Parse.Types.Arguments as Arg
 import Data.Text.Lazy (Text)
 
 data Pattern =
-	Empty |
 	Space |
 	Literal { literal :: Text } |
 	Or { subpatterns :: [Pattern] } |

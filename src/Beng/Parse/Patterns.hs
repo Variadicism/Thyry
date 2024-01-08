@@ -18,7 +18,6 @@ import Utils.Lists (takeUntilIncl)
 import qualified Beng.Parse.Patterns.And as And
 import qualified Beng.Parse.Patterns.Arg as Argument
 import qualified Beng.Parse.Patterns.Delimited as Delimited
-import qualified Beng.Parse.Patterns.Empty as Empty
 import qualified Beng.Parse.Patterns.Literal as Literal
 import qualified Beng.Parse.Patterns.Or as Or
 import qualified Beng.Parse.Patterns.Space as Space
@@ -47,7 +46,6 @@ instance Show Pattern where
 
 parse :: Pattern -> Parser Match
 parse = \case
-	Empty -> Empty.parse
 	Space -> Space.parse
 	Literal literal -> Literal.parse literal
 	And subpatterns -> And.parse subpatterns
@@ -84,7 +82,6 @@ hasArgs = not . null . getArgs
 
 mustHavePrefix :: (Pattern -> Bool)
 mustHavePrefix = \case
-	Empty -> False
 	Space -> False
 	Argument{} -> False
 	Literal literal -> not $ Text.null literal
@@ -120,7 +117,6 @@ canHaveSuffix = \case
 
 showWithStrings :: Map String String -> (Pattern -> String)
 showWithStrings argStrings = \case
-	Empty -> ""
 	Space -> " "
 	And subpatterns -> concatMap showSub subpatterns
 	Or subpatterns -> "(" ++ intercalate "|" (map showSub subpatterns) ++ ")"

@@ -37,7 +37,6 @@ getSubmatches = \case
 -- This is defined here for use in defining `show Match`.
 getText :: (Match -> Text)
 getText = \case
-	Empty -> ""
 	Space{text} -> text
 	Literal{text} -> text
 	Or{match} -> getText match
@@ -47,7 +46,6 @@ getText = \case
 
 getArgs :: (Match -> [Arg.Match])
 getArgs = \case
-	Empty -> []
 	Space{} -> []
 	Literal{} -> []
 	Or{match} -> getArgs match
@@ -60,7 +58,6 @@ hasArgs = not . null . getArgs
 
 hasPrefix :: Match -> Bool
 hasPrefix = \case
-	Empty -> False
 	Or{match} -> hasPrefix match
 	And{matches} -> any hasPrefix $ takeUntilIncl hasArgs matches
 	match@Delimited{} -> any hasPrefix $ takeUntilIncl hasArgs $ getSubmatches match
@@ -69,7 +66,6 @@ hasPrefix = \case
 
 hasSuffix :: Match -> Bool
 hasSuffix = \case
-	Empty -> False
 	Or{match} -> hasSuffix match
 	And{matches} -> any hasSuffix $ takeUntilIncl hasArgs $ reverse matches
 	match@Delimited{} -> any hasSuffix $ takeUntilIncl hasArgs $ reverse $ getSubmatches match

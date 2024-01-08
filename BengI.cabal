@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name: BengI
-version: 0.5.2.3
+version: 0.6.0.0
 synopsis: This is the interpreter for the Beng programming language.
 -- description:
 license: Artistic-2.0
@@ -66,7 +66,6 @@ executable BengI
     Beng.Parse.Patterns.And
     Beng.Parse.Patterns.Arg
     Beng.Parse.Patterns.Delimited
-    Beng.Parse.Patterns.Empty
     Beng.Parse.Patterns.Literal
     Beng.Parse.Patterns.Or
     Beng.Parse.Patterns.Space
@@ -94,7 +93,6 @@ test-suite reading-OpPatterns-test
     Beng.Parse.Patterns
     Beng.Parse.Patterns.And
     Beng.Parse.Patterns.Delimited
-    Beng.Parse.Patterns.Empty
     Beng.Parse.Patterns.Literal
     Beng.Parse.Patterns.Or
     Beng.Parse.Patterns.Space
@@ -129,7 +127,6 @@ test-suite build-test
     Beng.Parse.Patterns.And
     Beng.Parse.Patterns.Arg
     Beng.Parse.Patterns.Delimited
-    Beng.Parse.Patterns.Empty
     Beng.Parse.Patterns.Literal
     Beng.Parse.Patterns.Or
     Beng.Parse.Patterns.Space
