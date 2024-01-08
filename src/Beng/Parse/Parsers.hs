@@ -27,6 +27,7 @@ module Beng.Parse.Parsers (
 
 import Utils.Messaging (Messagable, debug, msg, msgShow)
 
+import Beng.Build.Context ()
 import Beng.Parse.Types.Parsers (Parser(..), ParseRunner, Result(..), SpaceState(..), State(..))
 
 import Data.Char (isAlphaNum, isSpace, toLower)
@@ -81,6 +82,10 @@ teeParse start continueChain = do
 	concatMap startAndContinue . start
 
 -- instances
+
+deriving instance Show State
+
+deriving instance Show t => Show (Result t)
 
 instance Messagable State where
 	-- TODO: consider printing the context separately if a certain debug level is enabled.

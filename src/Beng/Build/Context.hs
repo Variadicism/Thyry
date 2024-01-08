@@ -28,6 +28,10 @@ findPrecedence Context{..} definition = do
 	-- This _should_ only be used for defs that require precedence. :|
 	fromJust $ findIndex (precedenceID `Set.member`) precedence
 
+-- instances
+
+deriving instance Show Context
+
 -- exported
 
 comparePrecedence :: Context -> Definition -> Definition -> Ordering

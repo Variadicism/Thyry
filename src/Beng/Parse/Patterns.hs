@@ -38,16 +38,7 @@ import qualified Data.Text.Lazy as Text
 
 -- instances
 
-instance Eq Pattern where
-	-- Though trivial, this can't be derived in Types because Eq Arg isn't instanced there.
-	(==) Empty Empty = True
-	(==) Space Space = True
-	(==) (Literal l1) (Literal l2) = l1 == l2
-	(==) (Or s1) (Or s2) = s1 == s2
-	(==) (And s1) (And s2) = s1 == s2
-	(==) (Delimited dr1 dd1) (Delimited dr2 dd2) = dr1 == dr2 && dd1 == dd2
-	(==) (Argument a1) (Argument a2) = a1 == a2
-	(==) _ _ = False
+deriving instance Eq Pattern
 
 instance Show Pattern where
 	show = showWith Map.empty
