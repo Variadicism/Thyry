@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name: BengI
-version: 0.5.2.0
+version: 0.5.2.1
 synopsis: This is the interpreter for the Beng programming language.
 -- description:
 license: Artistic-2.0
@@ -15,7 +15,7 @@ extra-source-files: README.md
 common options
   build-depends:
     base ^>= 4.17.0.0,
-    Utils ^>= 0.16.0.1,
+    Utils ^>= 0.16.4.0,
     containers ^>= 0.6.7,
     extra ^>= 1.7.14,
     ordered-containers ^>= 0.2.1,
@@ -106,38 +106,47 @@ test-suite reading-OpPatterns-test
     Testing.Beng.Parse.OpOr
     Testing.Beng.Parse.OpSpace
 
-test-suite buildCode-test
+test-suite build-test
   import: options
   type: exitcode-stdio-1.0
-  main-is: Testing/Beng/Build/Ops.hs
+  main-is: Testing/Beng/Build.hs
   other-modules:
-    Beng.BuiltinOps
+    Beng.Build
+    Beng.Build.Context
+    Beng.Build.Context.Builders
+    Beng.Build.Context.Builtin
+    Beng.Build.Ops
+    Beng.Build.Types.Context
     Beng.Ops
-    Beng.Parse.Ops
+    Beng.Ops.Declarations
+    Beng.Ops.Definitions
+    Beng.Parse.Arguments
+    Beng.Parse.Matches
+    Beng.Parse.Matches.NonPrefixed
+    Beng.Parse.Parsers
+    Beng.Parse.Patterns
     Beng.Parse.Patterns
     Beng.Parse.Patterns.And
+    Beng.Parse.Patterns.Arg
     Beng.Parse.Patterns.Delimited
     Beng.Parse.Patterns.Empty
     Beng.Parse.Patterns.Literal
     Beng.Parse.Patterns.Or
     Beng.Parse.Patterns.Space
-    Beng.Parse.Types.Context
+    Beng.Parse.Types.Arguments
+    Beng.Parse.Types.Matches
+    Beng.Parse.Types.Matches.NonPrefixed
+    Beng.Parse.Types.Parsers
+    Beng.Parse.Types.Patterns
+    Beng.Run.Ops
+    Beng.Run.Types.Values
+    Beng.Run.Values
     Beng.Types.Ops
-
-test-suite build-Ops-test
-  import: options
-  type: exitcode-stdio-1.0
-  main-is: Testing/Beng/Build/Ops.hs
-  other-modules:
-    Beng.BuiltinOps
-    Beng.Ops
-    Beng.Parse.Ops
-    Beng.Parse.Patterns
-    Beng.Parse.Patterns.And
-    Beng.Parse.Patterns.Delimited
-    Beng.Parse.Patterns.Empty
-    Beng.Parse.Patterns.Literal
-    Beng.Parse.Patterns.Or
-    Beng.Parse.Patterns.Space
-    Beng.Parse.Types.Context
-    Beng.Types.Ops
+    Beng.Types.Ops.Declarations
+    Beng.Types.Ops.Definitions
+    Beng.Types.Ops.Definitions
+    Testing.Beng.Build.Code
+    Testing.Beng.Build.Ops
+    Testing.Beng.Utils.Mocks
+    Testing.Beng.Utils.Ops
+    Testing.Beng.Utils.Parsers
