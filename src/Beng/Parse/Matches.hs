@@ -11,7 +11,7 @@ module Beng.Parse.Matches (
 import Utils.Lists (takeUntilIncl)
 import Utils.Tuples (toList2)
 
-import qualified Beng.Parse.Types.Arguments as Arg
+import qualified Beng.Parse.Arguments as Arg
 import Beng.Parse.Types.Matches (Match(..))
 import Beng.Types.Ops (Op(..))
 
@@ -19,6 +19,8 @@ import Data.Text.Lazy (Text, unpack)
 import qualified Data.Text.Lazy as Text
 
 -- instances
+
+deriving instance Eq Match
 
 instance Show Match where
 	show = unpack . getText

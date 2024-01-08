@@ -17,3 +17,6 @@ instance Show Definition where
 
 instance Ord Definition where
 	(<=) arg1 arg2 = arg1.name <= arg2.name
+
+instance Eq Match where
+	(==) m1 m2 = m1.definition == m2.definition
