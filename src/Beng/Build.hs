@@ -4,6 +4,7 @@
    Parsing and running must intertwine for this to work. -}
 
 module Beng.Build (
+	buildCodeUsing,
 	buildCode,
 	buildFile
 ) where
@@ -18,6 +19,7 @@ import qualified Beng.Build.Ops as Op
 import Beng.Ops (Op)
 import qualified Beng.Ops as Op
 import Beng.Parse.Parsers ((<<<), Result(..), SpaceState(Space), State(..), parseWhile)
+import Beng.Build.Types.Context (Context)
 
 import Data.List (intercalate)
 import Data.Text.Lazy (Text)
@@ -27,14 +29,14 @@ import System.IO (IOMode(ReadMode), openFile)
 
 -- exports
 
-buildCode :: String -> Text -> Fallible [Op]
-buildCode contextDescription rawCode = do
+buildCodeUsing :: Context -> String -> Text -> Fallible [Op]
+buildCodeUsing context contextDescription rawCode = do
 	-- TODO: remove this when extraneous whitespace can be allowed anywhere.
 	let code = if "\n" `Text.isSuffixOf` rawCode
 		then Text.dropEnd 1 rawCode
 		else rawCode
 	let initialState = State {
-		context = Builtin.context,
+		context,
 		spaceState = Space,
 		rest = code }
 	let results = parseWhile (Op.build contextDescription) <<< initialState
@@ -49,6 +51,9 @@ buildCode contextDescription rawCode = do
 				(intercalate (wrap "\n" $ replicate 20 '#') $
 					map (intercalate "\n" . map Op.showParens) readPossibilities))
 			return firstPossibility
+
+buildCode :: (String -> Text -> Fallible [Op])
+buildCode = buildCodeUsing Builtin.context
 
 buildFile :: FilePath -> IOFallible [Op]
 buildFile path = do
