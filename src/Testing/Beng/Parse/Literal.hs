@@ -32,7 +32,7 @@ testLiteral = PureTests "Literal" [
 		assertState Word "" result),
 	("match then unknown", do
 		result <- assert1 "result" $ parseL "lk"
-		assertState Word "" result),
+		assertState Word "k" result),
 	("unknown then match", do
 		assert0 "results" $ parseL "kl"),
 	("match duplicated", do

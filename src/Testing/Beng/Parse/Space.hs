@@ -34,21 +34,25 @@ assertMatch text result = do
 testSpace :: TestCategory
 testSpace = PureTests "Space" [
 	("space exactly", do
-		result <- assert1 "result" $ parse Word " "
-		assertMatch " " result
-		assertState Space "" result),
+		(nullResult, spaceResult) <- assert2 "result" $ parse Word " "
+		assertMatch "" nullResult
+		assertState Word " " nullResult
+		assertMatch " " spaceResult
+		assertState Space "" spaceResult),
 	("no boundary after word", do
 		assert0 "results" $ parse Word "2"),
 	("space then word after space", do
-		result <- assert1 "result" $ parse Space " ad"
-		assertMatch " " result
-		assertState Space "ad" result),
-	("space then word after word", do
-		(nullResult, spaceResult) <- assert2 "results" $ parse Word " ad"
+		(nullResult, spaceResult) <- assert2 "results" $ parse Space " ad"
 		assertMatch "" nullResult
 		assertState Space " ad" nullResult
 		assertMatch " " spaceResult
 		assertState Space "ad" spaceResult),
+	("space then word after word", do
+		(nullResult, spaceResult) <- assert2 "results" $ parse Word " jk"
+		assertMatch "" nullResult
+		assertState Word " jk" nullResult
+		assertMatch " " spaceResult
+		assertState Space "jk" spaceResult),
 	("two spaces after punctuation", do
 		(nullResult, space1Result, space2Result) <- assert3 "results" $ parse Space "  lm"
 		assertMatch "" nullResult
@@ -57,6 +61,7 @@ testSpace = PureTests "Space" [
 		assertState Space " lm" space1Result
 		assertMatch "  " space2Result
 		assertState Space "lm" space2Result),
+	-- TODO: add cases for starting text to parse with word or punctutation characters.
 	("boundary on nothing after word", do
 		result <- assert1 "result" $ parse Word ""
 		assertMatch "" result

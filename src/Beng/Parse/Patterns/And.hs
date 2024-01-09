@@ -7,7 +7,7 @@ import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Parse.Matches (Match)
 import qualified Beng.Parse.Types.Matches as Match
 import qualified Beng.Parse.Types.Matches.NonPrefixed as NP
-import Beng.Parse.Parsers ((@+>), (>:>), (>:\>), (>\>), Parser)
+import Beng.Parse.Parsers ((@>), (@+>), (>:>), (>:\>), (>\>), Parser, takeAs)
 import Beng.Parse.Types.Patterns (Pattern)
 import Beng.Types.Ops (Op)
 
@@ -17,7 +17,7 @@ import Data.List (singleton)
 
 parseAsList :: [Pattern] -> Parser [Match]
 parseAsList = \case
-	[] -> error "An And pattern must have at least one subpattern!"
+	[] -> "Empty And" @> takeAs "" []
 	[next] -> Pattern.parse next >\> singleton
 	(next:rest) ->
 		Pattern.parse next >:>

@@ -12,7 +12,7 @@ import Beng.Parse.Types.Parsers (Result(..), SpaceState, State(..))
 import Data.Text.Lazy (Text)
 
 assertSpace :: SpaceState -> Result a -> Fallible ()
-assertSpace expected result = (result.state.spaceState, expected) `isEqualElse`
+assertSpace expected result = (expected, result.state.spaceState) `isEqualElse`
 	"The SpaceState after parsing was unexpected!"
 
 assertState :: SpaceState -> Text -> Result a -> Fallible ()
@@ -21,5 +21,5 @@ assertState spaceState rest result = do
 	assertSpace spaceState result
 
 assertRest :: Text -> Result a -> Fallible ()
-assertRest expected result = (result.state.rest, expected) `isEqualElse`
+assertRest expected result = (expected, result.state.rest) `isEqualElse`
 	"The text remaining after parsing was unexpected!"

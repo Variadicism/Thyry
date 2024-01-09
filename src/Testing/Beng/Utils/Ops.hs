@@ -20,7 +20,7 @@ import qualified Data.Map as Map
 assertOp :: Definition -> [(String, Op -> Fallible ())] -> Op -> Fallible ()
 assertOp definition argAssertions op = do
 	debugM $ "Asserting correct structure of " ++ show op ++ "..."
-	(op.definition, definition) `isEqualElse` "The definition was not the one expected!"
+	(definition, op.definition) `isEqualElse` "The definition was not the one expected!"
 
 	let args = getArgs op
 	let assertArg name assertion = case args !? name of
@@ -29,7 +29,7 @@ assertOp definition argAssertions op = do
 	reduceErrors $ map (uncurry assertArg) argAssertions
 
 	-- If |args| < |argAssertions|, there would be an error above.
-	map2 sort (Map.keys args, map fst argAssertions) `isEqualElse` "There are extra arguments!"
+	map2 sort (map fst argAssertions, Map.keys args) `isEqualElse` "There are extra arguments!"
 
 run :: Op -> Value
 run op = op.definition.runWith Map.empty

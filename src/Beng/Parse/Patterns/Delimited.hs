@@ -6,7 +6,7 @@ module Beng.Parse.Patterns.Delimited (
 import Utils.Tuples (map2)
 
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
-import Beng.Parse.Types.Matches (Match)
+import Beng.Parse.Matches (Match)
 import qualified Beng.Parse.Types.Matches as Match
 import qualified Beng.Parse.Types.Matches.NonPrefixed as NP
 import Beng.Parse.Parsers ((>:>), (>:\>), (>^\>), (>\>), (@+>), Parser, parseWhile)

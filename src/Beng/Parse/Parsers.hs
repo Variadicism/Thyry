@@ -85,7 +85,8 @@ teeParse start continueChain = do
 
 deriving instance Show State
 
-deriving instance Show t => Show (Result t)
+instance Show t => Show (Result t) where
+	show Result{..} = show parsed ++ " as " ++ show target ++ " => " ++ show state
 
 instance Messagable State where
 	-- TODO: consider printing the context separately if a certain debug level is enabled.
@@ -127,16 +128,13 @@ parseNone = "" @> takeNone
 
 {- Parse as many instances of the target as possible, "teeing off" each parse
    so that each possible parse result is listed. -}
-parseWhile :: Parser t -> Parser [t]
-parseWhile parser = parser.name ++ " indefinitely" @+> parseWhile' []
-	where
-		-- I'll never understand why Haskell can't put t and t together. (Get it? :P)
-		-- But, seriously, what the hell, Haskell?
-		-- parseWhile' :: [t] -> Parser [t]
-		parseWhile' previous =
-			parser >\>
-			(\next -> previous ++ [next]) >^\>
-			parseWhile'
+parseWhile :: Show t => Parser t -> Parser [t]
+parseWhile parser = parser.name ++ " indefinitely" @+>
+	("" @> takeAs "" []) >^\> \_ ->
+	parser >:>
+	parseWhile parser >\>
+	\(next, rest) -> next:rest
+		
 
 -- "Run": Run the parser with the given state and get the results.
 (<<<) :: (Parser t -> ParseRunner t)

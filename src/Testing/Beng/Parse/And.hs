@@ -55,5 +55,5 @@ testAnd = PureTests "And" [
 	("no subpatterns", do
 		result <- assert1 "result" $ parse "" "n"
 		assertMatches "" result
-		assertState Word "n" result)]
+		assertState Space "n" result)]
 	-- TODO: add cases for subpatterns that can have multiple Results.
