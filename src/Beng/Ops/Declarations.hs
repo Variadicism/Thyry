@@ -24,7 +24,7 @@ instance Eq Declaration where
 
 instance Show Declaration where
 	-- TODO: when ops can be dynamically defined, replace "BUILTIN" with the code locus.
-	show = ("BUILTIN: "++) . show . pattern
+	show = ("[builtin]: "++) . show . pattern
 
 -- exported
 

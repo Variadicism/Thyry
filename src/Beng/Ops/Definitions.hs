@@ -23,8 +23,7 @@ instance Eq Definition where
 	(==) d1 d2 = d1.declaration == d2.declaration
 
 instance Show Definition where
-	-- TODO: when ops can be dynamically defined, replace "BUILTIN" with the code locus.
-	show Definition{..} = "BUILTIN: " ++ show declaration
+	show = show . declaration
 
 -- exported
 
