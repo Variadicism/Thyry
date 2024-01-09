@@ -34,10 +34,11 @@ testBuildCode = PureTests "buildCode" [
 		(op1, op2) <- assert2 "ops" ops
 		assertOp a [] op1
 		assertOp b [] op2),
-	("read no ops for an empty code string", do
-		ops <- build ""
-		assert0 "ops" ops),
-	("err on immiedately invalid code", do
+	("err on empty code", do
+		noBuild ""),
+	("err on whitespace-only code", do
+		noBuild " \t "),
+	("err on immediately invalid code", do
 		noBuild "ja"),
 	("err on code that starts with an op, then has invalid junk", do
 		noBuild "aj")]

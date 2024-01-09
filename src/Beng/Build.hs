@@ -21,6 +21,7 @@ import qualified Beng.Ops as Op
 import Beng.Parse.Parsers ((<<<), Result(..), SpaceState(Space), State(..), parseWhile)
 import Beng.Build.Types.Context (Context)
 
+import Control.Monad (when)
 import Data.List (intercalate)
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
@@ -35,6 +36,9 @@ buildCodeUsing context contextDescription rawCode = do
 	let code = if "\n" `Text.isSuffixOf` rawCode
 		then Text.dropEnd 1 rawCode
 		else rawCode
+	when (Text.null code) $ toError $
+		"Did-- did you really ask me to compile an empty file?\n" ++
+		"This isn't Whitespace lang."
 	let initialState = State {
 		context,
 		spaceState = Space,
