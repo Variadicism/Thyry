@@ -23,9 +23,9 @@ import qualified Beng.Parse.Patterns.Or as Or
 import qualified Beng.Parse.Patterns.Space as Space
 import qualified Beng.Parse.Arguments as Arg
 import Beng.Parse.Types.Patterns (Pattern(..))
-import Beng.Parse.Matches (Match)
+import Beng.Parse.Matches (Match, hasPrefix)
 import qualified Beng.Parse.Matches.NonPrefixed as NonPrefixed
-import Beng.Parse.Parsers ((>\>), Parser, parseNone)
+import Beng.Parse.Parsers ((>-\>), Parser, parseNone)
 import Beng.Run.Types.Values (ValueType(..))
 import Beng.Ops (Op)
 
@@ -60,8 +60,10 @@ parseNonPrefixed = \case
 	And{subpatterns} -> And.parseNonPrefixed subpatterns
 	Delimited{delimiter,delimitend} -> Delimited.parseNonPrefixed delimiter delimitend
 	Argument{arg} -> Argument.parseNonPrefixed arg
-	pattern -> const $ parse pattern >\>
-		\match -> NonPrefixed.Match { argCaptured = False, match }
+	pattern -> const $
+		parse pattern >-\> \match ->
+			if hasPrefix match then Nothing else
+				Just $ NonPrefixed.Match { argCaptured = False, match }
 
 getArgs :: Pattern -> [Arg.Definition]
 getArgs = \case
