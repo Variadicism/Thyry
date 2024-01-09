@@ -134,8 +134,9 @@ parseWhile parser = parser.name ++ " indefinitely" @+> parseWhile' []
 		-- But, seriously, what the hell, Haskell?
 		-- parseWhile' :: [t] -> Parser [t]
 		parseWhile' previous =
-			parser >\> singleton >^\>
-			\next -> parseWhile' (previous ++ next)
+			parser >\>
+			(\next -> previous ++ [next]) >^\>
+			parseWhile'
 
 -- "Run": Run the parser with the given state and get the results.
 (<<<) :: (Parser t -> ParseRunner t)

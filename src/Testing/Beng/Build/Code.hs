@@ -25,11 +25,11 @@ noBuild mockCode = build mockCode `hasErrorElse` "Building should have failed!"
 
 testBuildCode :: TestCategory
 testBuildCode = PureTests "buildCode" [
-	("read one nullary op from all code", do
+	("one nullary op", do
 		ops <- build "a"
 		op <- assert1 "op" ops
 		assertOp a [] op),
-	("read two nullary ops from all code", do
+	("two nullary ops", do
 		ops <- build "ab"
 		(op1, op2) <- assert2 "ops" ops
 		assertOp a [] op1
