@@ -7,6 +7,7 @@ module Beng.Parse.Parsers (
 	parse,
 	takeAs1,
 	takeAs,
+	parseAs,
 	takeNone,
 	parseNone,
 	parseWhile,
@@ -120,6 +121,9 @@ takeAs1 parsed target state = do
 takeAs :: Show t => Text -> t -> ParseRunner t
 takeAs parsed target = singleton . takeAs1 parsed target
 
+parseAs :: Show t => (Text -> t -> Parser t)
+parseAs text = ("" @>) . takeAs text
+
 takeNone :: ParseRunner t
 takeNone = const []
 
@@ -130,7 +134,9 @@ parseNone = "" @> takeNone
    so that each possible parse result is listed. -}
 parseWhile :: Show t => Parser t -> Parser [t]
 parseWhile parser = parser.name ++ " indefinitely" @+>
-	("" @> takeAs "" []) >^\> \_ ->
+	-- A tee's tail ignoring the output of the head is usually bad, but here,
+	-- we're just losing an empty list that would have been concatenated.
+	parseAs "" [] >^\> \_ ->
 	parser >:>
 	parseWhile parser >\>
 	\(next, rest) -> next:rest
@@ -156,7 +162,7 @@ infix 0 @+>
 -- "And Chain 2": parse with the first, then chain to the second, and return the result targets as a pair.
 (>:\\>) :: Parser t -> ParserChain2 t u -> Parser (t, u)
 (>:\\>) first secondChain =
-	first.name ++ " and..." @>
+	first.name ++ " and ?" @>
 		andParse first.run secondChain
 infixl 3 >:\\>
 
@@ -198,7 +204,7 @@ infixl 1 >|>
 -- "Tee 2": use the first parser, then chain to the next, BUT accept results from the first alone AND the chain.
 (>^\\>) :: Parser t -> ParserChain2 t t -> Parser t
 (>^\\>) start continueChain =
-	start.name ++ " teed to..." @>
+	start.name ++ " teed to ?" @>
 		teeParse start.run continueChain
 infixl 2 >^\\>
 
@@ -207,7 +213,7 @@ infixl 2 >^\\>
 (>^\>) start continueTee = start >^\\> \t _ -> continueTee t
 infixl 2 >^\>
 
--- There is no Tee without chaining because that could silently discard previous results!
+--- There is no Tee without chaining because that could silently discard previous results!
 
 -- "Fmap 2": map the given function to each Result using its target and parsed Text
 -- This is equivalent to (>\>) except that it passes the parsed Text in addition to the target
