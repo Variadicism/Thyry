@@ -1,4 +1,5 @@
 module Testing.Beng.Utils.Mocks (
+	mockNothing,
 	aValue,
 	bValue,
 	a,
@@ -18,6 +19,10 @@ import Data.Map ((!))
 import qualified Data.Set as Set
 
 -- constants
+
+mockNothing = Context {
+	precedence = [],
+	definitions = [] }
 
 aValue :: Int
 aValue = 3
