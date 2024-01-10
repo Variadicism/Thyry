@@ -3,13 +3,13 @@ module Beng.Run.Ops (
 ) where
 
 
-import Beng.Parse.Types.Arguments (definition, name, op)
 import qualified Beng.Parse.Matches as Match
 import Beng.Run.Values (Value)
 import Beng.Types.Ops (Op(..))
 import Beng.Types.Ops.Definitions (Definition(..))
 
 import qualified Data.Map as Map
+import qualified Data.Map.Ordered as OMap
 
 {- There is a subtly represented but CRUCIAL property of Beng noted here: this result is NOT Fallible!
    This should ALWAYS HOLD TRUE!
@@ -18,5 +18,4 @@ import qualified Data.Map as Map
       but the program CANNOT CRASH! -}
 run :: Op -> Value
 run op = op.definition.runWith $
-	Map.fromList $ map (\match -> (match.definition.name, run match.op)) $
-	Match.getArgs op.match
+	Map.map run $ OMap.toMap $ Match.getArgs op.match

@@ -1,11 +1,10 @@
 module Beng.Parse.Arguments (
-	Definition(..),
-	Match(..)
+	Definition(..)
 ) where
 
 import Utils.Lists (wrap)
 
-import Beng.Parse.Types.Arguments (Definition(..), Match(..))
+import Beng.Parse.Types.Arguments (Definition(..))
 
 -- instances
 
@@ -17,6 +16,3 @@ instance Show Definition where
 
 instance Ord Definition where
 	(<=) arg1 arg2 = arg1.name <= arg2.name
-
-instance Eq Match where
-	(==) m1 m2 = m1.definition == m2.definition

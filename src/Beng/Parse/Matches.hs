@@ -11,16 +11,27 @@ module Beng.Parse.Matches (
 import Utils.Lists (takeUntilIncl)
 import Utils.Tuples (toList2)
 
-import qualified Beng.Parse.Arguments as Arg
 import Beng.Parse.Types.Matches (Match(..))
 import Beng.Types.Ops (Op(..))
 
+import Data.Map.Ordered ((<>|), OMap)
+import qualified Data.Map.Ordered as OMap
 import Data.Text.Lazy (Text, unpack)
 import qualified Data.Text.Lazy as Text
 
 -- instances
 
-deriving instance Eq Match
+instance Eq Match where
+	-- Most of these are trivial....
+	(==) s1@Space{} s2@Space{} = s1.text == s2.text
+	(==) l1@Literal{} l2@Literal{} = l1.text == l2.text
+	(==) o1@Or{} o2@Or{} = o1.matchIndex == o2.matchIndex
+	(==) a1@And{} a2@And{} = a1.matches == a2.matches
+	(==) d1@Delimited{} d2@Delimited{} = d1.head == d2.head && d1.tail == d2.tail
+	-- ...But, Argument Matches need to be compared by Definition only.
+	-- Otherwise, an import cycle forms for Eq Op. Plus, if the names match, they should match.
+	(==) a1@Argument{} a2@Argument{} = a1.name == a2.name
+	(==) _ _ = False
 
 instance Show Match where
 	show = unpack . getText
@@ -42,19 +53,22 @@ getText = \case
 	Or{match} -> getText match
 	And{matches} -> Text.concat $ map getText matches
 	match@Delimited{} -> Text.concat $ map getText $ getSubmatches match
-	Argument{arg} -> getText arg.op.match
+	Argument{op} -> getText op.match
 
-getArgs :: (Match -> [Arg.Match])
+getArgs :: (Match -> OMap String Op)
 getArgs = \case
-	Space{} -> []
-	Literal{} -> []
+	Space{} -> OMap.empty
+	Literal{} -> OMap.empty
 	Or{match} -> getArgs match
-	And{matches} -> concatMap getArgs matches
-	match@Delimited{} -> concatMap getArgs $ getSubmatches match
-	Argument{arg} -> [arg]
+	And{matches} -> foldOMaps $ map getArgs matches
+	match@Delimited{} -> foldOMaps $ map getArgs $ getSubmatches match
+	Argument{name,op} -> OMap.fromList [(name, op)]
+	where
+		foldOMaps :: [OMap String Op] -> OMap String Op
+		foldOMaps = foldl (<>|) OMap.empty
 
 hasArgs :: (Match -> Bool)
-hasArgs = not . null . getArgs
+hasArgs = not . OMap.null . getArgs
 
 hasPrefix :: Match -> Bool
 hasPrefix = \case

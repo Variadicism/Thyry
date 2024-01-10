@@ -14,10 +14,10 @@ import Beng.Types.Ops (Op)
 
 parse :: Arg.Definition -> Parser Match
 parse definition = Op.build (show definition) >\> 
-	\op -> Argument $ Arg.Match { definition, op }
+	\op -> Argument { name = definition.name, op }
 
 parseNonPrefixed :: Arg.Definition -> Op -> Parser NonPrefixed.Match
-parseNonPrefixed definition op = "capture first argument" @>
+parseNonPrefixed Arg.Definition{name} op = "capture first argument" @>
 	takeAs "" NonPrefixed.Match {
 		argCaptured = True,
-		match = Argument $ Arg.Match { definition, op } }
+		match = Argument { name, op }}
