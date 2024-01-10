@@ -18,10 +18,12 @@ import qualified Beng.Build.Context.Builtin as Builtin
 import qualified Beng.Build.Ops as Op
 import Beng.Ops (Op)
 import qualified Beng.Ops as Op
-import Beng.Parse.Parsers ((<<<), Result(..), SpaceState(Space), State(..), parseWhile)
+import Beng.Parse.Parsers ((<<<), (>|>), (>:>), (>\>), Result(..), SpaceState(Space), State(..), parseWhile)
+import qualified Beng.Parse.Patterns.Space as Space
 import Beng.Build.Types.Context (Context)
 
 import Control.Monad (when)
+import Data.Char (isSpace)
 import Data.List (intercalate)
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
@@ -31,20 +33,21 @@ import System.IO (IOMode(ReadMode), openFile)
 -- exports
 
 buildCodeUsing :: Context -> String -> Text -> Fallible [Op]
-buildCodeUsing context contextDescription rawCode = do
-	-- TODO: remove this when extraneous whitespace can be allowed anywhere.
-	let code = if "\n" `Text.isSuffixOf` rawCode
-		then Text.dropEnd 1 rawCode
-		else rawCode
-	when (Text.null code) $ toError $
-		"Did-- did you really ask me to compile an empty file?\n" ++
+buildCodeUsing context contextDescription code = do
+	when (Text.all isSpace code) $ toError $
+		"Did-- did you really ask me to compile code that's all whitespace?\n" ++
 		"This isn't Whitespace lang."
 	let initialState = State {
 		context,
 		spaceState = Space,
 		rest = code }
-	let results = parseWhile (Op.build contextDescription) <<< initialState
-	let completeResults = map target $ filter (Text.null . rest . state) results
+	let opParser = Op.build contextDescription
+	let parser =
+		opParser >|>
+		-- This parses whitespace before the op, but still allows any space to be part of the next op.
+		Space.parse >:> opParser >\> snd
+	let results = parseWhile parser <<< initialState
+	let completeResults = map target $ filter (Text.all isSpace . rest . state) results
 	-- TODO: include last state information in errors
 	case completeResults of
 		[] -> toError "There was a problem parsing this Beng code!"
