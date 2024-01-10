@@ -11,7 +11,6 @@ module Beng.Build.Context.Builders (
 import Beng.Ops.Declarations (Declaration(..))
 import Beng.Ops.Definitions (ArgContextsBuilder, Definition(..), Runner)
 import Beng.Parse.Patterns (Pattern(..))
-import qualified Beng.Parse.Types.Arguments as Arg
 import Beng.Run.Values (Value(..), ValueType(..))
 
 import qualified Data.Map as Map
@@ -20,7 +19,7 @@ import Data.Text.Lazy (Text, pack)
 -- exported
 
 (=~) :: String -> ValueType -> Pattern
-(=~) name valueType = Argument $ Arg.Definition { name, valueType }
+(=~) name valueType = Argument { name, valueType }
 
 e :: Pattern
 e = Literal ""

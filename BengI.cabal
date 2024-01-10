@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name: BengI
-version: 0.6.0.10
+version: 0.7.0.0
 synopsis: This is the interpreter for the Beng programming language.
 -- description:
 license: Artistic-2.0
@@ -69,11 +69,9 @@ executable BengI
     Beng.Parse.Patterns.Literal
     Beng.Parse.Patterns.Or
     Beng.Parse.Patterns.Space
-    Beng.Parse.Arguments
     Beng.Parse.Matches
     Beng.Parse.Matches.NonPrefixed
     Beng.Parse.Parsers
-    Beng.Parse.Types.Arguments
     Beng.Parse.Types.Matches
     Beng.Parse.Types.Matches.NonPrefixed
     Beng.Parse.Types.Parsers
@@ -98,7 +96,6 @@ test-suite parse-test
     Beng.Ops
     Beng.Ops.Declarations
     Beng.Ops.Definitions
-    Beng.Parse.Arguments
     Beng.Parse.Matches
     Beng.Parse.Matches.NonPrefixed
     Beng.Parse.Parsers
@@ -109,7 +106,6 @@ test-suite parse-test
     Beng.Parse.Patterns.Literal
     Beng.Parse.Patterns.Or
     Beng.Parse.Patterns.Space
-    Beng.Parse.Types.Arguments
     Beng.Parse.Types.Matches
     Beng.Parse.Types.Matches.NonPrefixed
     Beng.Parse.Types.Parsers
@@ -143,7 +139,6 @@ test-suite build-test
     Beng.Ops
     Beng.Ops.Declarations
     Beng.Ops.Definitions
-    Beng.Parse.Arguments
     Beng.Parse.Matches
     Beng.Parse.Matches.NonPrefixed
     Beng.Parse.Parsers
@@ -155,7 +150,6 @@ test-suite build-test
     Beng.Parse.Patterns.Literal
     Beng.Parse.Patterns.Or
     Beng.Parse.Patterns.Space
-    Beng.Parse.Types.Arguments
     Beng.Parse.Types.Matches
     Beng.Parse.Types.Matches.NonPrefixed
     Beng.Parse.Types.Parsers

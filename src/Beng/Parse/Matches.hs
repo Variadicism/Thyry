@@ -62,7 +62,7 @@ getArgs = \case
 	Or{match} -> getArgs match
 	And{matches} -> foldOMaps $ map getArgs matches
 	match@Delimited{} -> foldOMaps $ map getArgs $ getSubmatches match
-	Argument{name,op} -> OMap.fromList [(name, op)]
+	Argument{name,op} -> OMap.singleton (name, op)
 	where
 		foldOMaps :: [OMap String Op] -> OMap String Op
 		foldOMaps = foldl (<>|) OMap.empty

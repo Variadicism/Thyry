@@ -13,7 +13,8 @@ module Beng.Parse.Patterns (
 	showParensWith
 ) where
 
-import Utils.Lists (takeUntilIncl)
+import Utils.Lists (takeUntilIncl, wrap)
+import Utils.Tuples (mapSnd2)
 
 import qualified Beng.Parse.Patterns.And as And
 import qualified Beng.Parse.Patterns.Arg as Argument
@@ -21,17 +22,18 @@ import qualified Beng.Parse.Patterns.Delimited as Delimited
 import qualified Beng.Parse.Patterns.Literal as Literal
 import qualified Beng.Parse.Patterns.Or as Or
 import qualified Beng.Parse.Patterns.Space as Space
-import qualified Beng.Parse.Arguments as Arg
 import Beng.Parse.Types.Patterns (Pattern(..))
 import Beng.Parse.Matches (Match, hasPrefix)
 import qualified Beng.Parse.Matches.NonPrefixed as NonPrefixed
 import Beng.Parse.Parsers ((>-\>), Parser, parseNone)
-import Beng.Run.Types.Values (ValueType(..))
+import Beng.Run.Values (ValueType(..))
 import Beng.Ops (Op)
 
 import Data.List (intercalate)
 import Data.Map ((!?), Map)
 import qualified Data.Map as Map
+import Data.Map.Ordered (OMap)
+import qualified Data.Map.Ordered as OMap
 import Data.Text.Lazy (unpack)
 import qualified Data.Text.Lazy as Text
 
@@ -51,7 +53,7 @@ parse = \case
 	And subpatterns -> And.parse subpatterns
 	Or subpatterns -> Or.parse subpatterns
 	Delimited{..} -> Delimited.parse delimiter delimitend
-	Argument{arg} -> Argument.parse arg
+	Argument{name,valueType} -> Argument.parse name valueType
 
 parseNonPrefixed :: (Pattern -> Op -> Parser NonPrefixed.Match)
 parseNonPrefixed = \case
@@ -59,25 +61,25 @@ parseNonPrefixed = \case
 	Or{subpatterns} -> Or.parseNonPrefixed subpatterns
 	And{subpatterns} -> And.parseNonPrefixed subpatterns
 	Delimited{delimiter,delimitend} -> Delimited.parseNonPrefixed delimiter delimitend
-	Argument{arg} -> Argument.parseNonPrefixed arg
+	Argument{name,valueType} -> Argument.parseNonPrefixed name valueType
 	pattern -> const $
 		parse pattern >-\> \match ->
 			if hasPrefix match then Nothing else
 				Just $ NonPrefixed.Match { argCaptured = False, match }
 
-getArgs :: Pattern -> [Arg.Definition]
+getArgs :: Pattern -> OMap String ValueType
 getArgs = \case
 	And subpatterns ->
-		map (wrapType ListType) $ concatMap getArgs subpatterns
+		wrapTypes ListType $ map getArgs subpatterns
 	Or subpatterns ->
-		map (wrapType MaybeType) $ concatMap getArgs subpatterns
+		wrapTypes MaybeType $ map getArgs subpatterns
 	Delimited delimiter delimitend ->
-		map (wrapType ListType) $ concatMap getArgs [delimiter, delimitend]
-	Argument arg -> [arg]
-	_ -> []
+		wrapTypes ListType $ map getArgs [delimiter, delimitend]
+	Argument{name,valueType} -> OMap.singleton (name, valueType)
+	_ -> OMap.empty
 	where
-		wrapType :: (ValueType -> ValueType) -> Arg.Definition -> Arg.Definition
-		wrapType wrapper arg = arg{ Arg.valueType = wrapper arg.valueType }
+		wrapTypes :: (ValueType -> ValueType) -> [OMap String ValueType] -> OMap String ValueType
+		wrapTypes wrapper = OMap.fromList . map (mapSnd2 wrapper) . concatMap OMap.assocs
 
 hasArgs :: Pattern -> Bool
 hasArgs = not . null . getArgs
@@ -125,9 +127,9 @@ showWithStrings argStrings = \case
 	Literal literal -> unpack literal
 	Delimited delimiter delimitend ->
 		"(" ++ showSub delimitend ++ "){" ++ showSub delimiter ++ "}"
-	Argument arg -> case argStrings !? arg.name of
+	Argument{name} -> case argStrings !? name of
 		Just argString -> argString
-		Nothing -> show arg
+		Nothing -> wrap "'" name
 	where
 		showSub = showWithStrings argStrings
 

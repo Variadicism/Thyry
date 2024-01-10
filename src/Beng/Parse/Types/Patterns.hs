@@ -2,7 +2,7 @@ module Beng.Parse.Types.Patterns (
 	Pattern(..)
 ) where
 
-import qualified Beng.Parse.Types.Arguments as Arg
+import Beng.Run.Types.Values (ValueType)
 
 import Data.Text.Lazy (Text)
 
@@ -13,4 +13,4 @@ data Pattern =
 	And { subpatterns :: [Pattern] } |
 	-- Yeah, I made up "delimitend" akin to "dividend" and "subtrahend". So?! Come at me! :P
 	Delimited { delimiter :: Pattern, delimitend :: Pattern } |
-	Argument { arg :: Arg.Definition }
+	Argument { name :: String, valueType :: ValueType }

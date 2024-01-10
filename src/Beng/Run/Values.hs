@@ -24,3 +24,5 @@ instance Show ValueType where
 		ListType{element} -> "[" ++ show element ++ "]"
 		MaybeType{inner} -> show inner ++ "?"
 		IntType -> "integer"
+
+deriving instance Eq ValueType
