@@ -4,6 +4,7 @@ module Beng.Build.Context.Builders (
 	s,
 	l,
 	define,
+	defineRighty,
 	defineUsing,
 	defineLiteral
 ) where
@@ -36,6 +37,9 @@ defineUsing associativity subpatterns = Definition $
 
 define :: [Pattern] -> (Runner -> Definition)
 define subpatterns = defineUsing Lefty subpatterns (const $ const Map.empty)
+
+defineRighty :: [Pattern] -> (Runner -> Definition)
+defineRighty subpatterns = defineUsing Righty subpatterns (const $ const Map.empty)
 
 defineLiteral :: String -> Value -> Definition
 defineLiteral literal value = Definition {

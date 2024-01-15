@@ -4,19 +4,22 @@ module Testing.Beng.Utils.Mocks (
 	bValue,
 	a,
 	b,
+	app,
 	exp,
 	divideWords,
 	divide,
 	addWords,
 	add,
 	mockABDivision,
-	mockABAddDivExp,
+	mockABAddDivExpApp,
+	assertAppArgs,
+	assertAppArgsEq,
 	assertExpArgs,
 	assertExpArgsEq,
-	assertDivideWordsArgs,
-	assertDivideWordsArgsEq,
-	assertDivideArgs,
-	assertDivideArgsEq,
+	assertDivWordsArgs,
+	assertDivWordsArgsEq,
+	assertDivArgs,
+	assertDivArgsEq,
 	assertAddWordsArgs,
 	assertAddWordsArgsEq,
 	assertAddArgs,
@@ -29,7 +32,7 @@ import Utils.Errors
 
 import Testing.Beng.Utils.Ops (assertArgsEq, assertOp)
 
-import Beng.Build.Context.Builders ((=~), s, l, define, defineLiteral)
+import Beng.Build.Context.Builders ((=~), s, l, define, defineRighty, defineLiteral)
 import Beng.Build.Types.Context (Context(..))
 import Beng.Types.Ops (Op(..))
 import Beng.Types.Ops.Definitions (Definition)
@@ -80,6 +83,11 @@ divide = define
 		let (IntValue divisor) = args ! "Divisor"
 		IntValue $ dividend `div` divisor 
 
+app :: Definition
+app = defineRighty
+	["Left" =~ IntType, l "$", "Right" =~ IntType]
+	(! "Left")
+
 addWords :: Definition
 addWords = define
 	["Augend" =~ IntType, s, l "and", s, "Addend" =~ IntType, s, l "added"]
@@ -99,11 +107,23 @@ mockABDivision = Context {
 	precedence = [Set.singleton 0],
 	definitions = [a, b, divide] }
 
-mockABAddDivExp = Context {
-	precedence = [Set.fromList [0, 1], Set.fromList [2, 3], Set.singleton 4],
-	definitions = [a, b, exp, divideWords, divide, addWords, add] }
+mockABAddDivExpApp = Context {
+	{- `app` has the same precedence as `add` for testing purposes.
+	   Sorry that that's inconsistent with Haskell where application has an extremely low precedence,
+	   but there aren't many well-known righty operators and Haskell's builtin operators are
+	   designed to never include two associativities in one precedence level. -}
+	precedence = [Set.fromList [0, 1, 5], Set.fromList [2, 3], Set.singleton 4],
+	definitions = [a, b, app, exp, divideWords, divide, addWords, add] }
 
 -- exported
+
+assertAppArgs :: (Op -> Fallible ()) -> (Op -> Fallible ()) -> (Op -> Fallible ())
+assertAppArgs assertLeft assertRight =
+	assertOp app [("Left", assertLeft), ("Right", assertRight)]
+
+assertAppArgsEq :: Definition -> Definition -> (Op -> Fallible ())
+assertAppArgsEq leftDef rightDef =
+	assertArgsEq app [("Left", leftDef), ("Right", rightDef)]
 
 assertExpArgs :: (Op -> Fallible ()) -> (Op -> Fallible ()) -> (Op -> Fallible ())
 assertExpArgs assertBase assertExponent =
@@ -113,20 +133,20 @@ assertExpArgsEq :: Definition -> Definition -> (Op -> Fallible ())
 assertExpArgsEq baseDef exponentDef =
 	assertArgsEq exp [("Base", baseDef), ("Exponent", exponentDef)]
 
-assertDivideWordsArgs :: (Op -> Fallible ()) -> (Op -> Fallible ()) -> (Op -> Fallible ())
-assertDivideWordsArgs assertDividend assertDivisor =
-	assertOp divideWords [("Dividend", assertDividend), ("Divisor", assertDivisor)]
+assertDivWordsArgs :: (Op -> Fallible ()) -> (Op -> Fallible ()) -> (Op -> Fallible ())
+assertDivWordsArgs assertDivnd assertDivisor =
+	assertOp divideWords [("Dividend", assertDivnd), ("Divisor", assertDivisor)]
 
-assertDivideWordsArgsEq :: Definition -> Definition -> (Op -> Fallible ())
-assertDivideWordsArgsEq dividendDef divisorDef =
+assertDivWordsArgsEq :: Definition -> Definition -> (Op -> Fallible ())
+assertDivWordsArgsEq dividendDef divisorDef =
 	assertArgsEq divideWords [("Dividend", dividendDef), ("Divisor", divisorDef)]
 
-assertDivideArgs :: (Op -> Fallible ()) -> (Op -> Fallible ()) -> (Op -> Fallible ())
-assertDivideArgs assertDividend assertDivisor =
-	assertOp divide [("Dividend", assertDividend), ("Divisor", assertDivisor)]
+assertDivArgs :: (Op -> Fallible ()) -> (Op -> Fallible ()) -> (Op -> Fallible ())
+assertDivArgs assertDivnd assertDivisor =
+	assertOp divide [("Dividend", assertDivnd), ("Divisor", assertDivisor)]
 
-assertDivideArgsEq :: Definition -> Definition -> (Op -> Fallible ())
-assertDivideArgsEq dividendDef divisorDef =
+assertDivArgsEq :: Definition -> Definition -> (Op -> Fallible ())
+assertDivArgsEq dividendDef divisorDef =
 	assertArgsEq divide [("Dividend", dividendDef), ("Divisor", divisorDef)]
 
 assertAddWordsArgs :: (Op -> Fallible ()) -> (Op -> Fallible ()) -> (Op -> Fallible ())
