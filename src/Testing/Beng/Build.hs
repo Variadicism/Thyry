@@ -11,5 +11,5 @@ import Testing.Beng.Build.Ops (testBuildOp)
 
 main :: IO ()
 main = test $ TestCategories "building" [
-	testBuildOp,
-	testBuildCode]
+	testBuildCode,
+	testBuildOp]

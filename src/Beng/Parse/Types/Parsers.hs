@@ -1,12 +1,15 @@
 module Beng.Parse.Types.Parsers (
 	ParseRunner,
 	Parser(..),
-	Result(..),
+	PrefixState(..),
 	SpaceState(..),
-	State(..)
+	State(..),
+	Result(..),
 ) where
 
 import Beng.Build.Types.Context (Context)
+import Beng.Types.Ops (Op)
+import Beng.Types.Ops.Declarations (Declaration)
 
 import Data.Text.Lazy (Text)
 
@@ -15,6 +18,14 @@ type ParseRunner t = State -> [Result t]
 data Parser t = Parser {
 	name :: String,
 	run :: ParseRunner t }
+
+{- When parsing ops, prefixed ops need to be parsed first.
+   They can then be used as first arguments for non-prefixed ops.
+   The PrefixStates are used for, respectively...
+   - parsing a prefixed op's prefix
+   - parsing any op after the prefix or first argument is captured
+   - parsing a non-prefixed op's first argument -}
+data PrefixState = Needed | Unneeded | AvoidingFor { firstArg :: Op }
 
 {- The Space Pattern does more than parse whitespace; it can also accept word boundaries.
    So, the parser needs to keep track of whether the last character parsed is, respectively,...
@@ -26,6 +37,10 @@ data SpaceState = Word | Space | Punctuation
 
 data State = State {
 	context :: Context,
+	minPrecedence :: Maybe Declaration,
+	maxPrecedence :: Maybe Declaration,
+	indentation :: Int,
+	prefixState :: PrefixState,
 	spaceState :: SpaceState,
 	rest :: Text }
 

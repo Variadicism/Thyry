@@ -8,7 +8,7 @@ import Testing.Beng.Utils.Mocks (mockNothing)
 import Testing.Beng.Utils.Parsers (assertState)
 
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers ((>\>), (<<<), SpaceState(..), State(..), Result(..))
+import Beng.Parse.Parsers ((>\>), (<<<), SpaceState(..), Result(..), fileStartState)
 import qualified Beng.Parse.Patterns.Literal as Literal
 
 import Data.Text.Lazy (Text)
@@ -19,7 +19,7 @@ parse :: Text -> Text -> [Result ()]
 parse literalText = \text ->
 	Literal.parse literalText >\>
 	(\Match.Literal{} -> ()) <<<
-	State { context = mockNothing, spaceState = Space, rest = text }
+	fileStartState mockNothing text
 
 parseL = parse "l"
 

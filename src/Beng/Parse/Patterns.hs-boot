@@ -1,7 +1,6 @@
 module Beng.Parse.Patterns where
 
 import Beng.Parse.Types.Matches (Match)
-import qualified Beng.Parse.Types.Matches.NonPrefixed as NonPrefixed
 import Beng.Parse.Types.Parsers (Parser)
 import Beng.Parse.Types.Patterns (Pattern)
 import Beng.Types.Ops (Op)
@@ -13,8 +12,6 @@ instance Eq Pattern
 instance Show Pattern
 
 parse :: Pattern -> Parser Match
-
-parseNonPrefixed :: Pattern -> Op -> Parser NonPrefixed.Match
 
 hasArgs :: Pattern -> Bool
 

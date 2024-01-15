@@ -1,4 +1,5 @@
 module Beng.Ops.Declarations (
+	Associativity(..),
 	Declaration(..),
 	isNullary,
 	canHavePrefix,
@@ -10,13 +11,19 @@ module Beng.Ops.Declarations (
 	showWithStrings
 ) where
 
+import Utils.Lists (wrap)
+
 import Beng.Types.Ops (Op)
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
-import Beng.Types.Ops.Declarations (Declaration(..))
+import Beng.Types.Ops.Declarations (Associativity(..), Declaration(..))
 
 import Data.Map (Map)
 
 -- instances
+
+deriving instance Eq Associativity
+
+deriving instance Show Associativity
 
 instance Eq Declaration where
 	-- TODO: when OpDeclarations can be dynamic, equality will use code location.
@@ -24,7 +31,7 @@ instance Eq Declaration where
 
 instance Show Declaration where
 	-- TODO: when ops can be dynamically defined, replace "BUILTIN" with the code locus.
-	show = ("[builtin]: "++) . show . pattern
+	show = ("[builtin]: "++) . wrap "`" . show . pattern
 
 -- exported
 

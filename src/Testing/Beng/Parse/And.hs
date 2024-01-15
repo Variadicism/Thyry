@@ -11,7 +11,7 @@ import Testing.Beng.Utils.Parsers (assertState)
 import Beng.Build.Context.Builders (l)
 import Beng.Parse.Matches (Match, matches)
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers ((>\>), (<<<), SpaceState(..), State(..), Result(..))
+import Beng.Parse.Parsers ((>\>), (<<<), SpaceState(..), Result(..), fileStartState)
 import qualified Beng.Parse.Patterns.And as And
 import Beng.Parse.Types.Patterns (Pattern)
 import qualified Beng.Parse.Types.Patterns as Pattern
@@ -24,7 +24,7 @@ import qualified Data.Text.Lazy as Text
 parse subpatterns = \text ->
 	And.parse subpatterns >\>
 	(\Match.And{matches} -> matches) <<<
-	State { context = mockNothing, spaceState = Space, rest = text }
+	fileStartState mockNothing text
 
 parseLits :: [Char] -> Text -> [Result [Match]]
 parseLits chars = parse $ map (l . Text.singleton) chars

@@ -1,7 +1,6 @@
 module Beng.Parse.Patterns (
 	Pattern(..),
 	parse,
-	parseNonPrefixed,
 	getArgs,
 	hasArgs,
 	mustHavePrefix,
@@ -14,6 +13,7 @@ module Beng.Parse.Patterns (
 ) where
 
 import Utils.Lists (takeUntilIncl, wrap)
+import Utils.Strings (parenthesize)
 import Utils.Tuples (mapSnd2)
 
 import qualified Beng.Parse.Patterns.And as And
@@ -23,11 +23,10 @@ import qualified Beng.Parse.Patterns.Literal as Literal
 import qualified Beng.Parse.Patterns.Or as Or
 import qualified Beng.Parse.Patterns.Space as Space
 import Beng.Parse.Types.Patterns (Pattern(..))
-import Beng.Parse.Matches (Match, hasPrefix)
-import qualified Beng.Parse.Matches.NonPrefixed as NonPrefixed
-import Beng.Parse.Parsers ((>-\>), Parser, parseNone)
+import Beng.Parse.Matches (Match)
+import Beng.Parse.Parsers (Parser)
 import Beng.Run.Values (ValueType(..))
-import Beng.Ops (Op)
+import Beng.Ops (Op, isNullary)
 
 import Data.List (intercalate)
 import Data.Map ((!?), Map)
@@ -54,18 +53,6 @@ parse = \case
 	Or subpatterns -> Or.parse subpatterns
 	Delimited{..} -> Delimited.parse delimiter delimitend
 	Argument{name,valueType} -> Argument.parse name valueType
-
-parseNonPrefixed :: (Pattern -> Op -> Parser NonPrefixed.Match)
-parseNonPrefixed = \case
-	pattern | mustHavePrefix pattern -> const parseNone
-	Or{subpatterns} -> Or.parseNonPrefixed subpatterns
-	And{subpatterns} -> And.parseNonPrefixed subpatterns
-	Delimited{delimiter,delimitend} -> Delimited.parseNonPrefixed delimiter delimitend
-	Argument{name,valueType} -> Argument.parseNonPrefixed name valueType
-	pattern -> const $
-		parse pattern >-\> \match ->
-			if hasPrefix match then Nothing else
-				Just $ NonPrefixed.Match { argCaptured = False, match }
 
 getArgs :: Pattern -> OMap String ValueType
 getArgs = \case
@@ -138,4 +125,9 @@ showWith :: Map String Op -> (Pattern -> String)
 showWith args = showWithStrings (Map.map show args)
 
 showParensWith :: Map String Op -> (Pattern -> String)
-showParensWith args = showWithStrings (Map.map (('(':) . (++")") . show) args)
+showParensWith args = showWithStrings (Map.map showArg args)
+	where
+		showArg :: Op -> String
+		showArg op = if isNullary op
+			then show op
+			else parenthesize $ show op

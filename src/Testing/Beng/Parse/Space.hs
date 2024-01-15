@@ -10,18 +10,19 @@ import Testing.Beng.Utils.Parsers (assertState)
 
 import Beng.Parse.Matches (text)
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers ((>\>), (<<<), SpaceState(..), State(..), Result(..))
+import Beng.Parse.Parsers ((>\>), (<<<), SpaceState(..), Result(..), State(..), fileStartState)
 import qualified Beng.Parse.Patterns.Space as Space
 
+import Data.List (sort)
 import Data.Text.Lazy (Text)
 
 -- private
 
 parse :: SpaceState -> Text -> [Result Text]
-parse spaceState = \text ->
+parse spaceState text = sort (
 	Space.parse >\>
 	(\Match.Space{text} -> text) <<<
-	State { context = mockNothing, spaceState, rest = text }
+	(fileStartState mockNothing text){ spaceState })
 
 assertMatch :: Text -> Result Text -> Fallible ()
 assertMatch text result = do

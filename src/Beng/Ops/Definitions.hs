@@ -2,6 +2,7 @@ module Beng.Ops.Definitions (
 	Definition(..),
 	ArgContextsBuilder,
 	Runner,
+	isNullary,
 	canHavePrefix,
 	canHaveSuffix,
 	mustHavePrefix,
@@ -27,24 +28,27 @@ instance Show Definition where
 
 -- exported
 
-canHavePrefix :: Definition -> Bool
+isNullary :: (Definition -> Bool)
+isNullary = Declaration.isNullary . declaration
+
+canHavePrefix :: (Definition -> Bool)
 canHavePrefix = Declaration.canHavePrefix . declaration
 
-canHaveSuffix :: Definition -> Bool
+canHaveSuffix :: (Definition -> Bool)
 canHaveSuffix = Declaration.canHaveSuffix . declaration
 
-mustHavePrefix :: Definition -> Bool
+mustHavePrefix :: (Definition -> Bool)
 mustHavePrefix = Declaration.mustHavePrefix . declaration
 
-mustHaveSuffix :: Definition -> Bool
+mustHaveSuffix :: (Definition -> Bool)
 mustHaveSuffix = Declaration.mustHaveSuffix . declaration
 
 -- TODO: when ops can be dynamically defined, modify the "show" functions to reflect locus info.
-showParensWith :: Map String Op -> Definition -> String
+showParensWith :: Map String Op -> (Definition -> String)
 showParensWith args = Declaration.showParensWith args . declaration
 
-showWith :: Map String Op -> Definition -> String
+showWith :: Map String Op -> (Definition -> String)
 showWith args = Declaration.showWith args . declaration
 
-showWithStrings :: Map String String -> Definition -> String
+showWithStrings :: Map String String -> (Definition -> String)
 showWithStrings argStrings = Declaration.showWithStrings argStrings . declaration

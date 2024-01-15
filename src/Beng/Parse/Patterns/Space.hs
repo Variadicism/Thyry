@@ -4,7 +4,7 @@ module Beng.Parse.Patterns.Space (
 
 import Beng.Parse.Matches (Match)
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers (Parser, ParseRunner, SpaceState(..), State(..), (@>), (@+>), (>|>), (>:>), (>\>), parseWhile, takeAs, takeNone)
+import Beng.Parse.Parsers (Parser, ParseRunner, PrefixState(..), SpaceState(..), State(..), (@>), (@+>), (>|>), (>:>), (>\>), parseWhile, takeAs, takeNone)
 
 import Data.Char (isAlphaNum, isSpace)
 import Data.Text.Lazy (pack)
@@ -40,5 +40,5 @@ parse = "space pattern" @+> parseBoundary >|> parseSpaces where
 	parseSpace = "parse whitespace" @> \state ->
 		case Text.uncons state.rest of
 			Just (headChar, _) | isSpace headChar ->
-				takeAs (Text.singleton headChar) headChar state
+				takeAs (Text.singleton headChar) headChar state{ prefixState = Unneeded }
 			_ -> takeNone state

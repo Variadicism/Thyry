@@ -16,11 +16,10 @@ import Utils.Monads (IOFallible, falT, tryIO)
 
 import qualified Beng.Build.Context.Builtin as Builtin
 import qualified Beng.Build.Ops as Op
-import Beng.Ops (Op)
-import qualified Beng.Ops as Op
-import Beng.Parse.Parsers ((<<<), (>|>), (>:>), (>\>), Result(..), SpaceState(Space), State(..), parseWhile)
-import qualified Beng.Parse.Patterns.Space as Space
 import Beng.Build.Types.Context (Context)
+import Beng.Parse.Parsers ((<<<), (>|>), (>:>), (>\>), Result(..), State(..), fileStartState, parseWhile)
+import qualified Beng.Parse.Patterns.Space as Space
+import Beng.Types.Ops (Op)
 
 import Control.Monad (when)
 import Data.Char (isSpace)
@@ -37,10 +36,7 @@ buildCodeUsing context contextDescription code = do
 	when (Text.all isSpace code) $ toError $
 		"Did-- did you really ask me to compile code that's all whitespace?\n" ++
 		"This isn't Whitespace lang."
-	let initialState = State {
-		context,
-		spaceState = Space,
-		rest = code }
+	let initialState = fileStartState context code
 	let opParser = Op.build contextDescription
 	let parser =
 		opParser >|>
@@ -56,7 +52,7 @@ buildCodeUsing context contextDescription code = do
 			debugM ("This Beng code is ambiguous! " ++
 				show (length readPossibilities) ++ " ways were found to parse it:\n" ++
 				(intercalate (wrap "\n" $ replicate 20 '#') $
-					map (intercalate "\n" . map Op.showParens) readPossibilities))
+					map (intercalate "\n" . map show) readPossibilities))
 			return firstPossibility
 
 buildCode :: (String -> Text -> Fallible [Op])

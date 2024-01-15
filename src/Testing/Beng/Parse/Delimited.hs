@@ -9,7 +9,7 @@ import Testing.Beng.Utils.Mocks (mockNothing)
 import Testing.Beng.Utils.Parsers (assertState)
 
 import Beng.Build.Context.Builders (l)
-import Beng.Parse.Parsers ((<<<), (>\>), Result(..), SpaceState(..), State(..))
+import Beng.Parse.Parsers ((<<<), (>\>), Result(..), SpaceState(..), fileStartState)
 import qualified Beng.Parse.Patterns.Delimited as Delimited
 import Beng.Parse.Types.Matches (Match)
 import qualified Beng.Parse.Types.Matches as Match
@@ -22,7 +22,7 @@ parse :: Text -> [Result (Match, [(Match, Match)])]
 parse = \text ->
 	Delimited.parse (l ",") (l "p") >\>
 	(\match@Match.Delimited{} -> (match.head, match.tail)) <<<
-	State { context = mockNothing, spaceState = Space, rest = text }
+	fileStartState mockNothing text
 
 assertMatches :: Int -> Result (Match, [(Match, Match)]) -> Fallible ()
 assertMatches repetitions result = do

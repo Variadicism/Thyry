@@ -8,6 +8,7 @@ import Beng.Build.Context (Context(..), push)
 import Beng.Build.Context.Builders ((=~), s, l, define, defineUsing, defineLiteral)
 import Beng.Run.Ops (run)
 import Beng.Run.Values (Value(..), ValueType(..))
+import Beng.Types.Ops.Declarations (Associativity(..))
 import Beng.Types.Ops.Definitions (Definition(..))
 
 import Data.Map ((!))
@@ -44,7 +45,7 @@ subtract = define
 		IntValue $ minuend - subtrahend
 
 declareVarA :: Definition  -- a := 'Value' 'Scope'
-declareVarA = defineUsing
+declareVarA = defineUsing Lefty
 	[l "a", s, l ":=", s, "Value" =~ IntType, l "\n", s, "Scope" =~ PreOpType]
 	(\args context -> do
 		let aDefinition = define [l "a"] $ const $ args ! "Value"

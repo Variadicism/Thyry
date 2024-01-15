@@ -11,7 +11,7 @@ import Testing.Beng.Utils.Parsers (assertState)
 import Beng.Build.Context.Builders (l)
 import Beng.Parse.Matches (Match, match, matchIndex)
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers ((>\>), (<<<), SpaceState(..), State(..), Result(..))
+import Beng.Parse.Parsers ((>\>), (<<<), SpaceState(..), Result(..), fileStartState)
 import qualified Beng.Parse.Patterns.Or as Or
 
 import Data.Text.Lazy (Text)
@@ -23,7 +23,7 @@ parse :: [Char] -> Text -> [Result (Int, Match)]
 parse chars = \text ->
 	Or.parse (map (l . Text.singleton) chars) >\>
 	(\Match.Or{matchIndex,match} -> (matchIndex, match)) <<<
-	State { context = mockNothing, spaceState = Space, rest = text }
+	fileStartState mockNothing text
 
 assertMatch :: Int -> Char -> Result (Int, Match) -> Fallible ()
 assertMatch index char result = do

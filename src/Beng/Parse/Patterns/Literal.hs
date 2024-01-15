@@ -4,13 +4,16 @@ module Beng.Parse.Patterns.Literal (
 
 import Beng.Parse.Matches (Match)
 import qualified Beng.Parse.Types.Matches as Match
-import Beng.Parse.Parsers ((@>), Parser, State(..), takeAs, takeNone)
+import Beng.Parse.Parsers ((@>), Parser, PrefixState(..), State(..), takeAs, takeNone)
 
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
 
 parse :: Text -> Parser Match
 parse literal = "literal " ++ show literal @> \state ->
-	if literal `Text.isPrefixOf` state.rest
-		then takeAs literal (Match.Literal literal) state
-		else takeNone state
+	if not $ literal `Text.isPrefixOf` state.rest then
+		takeNone state
+	else case state.prefixState of
+		AvoidingFor _ -> takeNone state
+		_ -> takeAs literal (Match.Literal literal) $
+			state{ prefixState = Unneeded }
