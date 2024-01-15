@@ -147,6 +147,72 @@ testBuildOp = TestCategories "build Op" [
 				(assertArgEq "Augend" a)
 				fullResult.target
 			assertRest "" fullResult)],
+	PureTests "nonprefixed mixed precedence" [
+		("precedence down then up exactly", do
+			(aResult, divResult, addDivResult, fullResult) <- assert4 "results" $ build "a/b+b^a"
+			assertOp a [] aResult.target
+			assertRest "/b+b^a" aResult
+			assertDivArgsEq a b divResult.target
+			assertRest "+b^a" divResult
+			assertAddArgs (assertDivArgsEq a b) (assertArgEq "Addend" b) addDivResult.target
+			assertRest "^a" addDivResult
+			assertAddArgs (assertDivArgsEq a b) (assertExpArgsEq b a) fullResult.target
+			assertRest "" fullResult),
+		("precedence up then down exactly", do
+			(aResult, addResult, addDivResult, fullResult) <- assert4 "results" $ build "a+a/b+a"
+			assertOp a [] aResult.target
+			assertRest "+a/b+a" aResult
+			assertAddArgsEq a a addResult.target
+			assertRest "/b+a" addResult
+			assertAddArgs (assertArgEq "Augend" a) (assertDivArgsEq a b) addDivResult.target
+			assertRest "+a" addDivResult
+			assertAddArgs
+				(assertAddArgs (assertArgEq "Augend" a) (assertDivArgsEq a b))
+				(assertArgEq "Augend" a) fullResult.target
+			assertRest "" fullResult),
+		("precedence down then up then junk", do
+			(aResult, divResult, addDivResult, fullResult) <- assert4 "results" $ build "a/b+b^a!!"
+			assertOp a [] aResult.target
+			assertRest "/b+b^a!!" aResult
+			assertDivArgsEq a b divResult.target
+			assertRest "+b^a!!" divResult
+			assertAddArgs (assertDivArgsEq a b) (assertArgEq "Addend" b) addDivResult.target
+			assertRest "^a!!" addDivResult
+			assertAddArgs (assertDivArgsEq a b) (assertExpArgsEq b a) fullResult.target
+			assertRest "!!" fullResult),
+		("precedence up then down then junk", do
+			(aResult, addResult, addDivResult, fullResult) <- assert4 "results" $ build "a+a/b+a?"
+			assertOp a [] aResult.target
+			assertRest "+a/b+a?" aResult
+			assertAddArgsEq a a addResult.target
+			assertRest "/b+a?" addResult
+			assertAddArgs (assertArgEq "Augend" a) (assertDivArgsEq a b) addDivResult.target
+			assertRest "+a?" addDivResult
+			assertAddArgs
+				(assertAddArgs (assertArgEq "Augend" a) (assertDivArgsEq a b))
+				(assertArgEq "Augend" a) fullResult.target
+			assertRest "?" fullResult),
+		("precedence down then up then down further exactly", do
+			(aResult, expResult, divExpResult, divExpExpResult, fullResult) <-
+				assert5 "results" $ build "a^b/b^b$a"
+			assertOp a [] aResult.target
+			assertExpArgsEq a b expResult.target
+			assertDivArgs (assertExpArgsEq a b) (assertArgEq "Divisor" b) divExpResult.target
+			assertDivArgs (assertExpArgsEq a b) (assertExpArgsEq b b) divExpExpResult.target
+			assertAppArgs
+				(assertDivArgs (assertExpArgsEq a b) (assertExpArgsEq b b))
+				(assertArgEq "Right" a) fullResult.target),
+		("precedence down then up then down but higher than first exactly", do
+			(aResult, expResult, appExpResult, appExpExpResult, fullResult) <-
+				assert5 "results" $ build "a^b$b^b/a"
+			assertOp a [] aResult.target
+			assertExpArgsEq a b expResult.target
+			assertAppArgs (assertExpArgsEq a b) (assertArgEq "Right" b) appExpResult.target
+			assertAppArgs (assertExpArgsEq a b) (assertExpArgsEq b b) appExpExpResult.target
+			assertAppArgs
+				(assertExpArgsEq a b)
+				(assertDivArgs (assertExpArgsEq b b) (assertArgEq "Divisor" a))
+				fullResult.target)],
 	PureTests "nonprefixed mixed associativity" [
 		("unequal lefty then righty exactly", do
 			(aResult, divResult, fullResult) <- assert3 "results" $ build "a/b$b"
@@ -192,5 +258,4 @@ testBuildOp = TestCategories "build Op" [
 			assertOp b [] bResult.target
 			assertRest "$b+a" bResult
 			assertAppArgsEq b b appResult.target
-			assertRest "+a" appResult)],
-	PureTests "nonprefixed mixed precedence" []]
+			assertRest "+a" appResult)]]

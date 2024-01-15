@@ -46,14 +46,18 @@ parserForDefinition :: PrefixState -> Definition -> Parser Op
 parserForDefinition prefixState definition = show definition @> \state -> do
 	let oldMinPrecedence = state.minPrecedence
 	let oldMaxPrecedence = state.maxPrecedence
-	let parseDefinition :: Parser Op =
+	let parsePatternToOp :: Parser Op =
 		Pattern.parse definition.declaration.pattern >\>
 		\match -> Op { definition, match }
 	let resetMinSetMax :: State -> Op -> State = \s op ->
 		s{ minPrecedence = oldMinPrecedence,
-			maxPrecedence = if hasSuffix op then oldMaxPrecedence else Just op.definition.declaration }
-	state{ prefixState, minPrecedence = Just definition.declaration } >>> (
-		parseDefinition >/\>
+			maxPrecedence = if hasSuffix op
+				then oldMaxPrecedence
+				else Just op.definition.declaration }
+	state{ prefixState,
+			maxPrecedence = Nothing,
+			minPrecedence = Just definition.declaration } >>> (
+		parsePatternToOp >/\>
 		resetMinSetMax >^\>
 		buildNonPrefixed >/>
 		\s -> s{ maxPrecedence = oldMaxPrecedence })
