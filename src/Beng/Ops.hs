@@ -11,7 +11,8 @@ import Prelude hiding (lookup)
 
 import Utils.Lists (wrap)
 
-import qualified Beng.Ops.Definitions as Definition
+import Beng.Build.Cards ()
+import qualified Beng.Ops.Declarations as Declaration
 import qualified Beng.Parse.Matches as Match
 import Beng.Types.Ops (Op(..), PreOp(..))
 
@@ -30,12 +31,12 @@ instance Show PreOp where
 deriving instance Eq Op
 
 instance Show Op where
-	show op = Definition.showParensWith (OMap.toMap $ getArgs op) op.definition
+	show op = Declaration.showParensWith (OMap.toMap $ getArgs op) op.card.declaration
 
 -- exports
 
-isNullary :: (Op -> Bool)
-isNullary = Definition.isNullary . definition
+isNullary :: Op -> Bool
+isNullary op = Declaration.isNullary op.card.declaration
 
 hasPrefix :: (Op -> Bool)
 hasPrefix = Match.hasPrefix . match

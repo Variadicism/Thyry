@@ -6,16 +6,24 @@ module Beng.Build.Context.Builders (
 	define,
 	defineRighty,
 	defineUsing,
-	defineLiteral
+	defineLiteral,
+	buildContext
 ) where
 
-import Beng.Ops.Declarations (Associativity(..), Declaration(..))
-import Beng.Ops.Definitions (ArgContextsBuilder, Definition(..), Runner)
+import Beng.Build.Context (Context(..), pushDef)
+import qualified Beng.Build.Context as Context
+import Beng.Ops.Declarations (ArgContextsBuilder, Associativity(..), Declaration(..), PrecedenceBound(..))
+import Beng.Ops.Definitions (Definition(..), Runner)
 import Beng.Parse.Patterns (Pattern(..))
 import Beng.Run.Values (Value(..), ValueType(..))
 
 import qualified Data.Map as Map
 import Data.Text.Lazy (Text, pack)
+
+-- private
+
+noContexts :: ArgContextsBuilder
+noContexts = const $ const $ return Map.empty
 
 -- exported
 
@@ -31,20 +39,24 @@ s = Space
 l :: (Text -> Pattern)
 l = Literal
 
-defineUsing :: Associativity -> [Pattern] -> (ArgContextsBuilder -> Runner -> Definition)
-defineUsing associativity subpatterns = Definition $
-	Declaration { pattern = And subpatterns, associativity }
+defineUsing :: PrecedenceBound -> Associativity -> [Pattern] -> ArgContextsBuilder -> (Runner -> Definition)
+defineUsing precedence associativity subpatterns buildContexts = Definition $
+	Declaration { pattern = And subpatterns, associativity, buildContexts, precedence }
 
-define :: [Pattern] -> (Runner -> Definition)
-define subpatterns = defineUsing Lefty subpatterns (const $ const Map.empty)
+define :: PrecedenceBound -> [Pattern] -> (Runner -> Definition)
+define precedence subpatterns = defineUsing precedence Lefty subpatterns noContexts
 
-defineRighty :: [Pattern] -> (Runner -> Definition)
-defineRighty subpatterns = defineUsing Righty subpatterns (const $ const Map.empty)
+defineRighty :: PrecedenceBound -> [Pattern] -> (Runner -> Definition)
+defineRighty precedence subpatterns = defineUsing precedence Righty subpatterns noContexts
 
 defineLiteral :: String -> Value -> Definition
 defineLiteral literal value = Definition {
 	declaration = Declaration {
 		pattern = Literal $ pack literal,
-		associativity = Lefty {- irrelevant in nullary ops -} },
-	buildContexts = const $ const Map.empty,
-	runWith = const value }
+		associativity = Lefty {- irrelevant in nullary ops -},
+		buildContexts = noContexts,
+		precedence = None },
+	runWith = const $ return value }
+
+buildContext :: [Definition] -> Context
+buildContext = foldl (flip pushDef) Context.empty

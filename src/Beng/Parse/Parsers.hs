@@ -41,6 +41,7 @@ import Beng.Parse.Types.Parsers (Parser(..), ParseRunner, PrefixState(..), Resul
 
 import Data.Char (isAlphaNum, isSpace, toLower)
 import Data.List (singleton)
+import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
@@ -129,15 +130,16 @@ instance Messagable State where
 instance Show State where
 	show state@State{..} = msg state ++
 		" at depth " ++ show indentation ++
+		maybe "" ((" within "++) . show) parent ++
 		maybe "" ((" with precedence < "++) . show) maxPrecedence ++
-		maybe "" ((" with precedence > "++) . show) minPrecedence ++
 		" using " ++ show context
 
 -- exported
 
 fileStartState :: Context -> Text -> State
 fileStartState context text = State {
-	context, minPrecedence = Nothing, maxPrecedence = Nothing,
+	context, maxPrecedence = Nothing, parent = Nothing,
+	arguments = Map.empty,
 	indentation = 0,
 	prefixState = Needed, spaceState = Space,
 	rest = text }

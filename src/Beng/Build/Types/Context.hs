@@ -3,8 +3,8 @@ module Beng.Build.Types.Context (
 	PrecedenceBound(..)
 ) where
 
-import Beng.Types.Ops.Declarations (Declaration)
-import {-# SOURCE #-} Beng.Types.Ops.Definitions (Definition)
+import Beng.Build.Types.Cards (Card)
+import {-# SOURCE #-} Beng.Types.Ops.Declarations (Declaration)
 
 import Data.Set (Set)
 
@@ -15,13 +15,14 @@ data Context = Context {
        This is because new definitions are prepended, so the indexes shift,
        but indexes relative to the end of the list do not. -}
 	precedence :: [Set Int],
-{- Definitions stack
-   Lower index -> defined later/closer (first dibs) -}
-	definitions :: [Definition] }
+{- Declaration/definition stack of "cards"
+   Lower index -> declared later/closer (first dibs) -}
+	deck :: [Card] }
 
 data PrecedenceBound =
-	Min |
-	Max |
-	Before Declaration |
-	After Declaration |
-	At Declaration
+	Above Declaration |
+	Below Declaration |
+	At Declaration |
+	Between Declaration Declaration |
+	Default |
+	None

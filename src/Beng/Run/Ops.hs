@@ -2,6 +2,7 @@ module Beng.Run.Ops (
 	run
 ) where
 
+import Utils.Errors
 
 import qualified Beng.Parse.Matches as Match
 import Beng.Run.Values (Value)
@@ -9,13 +10,17 @@ import Beng.Types.Ops (Op(..))
 import Beng.Types.Ops.Definitions (Definition(..))
 
 import qualified Data.Map as Map
+import Data.Map (Map)
 import qualified Data.Map.Ordered as OMap
+import Data.Map.Ordered (OMap)
 
-{- There is a subtly represented but CRUCIAL property of Beng noted here: this result is NOT Fallible!
-   This should ALWAYS HOLD TRUE!
-   If this language compiles, it should be able to run without EVER throwing an error!!
-   Errors will be handled inside the program and can print messages and close or whatever,
-      but the program CANNOT CRASH! -}
-run :: Op -> Value
-run op = op.definition.runWith $
-	Map.map run $ OMap.toMap $ Match.getArgs op.match
+run :: Op -> Fallible Value
+run op = case op.card.definition of
+	Just Definition{runWith} -> (runArgs $ Match.getArgs op.match) >>= runWith
+	Nothing -> toError $ show op.card.declaration ++ " cannot be run without being defined!"
+	where
+		runArgs :: (OMap String Op -> Fallible (Map String Value))
+		runArgs = fmap Map.fromList . reduceErrors . map runArg . OMap.assocs
+
+		runArg :: (String, Op) -> Fallible (String, Value)
+		runArg (name, op) = fmap (name,) $ run op

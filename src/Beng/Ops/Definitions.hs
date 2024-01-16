@@ -1,6 +1,5 @@
 module Beng.Ops.Definitions (
 	Definition(..),
-	ArgContextsBuilder,
 	Runner,
 	isNullary,
 	canHavePrefix,
@@ -13,7 +12,7 @@ module Beng.Ops.Definitions (
 ) where
 
 import qualified Beng.Ops.Declarations as Declaration
-import Beng.Types.Ops.Definitions (Definition(..), ArgContextsBuilder, Runner)
+import Beng.Types.Ops.Definitions (Definition(..), Runner)
 import Beng.Types.Ops (Op)
 
 import Data.Map (Map)

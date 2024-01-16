@@ -32,20 +32,18 @@ import Utils.Errors
 
 import Testing.Beng.Utils.Ops (assertArgsEq, assertOp)
 
-import Beng.Build.Context.Builders ((=~), s, l, define, defineRighty, defineLiteral)
-import Beng.Build.Types.Context (Context(..))
+import qualified Beng.Build.Context as Context
+import Beng.Build.Context.Builders ((=~), s, l, buildContext, define, defineRighty, defineLiteral)
+import Beng.Build.Types.Context (PrecedenceBound(..))
 import Beng.Types.Ops (Op(..))
-import Beng.Types.Ops.Definitions (Definition)
+import Beng.Types.Ops.Definitions (Definition(..))
 import Beng.Run.Types.Values (Value(..), ValueType(..))
 
 import Data.Map ((!))
-import qualified Data.Set as Set
 
 -- constants
 
-mockNothing = Context {
-	precedence = [],
-	definitions = [] }
+mockNothing = Context.empty
 
 aValue :: Int
 aValue = 3
@@ -59,61 +57,57 @@ a = defineLiteral "a" $ IntValue aValue
 b :: Definition
 b = defineLiteral "b" $ IntValue bValue
 
-exp :: Definition
-exp = define
-	["Base" =~ IntType, l "^", "Exponent" =~ IntType]
-	\args -> do
-		let (IntValue base) = args ! "Base"
-		let (IntValue exponent) = args ! "Exponent"
-		IntValue $ base ^ exponent
-
-divideWords :: Definition
-divideWords = define
-	["Dividend" =~ IntType, s, l "and", s, "Divisor" =~ IntType, s, l "divided"]
-	\args -> do
-		let (IntValue dividend) = args ! "Dividend"
-		let (IntValue divisor) = args ! "Divisor"
-		IntValue $ dividend `div` divisor 
-
 divide :: Definition
-divide = define
+divide = define Default
 	["Dividend" =~ IntType, l "/", "Divisor" =~ IntType]
 	\args -> do
 		let (IntValue dividend) = args ! "Dividend"
 		let (IntValue divisor) = args ! "Divisor"
-		IntValue $ dividend `div` divisor 
+		return $ IntValue $ dividend `div` divisor
 
+divideWords :: Definition
+divideWords = define (At divide.declaration)
+	["Dividend" =~ IntType, s, l "and", s, "Divisor" =~ IntType, s, l "divided"]
+	\args -> do
+		let (IntValue dividend) = args ! "Dividend"
+		let (IntValue divisor) = args ! "Divisor"
+		return $ IntValue $ dividend `div` divisor 
+
+exp :: Definition
+exp = define (Above divide.declaration)
+	["Base" =~ IntType, l "^", "Exponent" =~ IntType]
+	\args -> do
+		let (IntValue base) = args ! "Base"
+		let (IntValue exponent) = args ! "Exponent"
+		return $ IntValue $ base ^ exponent
+
+{- `app` has the same precedence as `add` for testing purposes.
+   Sorry that that's inconsistent with Haskell where application has an extremely low precedence,
+   but there aren't many well-known righty operators and Haskell's builtin operators are
+   designed to never include two associativities in one precedence level. -}
 app :: Definition
-app = defineRighty
+app = defineRighty (Below divide.declaration)
 	["Left" =~ IntType, l "$", "Right" =~ IntType]
-	(! "Left")
+	(return . (! "Left"))
 
 addWords :: Definition
-addWords = define
+addWords = define (At app.declaration)
 	["Augend" =~ IntType, s, l "and", s, "Addend" =~ IntType, s, l "added"]
 	\args -> do
 		let (IntValue augend) = args ! "Augend"
 		let (IntValue addend) = args ! "Addend"
-		IntValue $ augend + addend
+		return $ IntValue $ augend + addend
 
-add = define
+add = define (At addWords.declaration)
 	["Augend" =~ IntType, l "+", "Addend" =~ IntType]
 	\args -> do
 		let (IntValue augend) = args ! "Augend"
 		let (IntValue addend) = args ! "Addend"
-		IntValue $ augend + addend
+		return $ IntValue $ augend + addend
 
-mockABDivision = Context {
-	precedence = [Set.singleton 0],
-	definitions = [a, b, divide] }
+mockABDivision = buildContext [a, b, divide]
 
-mockABAddDivExpApp = Context {
-	{- `app` has the same precedence as `add` for testing purposes.
-	   Sorry that that's inconsistent with Haskell where application has an extremely low precedence,
-	   but there aren't many well-known righty operators and Haskell's builtin operators are
-	   designed to never include two associativities in one precedence level. -}
-	precedence = [Set.fromList [0, 1, 5], Set.fromList [2, 3], Set.singleton 4],
-	definitions = [a, b, app, exp, divideWords, divide, addWords, add] }
+mockABAddDivExpApp = buildContext [a, b, divide, divideWords, exp, app, addWords, add]
 
 -- exported
 

@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name: BengI
-version: 0.8.1.1
+version: 0.9.0.0
 synopsis: This is the interpreter for the Beng programming language.
 -- description:
 license: Artistic-2.0
@@ -15,7 +15,7 @@ extra-source-files: README.md
 common options
   build-depends:
     base ^>= 4.17.0.0,
-    Utils ^>= 0.16.8.0,
+    Utils ^>= 0.16.10,
     containers ^>= 0.6.7,
     extra ^>= 1.7.14,
     ordered-containers ^>= 0.2.1,
@@ -52,10 +52,12 @@ executable BengI
   main-is: Beng/BengI.hs
   other-modules:
     Beng.Build
+    Beng.Build.Cards
     Beng.Build.Context
     Beng.Build.Context.Builtin
     Beng.Build.Context.Builders
     Beng.Build.Ops
+    Beng.Build.Types.Cards
     Beng.Build.Types.Context
     Beng.Interpret
     Beng.Ops
@@ -86,10 +88,12 @@ test-suite parse-test
   type: exitcode-stdio-1.0
   main-is: Testing/Beng/Parse.hs
   other-modules:
+    Beng.Build.Cards
     Beng.Build.Context
     Beng.Build.Context.Builders
     Beng.Build.Ops
     Beng.Build.Ops
+    Beng.Build.Types.Cards
     Beng.Build.Types.Context
     Beng.Ops
     Beng.Ops.Declarations
@@ -106,6 +110,7 @@ test-suite parse-test
     Beng.Parse.Types.Matches
     Beng.Parse.Types.Parsers
     Beng.Parse.Types.Patterns
+    Beng.Run.Ops
     Beng.Run.Types.Values
     Beng.Run.Values
     Beng.Types.Ops
@@ -128,10 +133,12 @@ test-suite build-test
   main-is: Testing/Beng/Build.hs
   other-modules:
     Beng.Build
+    Beng.Build.Cards
     Beng.Build.Context
     Beng.Build.Context.Builders
     Beng.Build.Context.Builtin
     Beng.Build.Ops
+    Beng.Build.Types.Cards
     Beng.Build.Types.Context
     Beng.Ops
     Beng.Ops.Declarations

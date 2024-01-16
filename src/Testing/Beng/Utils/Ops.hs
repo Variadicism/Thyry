@@ -13,7 +13,8 @@ import Utils.Testing
 import Utils.Tuples (map2)
 
 import Beng.Ops (Op(..), getArgs)
-import Beng.Types.Ops.Definitions (Definition, runWith)
+import Beng.Types.Ops.Definitions (Definition(..))
+import Beng.Run.Ops (run)
 import Beng.Run.Types.Values (Value(IntValue))
 
 import Data.List (sort)
@@ -24,7 +25,7 @@ assertOp :: Definition -> [(String, Op -> Fallible ())] -> Op -> Fallible ()
 assertOp definition argAssertions op =
 	prependToError ("In op " ++ wrap "`" (show op) ++ ",...\n") do
 		debugM $ "Asserting correct structure of " ++ show op ++ "..."
-		(definition, op.definition) `isEqualElse` "The definition was not the one expected!"
+		(definition.declaration, op.card.declaration) `isEqualElse` "The definition was not the one expected!"
 
 		let args = getArgs op
 		let assertArg name assertion = case OMap.lookup name args of
@@ -38,7 +39,7 @@ assertOp definition argAssertions op =
 
 assertArgEq :: String -> Definition -> Op -> Fallible ()
 assertArgEq name definition argOp =
-	(definition, argOp.definition) `isEqualElse`
+	(definition.declaration, argOp.card.declaration) `isEqualElse`
 		(wrap "'" name ++ " didn't have the definition expected!")
 
 assertArgsEq :: Definition -> [(String, Definition)] -> (Op -> Fallible ())
@@ -48,8 +49,7 @@ assertArgsEq definition argDefinitions =
 		assertOpArgDef :: (String, Definition) -> (String, Op -> Fallible ())
 		assertOpArgDef (name, def) = (name, assertArgEq name def)
 
-run :: Op -> Value
-run op = op.definition.runWith Map.empty
-
-runInt :: Op -> Int
-runInt op = int where (IntValue int) = run op
+runInt :: Op -> Fallible Int
+runInt op = do
+	IntValue int <- run op
+	return int 

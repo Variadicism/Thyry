@@ -3,8 +3,8 @@ module Beng.Types.Ops (
 	Op(..)
 ) where
 
+import Beng.Build.Types.Cards (Card)
 import Beng.Parse.Types.Matches (Match)
-import Beng.Types.Ops.Definitions (Definition)
 
 import Data.Text.Lazy (Text)
 
@@ -13,5 +13,5 @@ data PreOp = PreOp {
 	content :: Text }
 
 data Op = Op {
-	definition :: Definition,
+	card :: Card,
 	match :: Match }

@@ -7,10 +7,11 @@ module Beng.Parse.Types.Parsers (
 	Result(..),
 ) where
 
+import Beng.Build.Types.Cards (Card)
 import Beng.Build.Types.Context (Context)
 import Beng.Types.Ops (Op)
-import Beng.Types.Ops.Declarations (Declaration)
 
+import Data.Map as Map
 import Data.Text.Lazy (Text)
 
 type ParseRunner t = State -> [Result t]
@@ -37,8 +38,9 @@ data SpaceState = Word | Space | Punctuation
 
 data State = State {
 	context :: Context,
-	minPrecedence :: Maybe Declaration,
-	maxPrecedence :: Maybe Declaration,
+	parent :: Maybe Card,
+	maxPrecedence :: Maybe Card,
+	arguments :: Map String Op,
 	indentation :: Int,
 	prefixState :: PrefixState,
 	spaceState :: SpaceState,
