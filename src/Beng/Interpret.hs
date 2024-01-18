@@ -11,10 +11,10 @@ interpret :: FilePath -> VoidFallible
 interpret path = do
 	ops <- buildFile path
 	let interpret' = \case
-		[] -> return ()
+		[] -> success
 		nextOp:remainingOps -> do
-			let result = evaluate nextOp
+			result <- falT $ evaluate nextOp
 			-- TODO: Simply printing the result is (obviously) a placeholder.
-			putStrLn $ show result
+			tryIO $ putStrLn $ show result
 			interpret' remainingOps	
-	mFal $ interpret' ops
+	interpret' ops
