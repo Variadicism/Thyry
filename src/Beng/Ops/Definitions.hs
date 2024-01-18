@@ -5,17 +5,11 @@ module Beng.Ops.Definitions (
 	canHavePrefix,
 	canHaveSuffix,
 	mustHavePrefix,
-	mustHaveSuffix,
-	showParensWith,
-	showWith,
-	showWithStrings
+	mustHaveSuffix
 ) where
 
 import qualified Beng.Ops.Declarations as Declaration
 import Beng.Types.Ops.Definitions (Definition(..), Runner)
-import Beng.Types.Ops (Op)
-
-import Data.Map (Map)
 
 -- instances
 
@@ -41,13 +35,3 @@ mustHavePrefix = Declaration.mustHavePrefix . declaration
 
 mustHaveSuffix :: (Definition -> Bool)
 mustHaveSuffix = Declaration.mustHaveSuffix . declaration
-
--- TODO: when ops can be dynamically defined, modify the "show" functions to reflect locus info.
-showParensWith :: Map String Op -> (Definition -> String)
-showParensWith args = Declaration.showParensWith args . declaration
-
-showWith :: Map String Op -> (Definition -> String)
-showWith args = Declaration.showWith args . declaration
-
-showWithStrings :: Map String String -> (Definition -> String)
-showWithStrings argStrings = Declaration.showWithStrings argStrings . declaration

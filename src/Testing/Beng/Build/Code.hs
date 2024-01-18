@@ -6,7 +6,7 @@ import Utils.Errors
 import Utils.Testing
 
 import Testing.Beng.Utils.Mocks (a, b, mockABDivision)
-import Testing.Beng.Utils.Ops (assertOp)
+import Testing.Beng.Utils.Ops ()
 
 import Beng.Build (buildCodeUsing)
 import Beng.Types.Ops (Op)
@@ -29,12 +29,12 @@ testBuildCode = TestCategories "buildCode" [
 		("one", do
 			ops <- build "a"
 			op <- assert1 "op" ops
-			assertOp a [] op),
+			a.null op),
 		("two", do
 			ops <- build "ab"
 			(op1, op2) <- assert2 "ops" ops
-			assertOp a [] op1
-			assertOp b [] op2)],
+			a.null op1
+			b.null op2)],
 	PureTests "nonprefixed ops" [
 		-- TODO
 	],
@@ -42,16 +42,16 @@ testBuildCode = TestCategories "buildCode" [
 		("leading", do
 			ops <- build "\n  a"
 			op <- assert1 "op" ops
-			assertOp a [] op),
+			a.null op),
 		("trailing", do
 			ops <- build "b \t\t"
 			op <- assert1 "op" ops
-			assertOp b [] op),
+			b.null op),
 		("infix", do
 			ops <- build "a\n\t\tb"
 			(aOp, bOp) <- assert2 "ops" ops
-			assertOp a [] aOp
-			assertOp b [] bOp)],
+			a.null aOp
+			b.null bOp)],
 	PureTests "junk" [
 		("err on immediately invalid code", do
 			noBuild "ja"),

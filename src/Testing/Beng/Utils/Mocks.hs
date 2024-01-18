@@ -10,36 +10,51 @@ module Testing.Beng.Utils.Mocks (
 	divide,
 	addWords,
 	add,
+	aMatch,
+	bMatch,
+	aOp,
+	bOp,
 	mockABDivision,
-	mockABAddDivExpApp,
-	assertAppArgs,
-	assertAppArgsEq,
-	assertExpArgs,
-	assertExpArgsEq,
-	assertDivWordsArgs,
-	assertDivWordsArgsEq,
-	assertDivArgs,
-	assertDivArgsEq,
-	assertAddWordsArgs,
-	assertAddWordsArgsEq,
-	assertAddArgs,
-	assertAddArgsEq
+	mockABMath,
+	mockABMathScopedCD,
+	assertApp,
+	assertExp,
+	assertDiv,
+	assertAdd,
+	assertAddWords,
+	assertDivWords,
+	appMatch,
+	expMatch,
+	divMatch,
+	addMatch,
+	appOp,
+	expOp,
+	divOp,
+	addOp
 ) where
 
 import Prelude hiding ((<), (>), exp)
 
 import Utils.Errors
 
-import Testing.Beng.Utils.Ops (assertArgsEq, assertOp)
+import Testing.Beng.Utils.Ops ()
 
+import Beng.Build.Cards (Card(..))
 import qualified Beng.Build.Context as Context
-import Beng.Build.Context.Builders ((=~), s, l, buildContext, define, defineRighty, defineLiteral)
+import Beng.Build.Context.Builders ((=~), s, l, buildContext, define, defineRighty, defineLiteral, defineUsing)
 import Beng.Build.Types.Context (PrecedenceBound(..))
+import qualified Beng.Parse.Matches as Match
+import Beng.Parse.Types.Matches (Capture(..), Match)
 import Beng.Types.Ops (Op(..))
+import Beng.Types.Ops.Declarations (Associativity(..))
 import Beng.Types.Ops.Definitions (Definition(..))
+import Beng.Run.Ops (evaluate)
 import Beng.Run.Types.Values (Value(..), ValueType(..))
 
+import Control.Composition ((.*))
 import Data.Map ((!))
+import qualified Data.Map as Map
+import Data.Text.Lazy (Text, unpack)
 
 -- constants
 
@@ -52,34 +67,34 @@ bValue :: Int
 bValue = 7
 
 a :: Definition
-a = defineLiteral "a" $ IntValue aValue
+a = defineLiteral "a" aValue
 
 b :: Definition
-b = defineLiteral "b" $ IntValue bValue
+b = defineLiteral "b" bValue
 
 divide :: Definition
 divide = define Default
-	["Dividend" =~ IntType, l "/", "Divisor" =~ IntType]
+	["Dividend" =~ DataType, l "/", "Divisor" =~ DataType]
 	\args -> do
-		let (IntValue dividend) = args ! "Dividend"
-		let (IntValue divisor) = args ! "Divisor"
-		return $ IntValue $ dividend `div` divisor
+		let (DataValue dividend) = args ! "Dividend"
+		let (DataValue divisor) = args ! "Divisor"
+		return $ dividend `div` divisor
 
 divideWords :: Definition
 divideWords = define (At divide.declaration)
-	["Dividend" =~ IntType, s, l "and", s, "Divisor" =~ IntType, s, l "divided"]
+	["Dividend" =~ DataType, s, l "and", s, "Divisor" =~ DataType, s, l "divided"]
 	\args -> do
-		let (IntValue dividend) = args ! "Dividend"
-		let (IntValue divisor) = args ! "Divisor"
-		return $ IntValue $ dividend `div` divisor 
+		let (DataValue dividend) = args ! "Dividend"
+		let (DataValue divisor) = args ! "Divisor"
+		return $ dividend `div` divisor 
 
 exp :: Definition
 exp = define (Above divide.declaration)
-	["Base" =~ IntType, l "^", "Exponent" =~ IntType]
+	["Base" =~ DataType, l "^", "Exponent" =~ DataType]
 	\args -> do
-		let (IntValue base) = args ! "Base"
-		let (IntValue exponent) = args ! "Exponent"
-		return $ IntValue $ base ^ exponent
+		let (DataValue base) = args ! "Base"
+		let (DataValue exponent) = args ! "Exponent"
+		return $ base ^ exponent
 
 {- `app` has the same precedence as `add` for testing purposes.
    Sorry that that's inconsistent with Haskell where application has an extremely low precedence,
@@ -87,74 +102,120 @@ exp = define (Above divide.declaration)
    designed to never include two associativities in one precedence level. -}
 app :: Definition
 app = defineRighty (Below divide.declaration)
-	["Left" =~ IntType, l "$", "Right" =~ IntType]
-	(return . (! "Left"))
+	["Left" =~ DataType, l "$", "Right" =~ DataType]
+	(return . dataValue . (! "Left"))
 
 addWords :: Definition
 addWords = define (At app.declaration)
-	["Augend" =~ IntType, s, l "and", s, "Addend" =~ IntType, s, l "added"]
+	["Augend" =~ DataType, s, l "and", s, "Addend" =~ DataType, s, l "added"]
 	\args -> do
-		let (IntValue augend) = args ! "Augend"
-		let (IntValue addend) = args ! "Addend"
-		return $ IntValue $ augend + addend
+		let (DataValue augend) = args ! "Augend"
+		let (DataValue addend) = args ! "Addend"
+		return $ augend + addend
 
+add :: Definition
 add = define (At addWords.declaration)
-	["Augend" =~ IntType, l "+", "Addend" =~ IntType]
+	["Augend" =~ DataType, l "+", "Addend" =~ DataType]
 	\args -> do
-		let (IntValue augend) = args ! "Augend"
-		let (IntValue addend) = args ! "Addend"
-		return $ IntValue $ augend + addend
+		let (DataValue augend) = args ! "Augend"
+		let (DataValue addend) = args ! "Addend"
+		return $ augend + addend
 
-mockABDivision = buildContext [a, b, divide]
+defineStaticNameValue :: Text -> Definition
+defineStaticNameValue name =
+	defineUsing (Below app.declaration) Righty
+		[l name, s, l ":=", s, "Value" =~ DataType, s, "Scope" =~ PreOpType]
+		(\args -> do
+			-- TODO: Should I make a new type of Capture to cache argument results that were already run here?
+			let (OpCapture valueOp) = args ! "Value"
+			valueData <- evaluate valueOp
+			let card = DefCard $ defineLiteral (unpack name) valueData
+			return $ Map.singleton "Scope" [card])
+		\args -> do
+			let (OpValue scopeOp) = args ! "Scope"
+			evaluate scopeOp
 
-mockABAddDivExpApp = buildContext [a, b, divide, divideWords, exp, app, addWords, add]
+defineC :: Definition
+defineC = defineStaticNameValue "C"
+
+defineD :: Definition
+defineD = defineStaticNameValue "D"
+
+abDivisionDefs = [a, b, divide]
+
+abMathDefs = abDivisionDefs ++ [divideWords, exp, app, addWords, add]
+
+abMathScopedCDDefs = abMathDefs ++ [defineC, defineD]
+
+mockABDivision = buildContext abDivisionDefs
+
+mockABMath = buildContext abMathDefs
+
+mockABMathScopedCD = buildContext abMathScopedCDDefs
+
+aMatch :: Match
+aMatch = Match.Literal "a"
+
+bMatch :: Match
+bMatch = Match.Literal "b"
+
+aOp :: Op
+aOp = Op (DefCard a) aMatch
+
+bOp :: Op
+bOp = Op (DefCard b) bMatch
+
+-- private
+
+type AssertTwoArgs = (Capture -> Fallible ()) -> (Capture -> Fallible ()) -> Op -> Fallible ()
+
+infixOpMatch :: String -> Text -> String -> Op -> Op -> Match
+infixOpMatch leftName literal rightName leftOp rightOp = Match.And [
+	Match.Argument leftName DataType leftOp,
+	Match.Literal literal,
+	Match.Argument rightName DataType rightOp]
 
 -- exported
 
-assertAppArgs :: (Op -> Fallible ()) -> (Op -> Fallible ()) -> (Op -> Fallible ())
-assertAppArgs assertLeft assertRight =
-	assertOp app [("Left", assertLeft), ("Right", assertRight)]
+assertApp :: AssertTwoArgs
+assertApp assertLeft assertRight = app.args [("Left", assertLeft), ("Right", assertRight)]
 
-assertAppArgsEq :: Definition -> Definition -> (Op -> Fallible ())
-assertAppArgsEq leftDef rightDef =
-	assertArgsEq app [("Left", leftDef), ("Right", rightDef)]
+assertExp :: AssertTwoArgs
+assertExp assertBase assertExponent = exp.args [("Base", assertBase), ("Exponent", assertExponent)]
 
-assertExpArgs :: (Op -> Fallible ()) -> (Op -> Fallible ()) -> (Op -> Fallible ())
-assertExpArgs assertBase assertExponent =
-	assertOp exp [("Base", assertBase), ("Exponent", assertExponent)]
+assertDiv :: AssertTwoArgs
+assertDiv assertDividend assertDivisor = divide.args [("Dividend", assertDividend), ("Divisor", assertDivisor)]
 
-assertExpArgsEq :: Definition -> Definition -> (Op -> Fallible ())
-assertExpArgsEq baseDef exponentDef =
-	assertArgsEq exp [("Base", baseDef), ("Exponent", exponentDef)]
+assertAdd :: AssertTwoArgs
+assertAdd assertAugend assertAddend = add.args [("Augend", assertAugend), ("Addend", assertAddend)]
 
-assertDivWordsArgs :: (Op -> Fallible ()) -> (Op -> Fallible ()) -> (Op -> Fallible ())
-assertDivWordsArgs assertDivnd assertDivisor =
-	assertOp divideWords [("Dividend", assertDivnd), ("Divisor", assertDivisor)]
+assertAddWords :: AssertTwoArgs
+assertAddWords assertAugend assertAddend = addWords.args [("Augend", assertAugend), ("Addend", assertAddend)]
 
-assertDivWordsArgsEq :: Definition -> Definition -> (Op -> Fallible ())
-assertDivWordsArgsEq dividendDef divisorDef =
-	assertArgsEq divideWords [("Dividend", dividendDef), ("Divisor", divisorDef)]
+assertDivWords :: AssertTwoArgs
+assertDivWords assertDividend assertDivisor =
+	divideWords.args [("Dividend", assertDividend), ("Divisor", assertDivisor)]
 
-assertDivArgs :: (Op -> Fallible ()) -> (Op -> Fallible ()) -> (Op -> Fallible ())
-assertDivArgs assertDivnd assertDivisor =
-	assertOp divide [("Dividend", assertDivnd), ("Divisor", assertDivisor)]
+appMatch :: (Op -> Op -> Match)
+appMatch = infixOpMatch "Left" "$" "Right"
 
-assertDivArgsEq :: Definition -> Definition -> (Op -> Fallible ())
-assertDivArgsEq dividendDef divisorDef =
-	assertArgsEq divide [("Dividend", dividendDef), ("Divisor", divisorDef)]
+expMatch :: (Op -> Op -> Match)
+expMatch = infixOpMatch "Base" "^" "Exponent"
 
-assertAddWordsArgs :: (Op -> Fallible ()) -> (Op -> Fallible ()) -> (Op -> Fallible ())
-assertAddWordsArgs assertAugend assertAddend =
-	assertOp addWords [("Augend", assertAugend), ("Addend", assertAddend)]
+divMatch :: (Op -> Op -> Match)
+divMatch = infixOpMatch "Dividend" "/" "Divisor"
 
-assertAddWordsArgsEq :: Definition -> Definition -> (Op -> Fallible ())
-assertAddWordsArgsEq augendDef addendDef =
-	assertArgsEq addWords [("Augend", augendDef), ("Addend", addendDef)]
+addMatch :: (Op -> Op -> Match)
+addMatch = infixOpMatch "Augend" "+" "Addend"
 
-assertAddArgs :: (Op -> Fallible ()) -> (Op -> Fallible ()) -> (Op -> Fallible ())
-assertAddArgs assertAugend assertAddend =
-	assertOp add [("Augend", assertAugend), ("Addend", assertAddend)]
+appOp :: (Op -> Op -> Op)
+appOp = Op (DefCard app) .* appMatch
 
-assertAddArgsEq :: Definition -> Definition -> (Op -> Fallible ())
-assertAddArgsEq augendDef addendDef =
-	assertArgsEq add [("Augend", augendDef), ("Addend", addendDef)]
+expOp :: (Op -> Op -> Op)
+expOp = Op (DefCard exp) .* expMatch
+
+divOp :: (Op -> Op -> Op)
+divOp = Op (DefCard divide) .* divMatch
+
+addOp :: (Op -> Op -> Op)
+addOp = Op (DefCard add) .* addMatch

@@ -5,6 +5,7 @@ module Beng.Build.Context (
 	hasPrecedence,
 	comparePrecedence,
 	showPrecedence,
+	pushCard,
 	pushDec,
 	pushDef
 ) where

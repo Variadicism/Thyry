@@ -125,7 +125,8 @@ instance Messagable State where
 	msg State{..} =
 		"post-" ++ map toLower (show spaceState) ++ " " ++
 		ifNotNull (++" ") (show prefixState) ++
-		msg rest
+		msg rest ++
+		" with " ++ show (map (\(name, capture) -> name ++ " := " ++ show capture) $ Map.assocs arguments)
 
 instance Show State where
 	show state@State{..} = msg state ++

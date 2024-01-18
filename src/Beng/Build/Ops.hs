@@ -84,6 +84,9 @@ buildNonPrefixed predecessor = "non-prefixed op for " ++ show predecessor @> \st
 
 build :: String -> Parser Op
 build contextDescription = contextDescription @+>
+	-- TODO: account for non-prefixed ops that build preops as their first arguments.
+	-- Maybe that can wait for the self-hosted rewrite?
+	-- It's an extremely niche edge case that would require a significant refactor of this logic.
 	"prefixed op" @> \state -> do
 		state >>> (
 			parseAny $

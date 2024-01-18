@@ -6,14 +6,10 @@ module Beng.Parse.Patterns (
 	mustHavePrefix,
 	mustHaveSuffix,
 	canHavePrefix,
-	canHaveSuffix,
-	showWithStrings,
-	showWith,
-	showParensWith
+	canHaveSuffix
 ) where
 
 import Utils.Lists (takeUntilIncl, wrap)
-import Utils.Strings (parenthesize)
 import Utils.Tuples (mapSnd2)
 
 import qualified Beng.Parse.Patterns.And as And
@@ -26,12 +22,9 @@ import Beng.Parse.Types.Patterns (Pattern(..))
 import Beng.Parse.Matches (Match)
 import Beng.Parse.Parsers (Parser)
 import Beng.Run.Values (ValueType(..))
-import Beng.Ops (Op, isNullary)
 
 import Data.List (intercalate)
-import Data.Map ((!?), Map)
-import qualified Data.Map as Map
-import Data.Map.Ordered (OMap)
+import Data.Map.Ordered ((<>|), OMap)
 import qualified Data.Map.Ordered as OMap
 import Data.Text.Lazy (unpack)
 import qualified Data.Text.Lazy as Text
@@ -41,7 +34,14 @@ import qualified Data.Text.Lazy as Text
 deriving instance Eq Pattern
 
 instance Show Pattern where
-	show = showWith Map.empty
+	show = \case
+		Space -> " "
+		And subpatterns -> concatMap show subpatterns
+		Or subpatterns -> "(" ++ intercalate "|" (map show subpatterns) ++ ")"
+		Literal literal -> unpack literal
+		Delimited delimiter delimitend ->
+			"(" ++ show delimitend ++ "){" ++ show delimiter ++ "}"
+		Argument{name} -> wrap "'" name
 
 -- exports
 
@@ -56,8 +56,7 @@ parse = \case
 
 getArgs :: Pattern -> OMap String ValueType
 getArgs = \case
-	And subpatterns ->
-		wrapTypes ListType $ map getArgs subpatterns
+	And subpatterns -> foldl (<>|) OMap.empty $ map getArgs subpatterns
 	Or subpatterns ->
 		wrapTypes MaybeType $ map getArgs subpatterns
 	Delimited delimiter delimitend ->
@@ -105,29 +104,3 @@ canHaveSuffix = \case
 	Or subpatterns -> any canHaveSuffix subpatterns
 	Delimited delimiter delimitend -> any canHaveSuffix [delimiter, delimitend]
 	pattern -> canHavePrefix pattern
-
-showWithStrings :: Map String String -> (Pattern -> String)
-showWithStrings argStrings = \case
-	Space -> " "
-	And subpatterns -> concatMap showSub subpatterns
-	Or subpatterns -> "(" ++ intercalate "|" (map showSub subpatterns) ++ ")"
-	Literal literal -> unpack literal
-	Delimited delimiter delimitend ->
-		"(" ++ showSub delimitend ++ "){" ++ showSub delimiter ++ "}"
-	Argument{name} -> case argStrings !? name of
-		Just argString -> argString
-		Nothing -> wrap "'" name
-	where
-		showSub = showWithStrings argStrings
-
-showWith :: Map String Op -> (Pattern -> String)
--- TODO: show parentheses around arg ops with higher precedence when needed.
-showWith args = showWithStrings (Map.map show args)
-
-showParensWith :: Map String Op -> (Pattern -> String)
-showParensWith args = showWithStrings (Map.map showArg args)
-	where
-		showArg :: Op -> String
-		showArg op = if isNullary op
-			then show op
-			else parenthesize $ show op

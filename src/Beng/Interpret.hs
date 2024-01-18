@@ -5,7 +5,7 @@ module Beng.Interpret (
 import Utils.Monads
 
 import Beng.Build (buildFile)
-import Beng.Run.Ops (run)
+import Beng.Run.Ops (evaluate)
 
 interpret :: FilePath -> VoidFallible
 interpret path = do
@@ -13,7 +13,7 @@ interpret path = do
 	let interpret' = \case
 		[] -> return ()
 		nextOp:remainingOps -> do
-			let result = run nextOp
+			let result = evaluate nextOp
 			-- TODO: Simply printing the result is (obviously) a placeholder.
 			putStrLn $ show result
 			interpret' remainingOps	

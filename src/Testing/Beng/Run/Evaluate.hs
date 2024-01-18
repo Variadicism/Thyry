@@ -1,0 +1,100 @@
+module Testing.Beng.Run.Evaluate (
+	testRunEvaluate
+) where
+
+import Utils.Testing
+
+import Testing.Beng.Utils.Mocks (aOp, aValue, addOp, appOp, bOp, bValue, divOp, expOp)
+import Testing.Beng.Utils.Run (assertEval, assertUndefinedError)
+
+import Beng.Build.Context (PrecedenceBound(Default, None))
+import Beng.Build.Context.Builders ((=~), l, declare, define)
+import Beng.Build.Cards (Card(..))
+import Beng.Ops (Op(..))
+import Beng.Ops.Definitions (Definition)
+import Beng.Parse.Matches (Match)
+import qualified Beng.Parse.Matches as M
+import Beng.Parse.Patterns (Pattern(..))
+import Beng.Run.Types.Values (Value(..), ValueType(..))
+
+import Data.List (singleton)
+import Data.Map ((!))
+
+-- constants
+
+noneValue = 0
+
+someOrNone :: Definition
+someOrNone = define Default
+	[Or [l "none", "Some" =~ DataType]]
+	\args -> do
+		let (MaybeValue maybeSome) = args ! "Some"
+		return case maybeSome of
+			Nothing -> noneValue
+			Just value -> do
+				let (DataValue dataOut) = value
+				dataOut
+
+sumCommas :: Definition
+sumCommas = define Default
+	[Delimited ("Element" =~ DataType) (l ",")]
+	\args -> do
+		let (ListValue elements) = args ! "Element"
+		let unpackData = \element -> do
+			-- ...There has to be a better way to do this. :|
+			let (DataValue value) = element
+			value
+		return $ sum $ map unpackData elements
+
+noneOp :: Op
+noneOp = Op {
+	card = DefCard someOrNone,
+	match = M.Or { matchIndex = 0, misses = ["Some"], match = M.Literal "none" }}
+
+-- private
+
+dataArgMatch :: String -> Op -> Match
+dataArgMatch name op = M.Argument { name, op, valueType = DataType }
+
+someOp :: Op -> Op
+someOp op = Op {
+	card = DefCard someOrNone,
+	match = M.And $ singleton $
+		M.Or { matchIndex = 1, misses = [], match = dataArgMatch "Some" op }}
+
+sumCommasOp :: Op -> [Op] -> Op
+sumCommasOp firstArgOp argOpsTail = Op {
+	card = DefCard sumCommas,
+	match = M.And $ singleton $
+		M.Delimited { M.head = dataArgMatch "Element" firstArgOp, M.tail = toTail argOpsTail }}
+	where
+		toTail :: ([Op] -> [(Match, Match)])
+		toTail = map $ (M.Literal ",",) . dataArgMatch "Element"
+
+-- tests
+
+testRunEvaluate :: TestCategory
+testRunEvaluate = TestCategories "evaluate" [
+	PureTests "simple" [
+		("nullary", do
+			assertEval aValue aOp),
+		("add", do
+			assertEval (aValue + bValue) $ addOp aOp bOp),
+		("divide additions", do
+			assertEval ((aValue+aValue) `div` (bValue+aValue)) $ divOp (addOp aOp aOp) (addOp bOp aOp)),
+		("4 deep", assertEval
+			(bValue^(aValue `div` (aValue + aValue))) $
+			expOp bOp $ divOp aOp $ addOp aOp $ appOp bOp aOp)],
+	PureTests "Maybe" [
+		("Just", do
+			assertEval aValue $ someOp aOp),
+		("Nothing", do
+			assertEval noneValue noneOp)],
+	PureTests "List" [
+		("Delimited", do
+			assertEval (aValue + bValue*3) $ sumCommasOp aOp [bOp, bOp, bOp]) ],
+	PureTests "undefined" [
+		("declaration", do
+			let declaration = declare None [l "test"]
+			let op = Op { card = DecCard declaration, match = M.Literal "test" }
+			assertUndefinedError op)]]

@@ -1,4 +1,5 @@
 module Beng.Parse.Matches (
+	Capture(..),
 	Match(..),
 	getSubmatches,
 	getText,
@@ -8,18 +9,27 @@ module Beng.Parse.Matches (
 	hasSuffix
 ) where
 
-import Utils.Lists (takeUntilIncl)
-import Utils.Tuples (toList2)
+import Utils.Lists (takeUntilIncl, updateAt)
+import Utils.Maps (mapOmap)
+import Utils.Tuples (mapSnd2, toList2)
 
-import Beng.Parse.Types.Matches (Match(..))
+import {-# SOURCE #-} Beng.Ops ()
+import Beng.Parse.Types.Matches (Capture(..), Match(..))
 import Beng.Types.Ops (Op(..))
 
-import Data.Map.Ordered ((<>|), OMap)
+import Data.List (findIndex)
+import Data.Map.Ordered ((|<>), (<>|), OMap)
 import qualified Data.Map.Ordered as OMap
 import Data.Text.Lazy (Text, unpack)
 import qualified Data.Text.Lazy as Text
 
 -- instances
+
+instance Show Capture where
+	show = \case
+		OpCapture{op} -> show op
+		ListCapture{captures} -> show captures
+		MaybeCapture{maybeCapture} -> show maybeCapture
 
 instance Eq Match where
 	-- Most of these are trivial....
@@ -55,17 +65,26 @@ getText = \case
 	match@Delimited{} -> Text.concat $ map getText $ getSubmatches match
 	Argument{op} -> getText op.match
 
-getArgs :: (Match -> OMap String Op)
+getArgs :: (Match -> OMap String Capture)
 getArgs = \case
 	Space{} -> OMap.empty
 	Literal{} -> OMap.empty
-	Or{match} -> getArgs match
-	And{matches} -> foldOMaps $ map getArgs matches
-	match@Delimited{} -> foldOMaps $ map getArgs $ getSubmatches match
-	Argument{name,op} -> OMap.singleton (name, op)
-	where
-		foldOMaps :: [OMap String Op] -> OMap String Op
-		foldOMaps = foldl (<>|) OMap.empty
+	Or{match,misses} ->
+		mapOmap (MaybeCapture . Just) (getArgs match) |<>
+		(OMap.fromList $ map (,MaybeCapture Nothing) misses)
+	And{matches} -> foldl (<>|) OMap.empty $ map getArgs matches
+	Delimited{head=headMatch,tail=tailMatch} -> do
+		let delimitendMatches = headMatch : map snd tailMatch
+		let delimiterMatches = map fst tailMatch
+		let listCapturesByArgNames :: [Match] -> OMap String Capture = \matches -> do
+			let foldInEntry :: [(String, [Capture])] -> (String, Capture) -> [(String, [Capture])] =
+				\entries (name, capture) -> case findIndex ((name==) . fst) entries of
+					Nothing -> entries ++ [(name, [capture])]
+					Just index -> updateAt index (mapSnd2 (++[capture])) entries
+			OMap.fromList $ map (mapSnd2 ListCapture) $
+				foldl foldInEntry [] $ concatMap (OMap.assocs . getArgs) matches
+		listCapturesByArgNames delimitendMatches <>| listCapturesByArgNames delimiterMatches
+	Argument{name,op} -> OMap.singleton (name, OpCapture op)
 
 hasArgs :: (Match -> Bool)
 hasArgs = not . OMap.null . getArgs

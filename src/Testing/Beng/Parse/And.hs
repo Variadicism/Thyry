@@ -40,8 +40,8 @@ assertLitMatches chars =
 lM :: (Text -> Match)
 lM = Match.Literal
 
-orM :: (Match -> Int -> Match)
-orM = Match.Or
+orM :: Match -> Int -> Match
+orM match matchIndex = Match.Or{ matchIndex, match, misses = [] }
 
 sM :: (Text -> Match)
 sM = Match.Space

@@ -3,6 +3,7 @@ module Beng.Build.Context.Builders (
 	e,
 	s,
 	l,
+	declare,
 	define,
 	defineRighty,
 	defineUsing,
@@ -15,7 +16,7 @@ import qualified Beng.Build.Context as Context
 import Beng.Ops.Declarations (ArgContextsBuilder, Associativity(..), Declaration(..), PrecedenceBound(..))
 import Beng.Ops.Definitions (Definition(..), Runner)
 import Beng.Parse.Patterns (Pattern(..))
-import Beng.Run.Values (Value(..), ValueType(..))
+import Beng.Run.Values (Data, ValueType(..))
 
 import qualified Data.Map as Map
 import Data.Text.Lazy (Text, pack)
@@ -23,7 +24,7 @@ import Data.Text.Lazy (Text, pack)
 -- private
 
 noContexts :: ArgContextsBuilder
-noContexts = const $ const $ return Map.empty
+noContexts = const $ return Map.empty
 
 -- exported
 
@@ -39,6 +40,10 @@ s = Space
 l :: (Text -> Pattern)
 l = Literal
 
+declare :: PrecedenceBound -> [Pattern] -> Declaration
+declare precedence subpatterns =
+	Declaration { pattern = And subpatterns, associativity = Lefty, buildContexts = noContexts, precedence}
+
 defineUsing :: PrecedenceBound -> Associativity -> [Pattern] -> ArgContextsBuilder -> (Runner -> Definition)
 defineUsing precedence associativity subpatterns buildContexts = Definition $
 	Declaration { pattern = And subpatterns, associativity, buildContexts, precedence }
@@ -49,14 +54,14 @@ define precedence subpatterns = defineUsing precedence Lefty subpatterns noConte
 defineRighty :: PrecedenceBound -> [Pattern] -> (Runner -> Definition)
 defineRighty precedence subpatterns = defineUsing precedence Righty subpatterns noContexts
 
-defineLiteral :: String -> Value -> Definition
-defineLiteral literal value = Definition {
+defineLiteral :: String -> Data -> Definition
+defineLiteral literal dataValue = Definition {
 	declaration = Declaration {
 		pattern = Literal $ pack literal,
 		associativity = Lefty {- irrelevant in nullary ops -},
 		buildContexts = noContexts,
 		precedence = None },
-	runWith = const $ return value }
+	runWith = const $ return dataValue }
 
 buildContext :: [Definition] -> Context
 buildContext = foldl (flip pushDef) Context.empty

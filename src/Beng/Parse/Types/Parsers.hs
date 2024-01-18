@@ -9,6 +9,7 @@ module Beng.Parse.Types.Parsers (
 
 import Beng.Build.Types.Cards (Card)
 import Beng.Build.Types.Context (Context)
+import Beng.Parse.Types.Matches (Capture)
 import Beng.Types.Ops (Op)
 
 import Data.Map as Map
@@ -40,7 +41,7 @@ data State = State {
 	context :: Context,
 	parent :: Maybe Card,
 	maxPrecedence :: Maybe Card,
-	arguments :: Map String Op,
+	arguments :: Map String Capture,
 	indentation :: Int,
 	prefixState :: PrefixState,
 	spaceState :: SpaceState,

@@ -1,4 +1,5 @@
 module Beng.Run.Values (
+	Data,
 	Value(..),
 	ValueType(..)
 ) where
@@ -6,16 +7,15 @@ module Beng.Run.Values (
 import Utils.Lists (showWithAnd)
 
 import Beng.Ops ()
-import Beng.Run.Types.Values (Value(..), ValueType(..))
+import Beng.Run.Types.Values (Data, Value(..), ValueType(..))
 
 -- instances
 
 instance Show Value where
-	show (PreOpValue preop) = show preop
 	show (OpValue op) = show op
 	show (ListValue values) = showWithAnd values
 	show (MaybeValue maybeValue) = show maybeValue
-	show (IntValue int) = show int
+	show (DataValue int) = show int
 
 instance Show ValueType where
 	show = \case
@@ -23,6 +23,6 @@ instance Show ValueType where
 		OpType -> "op"
 		ListType{element} -> "[" ++ show element ++ "]"
 		MaybeType{inner} -> show inner ++ "?"
-		IntType -> "integer"
+		DataType -> "data"
 
 deriving instance Eq ValueType

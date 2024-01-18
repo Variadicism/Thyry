@@ -7,20 +7,14 @@ module Beng.Ops.Declarations (
 	canHavePrefix,
 	canHaveSuffix,
 	mustHavePrefix,
-	mustHaveSuffix,
-	showParensWith,
-	showWith,
-	showWithStrings
+	mustHaveSuffix
 ) where
 
 import Utils.Lists (wrap)
 
 import Beng.Build.Types.Context (PrecedenceBound(..))
-import Beng.Types.Ops (Op)
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Types.Ops.Declarations (ArgContextsBuilder, Associativity(..), Declaration(..))
-
-import Data.Map (Map)
 
 -- instances
 
@@ -52,12 +46,3 @@ mustHavePrefix = Pattern.mustHavePrefix . pattern
 
 mustHaveSuffix :: Declaration -> Bool
 mustHaveSuffix = Pattern.mustHaveSuffix . pattern
-
-showParensWith :: Map String Op -> Declaration -> String
-showParensWith args = Pattern.showParensWith args . pattern
-
-showWith :: Map String Op -> Declaration -> String
-showWith args = Pattern.showWith args . pattern
-
-showWithStrings :: Map String String -> Declaration -> String
-showWithStrings argStrings = Pattern.showWithStrings argStrings . pattern
