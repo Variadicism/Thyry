@@ -1,35 +1,48 @@
 module Beng.Build.Context.Builders (
-	(=~),
+	a,
 	e,
 	s,
 	l,
+	asOp,
 	declare,
 	define,
 	defineRighty,
 	defineUsing,
 	defineLiteral,
+	defineLiteralData,
 	buildContext
 ) where
 
 import Beng.Build.Context (Context(..), pushDef)
 import qualified Beng.Build.Context as Context
-import Beng.Ops.Declarations (ArgContextsBuilder, Associativity(..), Declaration(..), PrecedenceBound(..))
+import Beng.Ops.Declarations (ArgContextBuilder, Associativity(..), Declaration(..), PrecedenceBound(..))
 import Beng.Ops.Definitions (Definition(..), Runner)
+import Beng.Parse.Types.Matches (Capture(..))
 import Beng.Parse.Patterns (Pattern(..))
-import Beng.Run.Values (Data, ValueType(..))
+import Beng.Run.Ops (run)
+import Beng.Run.Types.Data (Data)
+import Beng.Types.Ops (Op)
 
-import qualified Data.Map as Map
 import Data.Text.Lazy (Text, pack)
 
 -- private
 
-noContexts :: ArgContextsBuilder
-noContexts = const $ return Map.empty
+noContexts :: ArgContextBuilder
+noContexts = const $ const $ return []
+
+defineLiteralRunning :: String -> Runner -> Definition
+defineLiteralRunning literal runner = Definition {
+	declaration = Declaration {
+		pattern = Literal $ pack literal,
+		associativity = Lefty {- irrelevant in nullary ops -},
+		contextualize = noContexts,
+		precedence = None },
+	runWith = runner }
 
 -- exported
 
-(=~) :: String -> ValueType -> Pattern
-(=~) name valueType = Argument { name, valueType }
+a :: (String -> Pattern)
+a = Argument
 
 e :: Pattern
 e = Literal ""
@@ -40,13 +53,20 @@ s = Space
 l :: (Text -> Pattern)
 l = Literal
 
+asOp :: (Capture -> Op)
+asOp = \case
+	OpCapture op -> op
+	capture -> error $
+		"A builtin op assumed that an arg captured an op solo, " ++
+		"but it actually captured a(n) " ++ show capture ++ "!"
+
 declare :: PrecedenceBound -> [Pattern] -> Declaration
 declare precedence subpatterns =
-	Declaration { pattern = And subpatterns, associativity = Lefty, buildContexts = noContexts, precedence}
+	Declaration { pattern = And subpatterns, associativity = Lefty, contextualize = noContexts, precedence}
 
-defineUsing :: PrecedenceBound -> Associativity -> [Pattern] -> ArgContextsBuilder -> (Runner -> Definition)
-defineUsing precedence associativity subpatterns buildContexts = Definition $
-	Declaration { pattern = And subpatterns, associativity, buildContexts, precedence }
+defineUsing :: PrecedenceBound -> Associativity -> [Pattern] -> ArgContextBuilder -> (Runner -> Definition)
+defineUsing precedence associativity subpatterns contextualize = Definition $
+	Declaration { pattern = And subpatterns, associativity, contextualize, precedence }
 
 define :: PrecedenceBound -> [Pattern] -> (Runner -> Definition)
 define precedence subpatterns = defineUsing precedence Lefty subpatterns noContexts
@@ -54,14 +74,11 @@ define precedence subpatterns = defineUsing precedence Lefty subpatterns noConte
 defineRighty :: PrecedenceBound -> [Pattern] -> (Runner -> Definition)
 defineRighty precedence subpatterns = defineUsing precedence Righty subpatterns noContexts
 
-defineLiteral :: String -> Data -> Definition
-defineLiteral literal dataValue = Definition {
-	declaration = Declaration {
-		pattern = Literal $ pack literal,
-		associativity = Lefty {- irrelevant in nullary ops -},
-		buildContexts = noContexts,
-		precedence = None },
-	runWith = const $ return dataValue }
+defineLiteral :: String -> Op -> Definition
+defineLiteral literal op = defineLiteralRunning literal $ const $ run op
+
+defineLiteralData :: String -> (Data -> Definition)
+defineLiteralData literal = defineLiteralRunning literal . const . return
 
 buildContext :: [Definition] -> Context
 buildContext = foldl (flip pushDef) Context.empty

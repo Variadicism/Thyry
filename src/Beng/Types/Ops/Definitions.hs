@@ -5,12 +5,13 @@ module Beng.Types.Ops.Definitions (
 
 import Utils.Errors
 
-import Beng.Run.Types.Values (Data, Value)
+import Beng.Parse.Matches (Capture)
+import Beng.Run.Types.Data (Data)
 import Beng.Types.Ops.Declarations (Declaration)
 
 import Data.Map (Map)
 
-type Runner = Map String Value -> Fallible Data
+type Runner = Map String Capture -> Fallible Data
 
 data Definition = Definition {
 	declaration :: Declaration,

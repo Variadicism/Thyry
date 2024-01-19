@@ -1,12 +1,17 @@
 module Beng.Parse.Types.Matches (
+	CaptureType(..),
 	Capture(..),
 	Match(..)
 ) where
 
 import {-# SOURCE #-} Beng.Types.Ops (Op)
-import Beng.Run.Types.Values (ValueType)
 
 import Data.Text.Lazy (Text)
+
+data CaptureType =
+	OpType |
+	ListType { element :: CaptureType } |
+	MaybeType { inner :: CaptureType }
 
 data Capture =
 	OpCapture { op :: Op } |
@@ -19,4 +24,4 @@ data Match =
 	Or { match :: Match, matchIndex :: Int, misses :: [String] } |
 	And { matches :: [Match] } |
 	Delimited { head :: Match, tail :: [(Match, Match)] } |
-	Argument { name :: String, valueType :: ValueType, op :: Op }
+	Argument { name :: String, op :: Op }

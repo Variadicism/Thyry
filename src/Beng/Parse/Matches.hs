@@ -1,5 +1,6 @@
 module Beng.Parse.Matches (
 	Capture(..),
+	CaptureType(..),
 	Match(..),
 	getSubmatches,
 	getText,
@@ -14,7 +15,7 @@ import Utils.Maps (mapOmap)
 import Utils.Tuples (mapSnd2, toList2)
 
 import {-# SOURCE #-} Beng.Ops ()
-import Beng.Parse.Types.Matches (Capture(..), Match(..))
+import Beng.Parse.Types.Matches (Capture(..), CaptureType(..), Match(..))
 import Beng.Types.Ops (Op(..))
 
 import Data.List (findIndex)
@@ -24,6 +25,14 @@ import Data.Text.Lazy (Text, unpack)
 import qualified Data.Text.Lazy as Text
 
 -- instances
+
+instance Show CaptureType where
+	show = \case
+		OpType -> "op"
+		ListType{element} -> "[" ++ show element ++ "]"
+		MaybeType{inner} -> show inner ++ "?"
+
+deriving instance Eq CaptureType
 
 instance Show Capture where
 	show = \case

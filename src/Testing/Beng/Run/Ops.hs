@@ -1,21 +1,22 @@
-module Testing.Beng.Run.Evaluate (
-	testRunEvaluate
+module Testing.Beng.Run.Ops (
+	testRunOps
 ) where
 
+import Utils.Errors
 import Utils.Testing
 
 import Testing.Beng.Utils.Mocks (aOp, aValue, addOp, appOp, bOp, bValue, divOp, expOp)
 import Testing.Beng.Utils.Run (assertEval, assertUndefinedError)
 
 import Beng.Build.Context (PrecedenceBound(Default, None))
-import Beng.Build.Context.Builders ((=~), l, declare, define)
+import Beng.Build.Context.Builders (a, l, asOp, declare, define)
 import Beng.Build.Cards (Card(..))
 import Beng.Ops (Op(..))
 import Beng.Ops.Definitions (Definition)
-import Beng.Parse.Matches (Match)
+import Beng.Parse.Matches (Capture(..), Match)
 import qualified Beng.Parse.Matches as M
 import Beng.Parse.Patterns (Pattern(..))
-import Beng.Run.Types.Values (Value(..), ValueType(..))
+import Beng.Run.Ops (run)
 
 import Data.List (singleton)
 import Data.Map ((!))
@@ -26,25 +27,19 @@ noneValue = 0
 
 someOrNone :: Definition
 someOrNone = define Default
-	[Or [l "none", "Some" =~ DataType]]
+	[Or [l "none", a "Some"]]
 	\args -> do
-		let (MaybeValue maybeSome) = args ! "Some"
-		return case maybeSome of
-			Nothing -> noneValue
-			Just value -> do
-				let (DataValue dataOut) = value
-				dataOut
+		let (MaybeCapture maybeSome) = args ! "Some"
+		case maybeSome of
+			Nothing -> return noneValue
+			Just capture -> run $ asOp capture
 
 sumCommas :: Definition
 sumCommas = define Default
-	[Delimited ("Element" =~ DataType) (l ",")]
+	[Delimited (a "Element") (l ",")]
 	\args -> do
-		let (ListValue elements) = args ! "Element"
-		let unpackData = \element -> do
-			-- ...There has to be a better way to do this. :|
-			let (DataValue value) = element
-			value
-		return $ sum $ map unpackData elements
+		let (ListCapture elements) = args ! "Element"
+		fmap sum $ reduceErrors $ map (run . asOp) elements
 
 noneOp :: Op
 noneOp = Op {
@@ -53,28 +48,25 @@ noneOp = Op {
 
 -- private
 
-dataArgMatch :: String -> Op -> Match
-dataArgMatch name op = M.Argument { name, op, valueType = DataType }
-
 someOp :: Op -> Op
 someOp op = Op {
 	card = DefCard someOrNone,
 	match = M.And $ singleton $
-		M.Or { matchIndex = 1, misses = [], match = dataArgMatch "Some" op }}
+		M.Or { matchIndex = 1, misses = [], match = M.Argument "Some" op }}
 
 sumCommasOp :: Op -> [Op] -> Op
 sumCommasOp firstArgOp argOpsTail = Op {
 	card = DefCard sumCommas,
 	match = M.And $ singleton $
-		M.Delimited { M.head = dataArgMatch "Element" firstArgOp, M.tail = toTail argOpsTail }}
+		M.Delimited { M.head = M.Argument "Element" firstArgOp, M.tail = toTail argOpsTail }}
 	where
 		toTail :: ([Op] -> [(Match, Match)])
-		toTail = map $ (M.Literal ",",) . dataArgMatch "Element"
+		toTail = map $ (M.Literal ",",) . M.Argument "Element"
 
 -- tests
 
-testRunEvaluate :: TestCategory
-testRunEvaluate = TestCategories "evaluate" [
+testRunOps :: TestCategory
+testRunOps = TestCategories "evaluate" [
 	PureTests "simple" [
 		("nullary", do
 			assertEval aValue aOp),

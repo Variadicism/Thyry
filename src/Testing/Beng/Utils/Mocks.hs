@@ -41,20 +41,19 @@ import Testing.Beng.Utils.Ops ()
 
 import Beng.Build.Cards (Card(..))
 import qualified Beng.Build.Context as Context
-import Beng.Build.Context.Builders ((=~), s, l, buildContext, define, defineRighty, defineLiteral, defineUsing)
+import Beng.Build.Context.Builders (s, l, asOp, buildContext, define, defineRighty, defineLiteral, defineLiteralData, defineUsing)
 import Beng.Build.Types.Context (PrecedenceBound(..))
 import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Types.Matches (Capture(..), Match)
+import Beng.Parse.Types.Patterns (Pattern(Argument))
 import Beng.Types.Ops (Op(..))
 import Beng.Types.Ops.Declarations (Associativity(..))
 import Beng.Types.Ops.Definitions (Definition(..))
-import Beng.Run.Ops (evaluate)
-import Beng.Run.Types.Values (Value(..), ValueType(..))
+import Beng.Run.Ops (run)
 
 import Control.Composition ((.*))
 import Data.Map ((!))
-import qualified Data.Map as Map
-import Data.Text.Lazy (Text, unpack)
+import Data.Text.Lazy (Text, pack)
 
 -- constants
 
@@ -67,33 +66,33 @@ bValue :: Int
 bValue = 7
 
 a :: Definition
-a = defineLiteral "a" aValue
+a = defineLiteralData "a" aValue
 
 b :: Definition
-b = defineLiteral "b" bValue
+b = defineLiteralData "b" bValue
 
 divide :: Definition
 divide = define Default
-	["Dividend" =~ DataType, l "/", "Divisor" =~ DataType]
+	[arg "Dividend", l "/", arg "Divisor"]
 	\args -> do
-		let (DataValue dividend) = args ! "Dividend"
-		let (DataValue divisor) = args ! "Divisor"
+		dividend <- run $ asOp $ args ! "Dividend"
+		divisor <- run $ asOp $ args ! "Divisor"
 		return $ dividend `div` divisor
 
 divideWords :: Definition
 divideWords = define (At divide.declaration)
-	["Dividend" =~ DataType, s, l "and", s, "Divisor" =~ DataType, s, l "divided"]
+	[arg "Dividend", s, l "and", s, arg "Divisor", s, l "divided"]
 	\args -> do
-		let (DataValue dividend) = args ! "Dividend"
-		let (DataValue divisor) = args ! "Divisor"
+		dividend <- run $ asOp $ args ! "Dividend"
+		divisor <- run $ asOp $ args ! "Divisor"
 		return $ dividend `div` divisor 
 
 exp :: Definition
 exp = define (Above divide.declaration)
-	["Base" =~ DataType, l "^", "Exponent" =~ DataType]
+	[arg "Base", l "^", arg "Exponent"]
 	\args -> do
-		let (DataValue base) = args ! "Base"
-		let (DataValue exponent) = args ! "Exponent"
+		base <- run $ asOp $ args ! "Base"
+		exponent <- run $ asOp $ args ! "Exponent"
 		return $ base ^ exponent
 
 {- `app` has the same precedence as `add` for testing purposes.
@@ -102,38 +101,35 @@ exp = define (Above divide.declaration)
    designed to never include two associativities in one precedence level. -}
 app :: Definition
 app = defineRighty (Below divide.declaration)
-	["Left" =~ DataType, l "$", "Right" =~ DataType]
-	(return . dataValue . (! "Left"))
+	[arg "Left", l "$", arg "Right"]
+	(run . asOp . (! "Left"))
 
 addWords :: Definition
 addWords = define (At app.declaration)
-	["Augend" =~ DataType, s, l "and", s, "Addend" =~ DataType, s, l "added"]
+	[arg "Augend", s, l "and", s, arg "Addend", s, l "added"]
 	\args -> do
-		let (DataValue augend) = args ! "Augend"
-		let (DataValue addend) = args ! "Addend"
+		augend <- run $ asOp $ args ! "Augend"
+		addend <- run $ asOp $ args ! "Addend"
 		return $ augend + addend
 
 add :: Definition
 add = define (At addWords.declaration)
-	["Augend" =~ DataType, l "+", "Addend" =~ DataType]
+	[arg "Augend", l "+", arg "Addend"]
 	\args -> do
-		let (DataValue augend) = args ! "Augend"
-		let (DataValue addend) = args ! "Addend"
+		augend <- run $ asOp $ args ! "Augend"
+		addend <- run $ asOp $ args ! "Addend"
 		return $ augend + addend
 
-defineStaticNameValue :: Text -> Definition
+defineStaticNameValue :: String -> Definition
 defineStaticNameValue name =
 	defineUsing (Below app.declaration) Righty
-		[l name, s, l ":=", s, "Value" =~ DataType, s, "Scope" =~ PreOpType]
-		(\args -> do
-			-- TODO: Should I make a new type of Capture to cache argument results that were already run here?
-			let (OpCapture valueOp) = args ! "Value"
-			valueData <- evaluate valueOp
-			let card = DefCard $ defineLiteral (unpack name) valueData
-			return $ Map.singleton "Scope" [card])
-		\args -> do
-			let (OpValue scopeOp) = args ! "Scope"
-			evaluate scopeOp
+		[l (pack name), s, l ":=", s, arg "Value", s, arg "Scope"]
+		(\argName args -> return case argName of
+			"Scope" -> do
+				let valueOp = asOp $ args ! "Value"
+				[DefCard $ defineLiteral name valueOp]
+			_ -> [])
+		\args -> run $ asOp $ args ! "Scope"
 
 defineC :: Definition
 defineC = defineStaticNameValue "C"
@@ -167,13 +163,16 @@ bOp = Op (DefCard b) bMatch
 
 -- private
 
+arg :: String -> Pattern
+arg = Argument
+
 type AssertTwoArgs = (Capture -> Fallible ()) -> (Capture -> Fallible ()) -> Op -> Fallible ()
 
 infixOpMatch :: String -> Text -> String -> Op -> Op -> Match
 infixOpMatch leftName literal rightName leftOp rightOp = Match.And [
-	Match.Argument leftName DataType leftOp,
+	Match.Argument leftName leftOp,
 	Match.Literal literal,
-	Match.Argument rightName DataType rightOp]
+	Match.Argument rightName rightOp]
 
 -- exported
 

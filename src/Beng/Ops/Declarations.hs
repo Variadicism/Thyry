@@ -1,5 +1,5 @@
 module Beng.Ops.Declarations (
-	ArgContextsBuilder,
+	ArgContextBuilder,
 	Associativity(..),
 	Declaration(..),
 	PrecedenceBound(..),
@@ -14,7 +14,7 @@ import Utils.Lists (wrap)
 
 import Beng.Build.Types.Context (PrecedenceBound(..))
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
-import Beng.Types.Ops.Declarations (ArgContextsBuilder, Associativity(..), Declaration(..))
+import Beng.Types.Ops.Declarations (ArgContextBuilder, Associativity(..), Declaration(..))
 
 -- instances
 

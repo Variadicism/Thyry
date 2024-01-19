@@ -19,9 +19,8 @@ import qualified Beng.Parse.Patterns.Literal as Literal
 import qualified Beng.Parse.Patterns.Or as Or
 import qualified Beng.Parse.Patterns.Space as Space
 import Beng.Parse.Types.Patterns (Pattern(..))
-import Beng.Parse.Matches (Match)
+import Beng.Parse.Matches (CaptureType(..), Match)
 import Beng.Parse.Parsers (Parser)
-import Beng.Run.Values (ValueType(..))
 
 import Data.List (intercalate)
 import Data.Map.Ordered ((<>|), OMap)
@@ -52,19 +51,19 @@ parse = \case
 	And subpatterns -> And.parse subpatterns
 	Or subpatterns -> Or.parse subpatterns
 	Delimited{..} -> Delimited.parse delimiter delimitend
-	Argument{name,valueType} -> Argument.parse name valueType
+	Argument{name} -> Argument.parse name
 
-getArgs :: Pattern -> OMap String ValueType
+getArgs :: Pattern -> OMap String CaptureType
 getArgs = \case
 	And subpatterns -> foldl (<>|) OMap.empty $ map getArgs subpatterns
 	Or subpatterns ->
 		wrapTypes MaybeType $ map getArgs subpatterns
 	Delimited delimiter delimitend ->
 		wrapTypes ListType $ map getArgs [delimiter, delimitend]
-	Argument{name,valueType} -> OMap.singleton (name, valueType)
+	Argument{name} -> OMap.singleton (name, OpType)
 	_ -> OMap.empty
 	where
-		wrapTypes :: (ValueType -> ValueType) -> [OMap String ValueType] -> OMap String ValueType
+		wrapTypes :: (CaptureType -> CaptureType) -> [OMap String CaptureType] -> OMap String CaptureType
 		wrapTypes wrapper = OMap.fromList . map (mapSnd2 wrapper) . concatMap OMap.assocs
 
 hasArgs :: Pattern -> Bool

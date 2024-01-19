@@ -1,5 +1,5 @@
 module Beng.Types.Ops.Declarations (
-	ArgContextsBuilder,
+	ArgContextBuilder,
 	Associativity(..),
 	Declaration(..)
 ) where
@@ -15,10 +15,10 @@ import Data.Map (Map)
 
 data Associativity = Lefty | Righty
 
-type ArgContextsBuilder = Map String Capture -> Fallible (Map String [Card])
+type ArgContextBuilder = String -> Map String Capture -> Fallible [Card]
 
 data Declaration = Declaration {
 	pattern :: Pattern,
 	associativity :: Associativity,
 	precedence :: PrecedenceBound,
-	buildContexts :: ArgContextsBuilder }
+	contextualize :: ArgContextBuilder }

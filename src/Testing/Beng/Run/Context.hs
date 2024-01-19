@@ -26,8 +26,12 @@ testRunContext = TestCategories "running with context" [
 		("C and D chained", do
 			(cResult, addResult) <- assert2 "results" $ build "C := a+b D := b/a C+D"
 			assertEval (aValue + bValue) cResult.target
-			assertEval (aValue + bValue + (bValue `div` aValue)) addResult.target)]
-		{- TODO: test using the op itself in the Value evaluation
-		   This cannot be tested while everything is evaluated to Data because it can only
-		   result in infinite loops, but when Ops can be values, this will be useful and testable.
-		   This also requires mechanics to insert definitions into declarations later. -}]
+			assertEval (aValue + bValue + (bValue `div` aValue)) addResult.target)
+		{- TODO: when we can resolve forward declarations, add this unit test.
+		    - To make this work, D needs to be declared forward to parse its Scope, then defined
+		       after the definition is complete.
+			("D := recursive unused", do
+			(dResult, addResult) <- assert2 "results" $ build "C := b  D := C$D  D+b"
+			assertEval bValue dResult.target
+			-- Note: lazy evaluation avoids evaluating Right in `$`, so there is no infinite loop.
+			assertEval (bValue + bValue) addResult.target)-}]]
