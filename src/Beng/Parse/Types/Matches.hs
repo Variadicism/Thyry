@@ -21,6 +21,7 @@ data Capture =
 data Match =
 	Space { text :: Text } |
 	Literal { text :: Text } |
+	CharClass { char :: Char } |
 	Or { match :: Match, matchIndex :: Int, misses :: [String] } |
 	And { matches :: [Match] } |
 	Delimited { head :: Match, tail :: [(Match, Match)] } |

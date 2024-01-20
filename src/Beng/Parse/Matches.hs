@@ -69,6 +69,7 @@ getText :: (Match -> Text)
 getText = \case
 	Space{text} -> text
 	Literal{text} -> text
+	CharClass{char} -> Text.singleton char
 	Or{match} -> getText match
 	And{matches} -> Text.concat $ map getText matches
 	match@Delimited{} -> Text.concat $ map getText $ getSubmatches match
@@ -78,6 +79,7 @@ getArgs :: (Match -> OMap String Capture)
 getArgs = \case
 	Space{} -> OMap.empty
 	Literal{} -> OMap.empty
+	CharClass{} -> OMap.empty
 	Or{match,misses} ->
 		mapOmap (MaybeCapture . Just) (getArgs match) |<>
 		(OMap.fromList $ map (,MaybeCapture Nothing) misses)
