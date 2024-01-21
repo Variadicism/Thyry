@@ -34,7 +34,9 @@ testBuildCode = TestCategories "buildCode" [
 			ops <- build "a b"
 			(op1, op2) <- assert2 "ops" ops
 			a.null op1
-			b.null op2)],
+			b.null op2),
+		("err two smushed", do
+			build "ab" `hasErrorElse` "Ops should require a Space separator!")],
 	PureTests "nonprefixed ops" [
 		-- TODO
 	],
