@@ -5,7 +5,7 @@ module Testing.Beng.Build.Code (
 import Utils.Errors
 import Utils.Testing
 
-import Testing.Beng.Utils.Mocks (a, b, mockABDivision)
+import Testing.Beng.Utils.Mocks (a, b, assertDiv, mockABDivision)
 import Testing.Beng.Utils.Ops ()
 
 import Beng.Build (buildCodeUsing)
@@ -38,8 +38,27 @@ testBuildCode = TestCategories "buildCode" [
 		("err two smushed", do
 			build "ab" `hasErrorElse` "Ops should require a Space separator!")],
 	PureTests "nonprefixed ops" [
-		-- TODO
-	],
+		("one division", do
+			ops <- build "a/b"
+			op <- assert1 "op" ops
+			assertDiv a.null.op b.null.op op),
+		("two divisions", do
+			ops <- build "a/b\nb/b"
+			(ab, bb) <- assert2 "ops" ops
+			assertDiv a.null.op b.null.op ab
+			assertDiv b.null.op b.null.op bb),
+		("one chained division", do
+			ops <- build "a/b/b"
+			op <- assert1 "op" ops
+			assertDiv (assertDiv.op a.null.op b.null.op) b.null.op op),
+		("nullaries wrapping a division", do
+			ops <- build "b b/a\n\t\ta"
+			(bOp, divBA, aOp) <- assert3 "ops" ops
+			b.null bOp
+			assertDiv b.null.op a.null.op divBA
+			a.null aOp),
+		("err division with junk", do
+			build "a/k" `hasErrorElse` "This division should not have been parsed correctly!")],
 	PureTests "skipping whitespace" [
 		("leading", do
 			ops <- build "\n  a"
