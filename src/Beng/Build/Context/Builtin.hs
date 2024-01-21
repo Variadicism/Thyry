@@ -22,7 +22,7 @@ import Data.Text.Lazy (unpack)
 
 integers :: Definition
 integers = define None
-	[t "Integer" $ c [cr '0' '9'] []]
+	[t "Integer" $ Delimited e $ c [cr '0' '9'] []]
 	\args -> do
 		let (StringCapture text) = args ! "Integer"
 		-- `read` is safe because we only match '0'-'9'.
