@@ -31,7 +31,7 @@ testBuildCode = TestCategories "buildCode" [
 			op <- assert1 "op" ops
 			a.null op),
 		("two", do
-			ops <- build "ab"
+			ops <- build "a b"
 			(op1, op2) <- assert2 "ops" ops
 			a.null op1
 			b.null op2)],
