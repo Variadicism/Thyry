@@ -1,6 +1,5 @@
 module Beng.Parse.Matches (
 	Capture(..),
-	CaptureType(..),
 	Match(..),
 	getSubmatches,
 	getText,
@@ -15,7 +14,7 @@ import Utils.Maps (mapOmap)
 import Utils.Tuples (mapSnd2, toList2)
 
 import {-# SOURCE #-} Beng.Ops ()
-import Beng.Parse.Types.Matches (Capture(..), CaptureType(..), Match(..))
+import Beng.Parse.Types.Matches (Capture(..), Match(..))
 import Beng.Types.Ops (Op(..))
 
 import Data.List (findIndex)
@@ -26,17 +25,10 @@ import qualified Data.Text.Lazy as Text
 
 -- instances
 
-instance Show CaptureType where
-	show = \case
-		OpType -> "op"
-		ListType{element} -> "[" ++ show element ++ "]"
-		MaybeType{inner} -> show inner ++ "?"
-
-deriving instance Eq CaptureType
-
 instance Show Capture where
 	show = \case
 		OpCapture{op} -> show op
+		StringCapture{text} -> show text
 		ListCapture{captures} -> show captures
 		MaybeCapture{maybeCapture} -> show maybeCapture
 
@@ -70,6 +62,7 @@ getText = \case
 	Space{text} -> text
 	Literal{text} -> text
 	CharClass{char} -> Text.singleton char
+	NamedText{match} -> getText match
 	Or{match} -> getText match
 	And{matches} -> Text.concat $ map getText matches
 	match@Delimited{} -> Text.concat $ map getText $ getSubmatches match
@@ -80,6 +73,7 @@ getArgs = \case
 	Space{} -> OMap.empty
 	Literal{} -> OMap.empty
 	CharClass{} -> OMap.empty
+	NamedText{name,match} -> OMap.singleton (name, StringCapture $ getText match)
 	Or{match,misses} ->
 		mapOmap (MaybeCapture . Just) (getArgs match) |<>
 		(OMap.fromList $ map (,MaybeCapture Nothing) misses)
@@ -102,6 +96,7 @@ hasArgs = not . OMap.null . getArgs
 
 hasPrefix :: Match -> Bool
 hasPrefix = \case
+	NamedText{match} -> not $ Text.null $ getText match
 	Or{match} -> hasPrefix match
 	And{matches} -> any hasPrefix $ takeUntilIncl hasArgs matches
 	match@Delimited{} -> any hasPrefix $ takeUntilIncl hasArgs $ getSubmatches match
@@ -110,6 +105,7 @@ hasPrefix = \case
 
 hasSuffix :: Match -> Bool
 hasSuffix = \case
+	NamedText{match} -> not $ Text.null $ getText match
 	Or{match} -> hasSuffix match
 	And{matches} -> any hasSuffix $ takeUntilIncl hasArgs $ reverse matches
 	match@Delimited{} -> any hasSuffix $ takeUntilIncl hasArgs $ reverse $ getSubmatches match

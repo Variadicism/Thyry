@@ -8,7 +8,7 @@ import Utils.Testing
 import Testing.Beng.Utils.Mocks (mockNothing)
 import Testing.Beng.Utils.Parsers (assertState)
 
-import Beng.Parse.Matches (text)
+import Beng.Parse.Matches (Match(text))
 import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Parsers ((>\>), (<<<), SpaceState(..), Result(..), State(..), fileStartState)
 import qualified Beng.Parse.Patterns.Space as Space

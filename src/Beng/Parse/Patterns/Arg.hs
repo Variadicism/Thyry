@@ -8,9 +8,10 @@ import Utils.Tuples (mapFst2)
 
 import {-# SOURCE #-} qualified Beng.Build.Ops as Op
 import Beng.Build.Context (Context, pushCard)
-import Beng.Parse.Matches (Capture(..), CaptureType(..), Match(..))
+import Beng.Parse.Matches (Capture(..), Match(..))
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/>), (>/\>), Parser, PrefixState(..), State(..), takeAs, takeNone)
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
+import Beng.Parse.Types.Patterns (ArgumentType(..))
 import Beng.Types.Ops (Op)
 import Beng.Types.Ops.Declarations (ArgContextBuilder, Declaration(..))
 
@@ -27,7 +28,7 @@ buildOpWith name context = "build op contextualized under " ++ wrap "'" name @> 
 		Op.build (wrap "'" name) >/>
 		\s -> s{ context = state.context }
 
-buildAs :: String -> CaptureType -> ArgContextBuilder -> Parser (Capture, Op)
+buildAs :: String -> ArgumentType -> ArgContextBuilder -> Parser (Capture, Op)
 buildAs name captureType contextualize = "build " ++ wrap "'" name @> \state -> do
 	case captureType of
 		OpType -> do
@@ -56,6 +57,8 @@ buildAs name captureType contextualize = "build " ++ wrap "'" name @> \state -> 
 		MaybeType{inner} -> state >>>
 			buildAs name inner contextualize >\>
 			mapFst2 (MaybeCapture . Just)
+		-- Yeah, this is stupid, but I'm struggling to find a better solution. :|
+		StringType -> error $ "StringCaptures should be parsed by NamedText Patterns, not Args!"
 
 -- exported
 
@@ -76,4 +79,3 @@ parse name = "argument " ++ wrap "'" name @> \state ->
 				buildAs name captureType declaration.contextualize >/\>
 				(\s (capture, _) -> s{ arguments = Map.insert name capture s.arguments }) >\>
 				\(_, op) -> Argument { name, op }
-				

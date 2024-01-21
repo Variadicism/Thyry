@@ -1,8 +1,8 @@
 module Beng.Parse.Patterns where
 
-import Beng.Parse.Types.Matches (CaptureType, Match)
+import Beng.Parse.Types.Matches (Match)
 import Beng.Parse.Types.Parsers (Parser)
-import Beng.Parse.Types.Patterns (CharRange, Pattern)
+import Beng.Parse.Types.Patterns (ArgumentType, CharRange, Pattern)
 
 import Data.Map.Ordered (OMap)
 
@@ -16,7 +16,7 @@ instance Show Pattern
 
 parse :: Pattern -> Parser Match
 
-getArgs :: Pattern -> OMap String CaptureType
+getArgs :: Pattern -> OMap String ArgumentType
 
 hasArgs :: Pattern -> Bool
 

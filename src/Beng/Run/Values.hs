@@ -11,5 +11,6 @@ import Beng.Run.Types.Values (Value(..))
 
 instance Show Value where
 	show (DataValue dataOut) = show dataOut
+	show (StringValue text) = show text
 	show (ListValue values) = showWithAnd values
 	show (MaybeValue maybeValue) = show maybeValue

@@ -18,6 +18,7 @@ runArg = \case
 	OpCapture op -> do
 		dataOut <- run op
 		return $ DataValue dataOut
+	StringCapture text -> return $ StringValue text
 	ListCapture{captures} -> fmap ListValue $ reduceErrors $ map runArg captures
 	MaybeCapture{maybeCapture} -> case maybeCapture of
 		Nothing -> return $ MaybeValue Nothing

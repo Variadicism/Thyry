@@ -1,5 +1,6 @@
 module Beng.Parse.Patterns (
 	specials,
+	ArgumentType(..),
 	CharRange(..),
 	Pattern(..),
 	parse,
@@ -12,7 +13,7 @@ module Beng.Parse.Patterns (
 ) where
 
 import Utils.Lists (takeUntilIncl, wrap)
-import Utils.Strings (escape)
+import Utils.Strings (escape, parenthesize)
 import Utils.Tuples (mapSnd2)
 
 import qualified Beng.Parse.Patterns.And as And
@@ -20,10 +21,11 @@ import qualified Beng.Parse.Patterns.Arg as Argument
 import qualified Beng.Parse.Patterns.CharClass as CharClass
 import qualified Beng.Parse.Patterns.Delimited as Delimited
 import qualified Beng.Parse.Patterns.Literal as Literal
+import qualified Beng.Parse.Patterns.NamedText as NamedText
 import qualified Beng.Parse.Patterns.Or as Or
 import qualified Beng.Parse.Patterns.Space as Space
-import Beng.Parse.Types.Patterns (CharRange(..), Pattern(..))
-import Beng.Parse.Matches (CaptureType(..), Match)
+import Beng.Parse.Types.Patterns (ArgumentType(..), CharRange(..), Pattern(..))
+import Beng.Parse.Matches (Match)
 import Beng.Parse.Parsers (Parser)
 
 import Data.List (intercalate)
@@ -39,6 +41,15 @@ specials = ".{}[] "
 
 -- instances
 
+instance Show ArgumentType where
+	show = \case
+		OpType -> "op"
+		StringType -> "string"
+		ListType{element} -> "[" ++ show element ++ "]"
+		MaybeType{inner} -> show inner ++ "?"
+
+deriving instance Eq ArgumentType
+
 deriving instance Eq CharRange
 
 instance Show CharRange where
@@ -52,10 +63,12 @@ instance Show Pattern where
 		Space -> " "
 		Literal literal -> unpack literal
 		CharClass{chars,ranges,negate} -> CharClass.showClass ranges chars negate
+		NamedText{name,subpattern} -> wrap "\"" name ++ parenthesize (show subpattern)
 		And subpatterns -> concatMap show subpatterns
-		Or subpatterns -> "(" ++ intercalate "|" (map show subpatterns) ++ ")"
+		Or subpatterns -> parenthesize $ intercalate "|" (map show subpatterns)
 		Delimited delimiter delimitend ->
-			"(" ++ show delimitend ++ "){" ++ show delimiter ++ "}"
+			-- TODO: determine if parnehteses are necessary based on precedence.
+			parenthesize (show delimitend) ++ "{" ++ show delimiter ++ "}"
 		Argument{name} -> wrap "'" name
 
 -- exports
@@ -65,13 +78,15 @@ parse = \case
 	Space -> Space.parse
 	Literal literal -> Literal.parse literal
 	CharClass{ranges,chars,negate} -> CharClass.parse ranges chars negate
+	NamedText{name,subpattern} -> NamedText.parse name subpattern
 	And subpatterns -> And.parse subpatterns
 	Or subpatterns -> Or.parse subpatterns
 	Delimited{..} -> Delimited.parse delimiter delimitend
 	Argument{name} -> Argument.parse name
 
-getArgs :: Pattern -> OMap String CaptureType
+getArgs :: Pattern -> OMap String ArgumentType
 getArgs = \case
+	NamedText{name} -> OMap.singleton (name, StringType)
 	And subpatterns -> foldl (<>|) OMap.empty $ map getArgs subpatterns
 	Or subpatterns ->
 		wrapTypes MaybeType $ map getArgs subpatterns
@@ -80,7 +95,8 @@ getArgs = \case
 	Argument{name} -> OMap.singleton (name, OpType)
 	_ -> OMap.empty
 	where
-		wrapTypes :: (CaptureType -> CaptureType) -> [OMap String CaptureType] -> OMap String CaptureType
+		wrapTypes ::
+			(ArgumentType -> ArgumentType) -> [OMap String ArgumentType] -> OMap String ArgumentType
 		wrapTypes wrapper = OMap.fromList . map (mapSnd2 wrapper) . concatMap OMap.assocs
 
 hasArgs :: Pattern -> Bool
@@ -89,13 +105,14 @@ hasArgs = not . null . getArgs
 mustHavePrefix :: (Pattern -> Bool)
 mustHavePrefix = \case
 	Space -> False
-	Argument{} -> False
 	Literal literal -> not $ Text.null literal
 	CharClass{} -> True
+	NamedText{subpattern} -> not $ NamedText.canBeEmpty subpattern
 	And subpatterns ->
 		any mustHavePrefix $ takeUntilIncl hasArgs subpatterns
 	Or subpatterns -> all mustHavePrefix subpatterns
 	Delimited _ delimitend -> mustHavePrefix delimitend
+	Argument{} -> False
 
 mustHaveSuffix :: (Pattern -> Bool)
 mustHaveSuffix = \case
@@ -108,6 +125,7 @@ mustHaveSuffix = \case
 canHavePrefix :: (Pattern -> Bool)
 canHavePrefix = \case
 	Space -> True
+	NamedText{} -> True
 	And subpatterns ->
 		any canHavePrefix $ takeUntilIncl hasArgs subpatterns
 	Or subpatterns -> any canHavePrefix subpatterns
