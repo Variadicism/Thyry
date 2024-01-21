@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name: BengI
-version: 0.11.3.1
+version: 0.11.3.2
 synopsis: This is the interpreter for the Beng programming language.
 -- description:
 license: Artistic-2.0
@@ -47,10 +47,6 @@ common options
   ghc-options: -W -Wno-tabs -Werror
   hs-source-dirs: src
   default-language: Haskell2010
-
-executable BengI
-  import: options
-  main-is: Beng/BengI.hs
   other-modules:
     Beng.Build
     Beng.Build.Cards
@@ -87,44 +83,15 @@ executable BengI
     Beng.Run.Types.Values
     Beng.Run.Values
 
+executable BengI
+  import: options
+  main-is: Beng/BengI.hs
+
 test-suite parse-test
   import: options
   type: exitcode-stdio-1.0
   main-is: Testing/Beng/Parse.hs
   other-modules:
-    Beng.Build.Cards
-    Beng.Build.Context
-    Beng.Build.Context.Builders
-    Beng.Build.Ops
-    Beng.Build.Ops
-    Beng.Build.Types.Cards
-    Beng.Build.Types.Context
-    Beng.Ops
-    Beng.Ops.Declarations
-    Beng.Ops.Definitions
-    Beng.Parse.Matches
-    Beng.Parse.Parsers
-    Beng.Parse.Patterns
-    Beng.Parse.Patterns.And
-    Beng.Parse.Patterns.Arg
-    Beng.Parse.Patterns.CharClass
-    Beng.Parse.Patterns.Delimited
-    Beng.Parse.Patterns.Literal
-    Beng.Parse.Patterns.NamedText
-    Beng.Parse.Patterns.Or
-    Beng.Parse.Patterns.Space
-    Beng.Parse.Types.Matches
-    Beng.Parse.Types.Parsers
-    Beng.Parse.Types.Patterns
-    Beng.Run.Ops
-    Beng.Run.Types.Data
-    Beng.Run.Types.Values
-    Beng.Run.Values
-    Beng.Types.Ops
-    Beng.Types.Ops
-    Beng.Types.Ops.Declarations
-    Beng.Types.Ops.Definitions
-    Beng.Types.Ops.Definitions
     Testing.Beng.Parse.And
     Testing.Beng.Parse.CharClass
     Testing.Beng.Parse.Delimited
@@ -141,40 +108,6 @@ test-suite build-test
   type: exitcode-stdio-1.0
   main-is: Testing/Beng/Build.hs
   other-modules:
-    Beng.Build
-    Beng.Build.Cards
-    Beng.Build.Context
-    Beng.Build.Context.Builders
-    Beng.Build.Context.Builtin
-    Beng.Build.Ops
-    Beng.Build.Types.Cards
-    Beng.Build.Types.Context
-    Beng.Ops
-    Beng.Ops.Declarations
-    Beng.Ops.Definitions
-    Beng.Parse.Matches
-    Beng.Parse.Parsers
-    Beng.Parse.Patterns
-    Beng.Parse.Patterns
-    Beng.Parse.Patterns.And
-    Beng.Parse.Patterns.Arg
-    Beng.Parse.Patterns.CharClass
-    Beng.Parse.Patterns.Delimited
-    Beng.Parse.Patterns.Literal
-    Beng.Parse.Patterns.NamedText
-    Beng.Parse.Patterns.Or
-    Beng.Parse.Patterns.Space
-    Beng.Parse.Types.Matches
-    Beng.Parse.Types.Parsers
-    Beng.Parse.Types.Patterns
-    Beng.Run.Ops
-    Beng.Run.Types.Data
-    Beng.Run.Types.Values
-    Beng.Run.Values
-    Beng.Types.Ops
-    Beng.Types.Ops.Declarations
-    Beng.Types.Ops.Definitions
-    Beng.Types.Ops.Definitions
     Testing.Beng.Build.Code
     Testing.Beng.Build.Ops
     Testing.Beng.Utils.Build
@@ -187,42 +120,6 @@ test-suite run-test
   type: exitcode-stdio-1.0
   main-is: Testing/Beng/Run.hs
   other-modules:
-    Beng.Build.Cards
-    Beng.Build.Context
-    Beng.Build.Context.Builders
-    Beng.Build.Ops
-    Beng.Build.Ops
-    Beng.Build.Types.Cards
-    Beng.Build.Types.Context
-    Beng.Ops
-    Beng.Ops
-    Beng.Ops.Declarations
-    Beng.Ops.Definitions
-    Beng.Parse.Matches
-    Beng.Parse.Parsers
-    Beng.Parse.Patterns
-    Beng.Parse.Patterns
-    Beng.Parse.Patterns.And
-    Beng.Parse.Patterns.Arg
-    Beng.Parse.Patterns.CharClass
-    Beng.Parse.Patterns.Delimited
-    Beng.Parse.Patterns.Literal
-    Beng.Parse.Patterns.NamedText
-    Beng.Parse.Patterns.Or
-    Beng.Parse.Patterns.Space
-    Beng.Parse.Types.Matches
-    Beng.Parse.Types.Parsers
-    Beng.Parse.Types.Patterns
-    Beng.Run.Ops
-    Beng.Run.Types.Data
-    Beng.Run.Types.Values
-    Beng.Run.Values
-    Beng.Types.Ops
-    Beng.Types.Ops
-    Beng.Types.Ops.Declarations
-    Beng.Types.Ops.Declarations
-    Beng.Types.Ops.Definitions
-    Beng.Types.Ops.Definitions
     Testing.Beng.Run.Context
     Testing.Beng.Run.Ops
     Testing.Beng.Utils.Build
