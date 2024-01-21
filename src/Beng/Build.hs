@@ -18,7 +18,7 @@ import Utils.Strings (parenthesize)
 import qualified Beng.Build.Context.Builtin as Builtin
 import qualified Beng.Build.Ops as Op
 import Beng.Build.Types.Context (Context)
-import Beng.Parse.Parsers ((<<<), (>|>), (>:>), (>\>), Result(..), State(..), fileStartState, parseWhile)
+import Beng.Parse.Parsers ((<<<), (>:>), (>\>), Result(..), State(..), fileStartState, parseWhile)
 import qualified Beng.Parse.Patterns.Space as Space
 import Beng.Types.Ops (Op)
 
@@ -39,10 +39,7 @@ buildCodeUsing context contextDescription code = do
 		"This isn't Whitespace lang."
 	let initialState = fileStartState context code
 	let opParser = Op.build contextDescription
-	let parser =
-		opParser >|>
-		-- This parses whitespace before the op, but still allows any space to be part of the next op.
-		Space.parse >:> opParser >\> snd
+	let parser = Space.parse >:> opParser >\> snd
 	let results = parseWhile parser <<< initialState
 	let completeResults = map target $ filter (Text.all isSpace . rest . state) results
 	-- TODO: include last state information in errors
