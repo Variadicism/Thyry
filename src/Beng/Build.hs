@@ -13,6 +13,7 @@ import Utils.Errors (Fallible, toError)
 import Utils.Lists (wrap)
 import Utils.Messaging (debugM)
 import Utils.Monads (IOFallible, falT, tryIO)
+import Utils.Strings (parenthesize)
 
 import qualified Beng.Build.Context.Builtin as Builtin
 import qualified Beng.Build.Ops as Op
@@ -52,7 +53,7 @@ buildCodeUsing context contextDescription code = do
 			debugM ("This Beng code is ambiguous! " ++
 				show (length readPossibilities) ++ " ways were found to parse it:\n" ++
 				(intercalate (wrap "\n" $ replicate 20 '#') $
-					map (intercalate "\n" . map show) readPossibilities))
+					map (intercalate "\n" . map (parenthesize . show)) readPossibilities))
 			return firstPossibility
 
 buildCode :: (String -> Text -> Fallible [Op])
