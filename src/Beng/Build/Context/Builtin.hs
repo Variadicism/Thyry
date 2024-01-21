@@ -5,23 +5,28 @@ module Beng.Build.Context.Builtin (
 import Prelude hiding (subtract)
 
 import Beng.Build.Context (Context(..), PrecedenceBound(..))
-import Beng.Build.Context.Builders (a, s, l, asOp, buildContext, define, defineUsing, defineLiteral, defineLiteralData)
+import Beng.Build.Context.Builders (a, c, cr, e, s, l, t, asOp, buildContext, define, defineUsing, defineLiteral)
 import Beng.Build.Types.Cards (Card(DefCard))
+import Beng.Parse.Types.Matches (Capture(..))
+import Beng.Parse.Types.Patterns (Pattern(..))
 import Beng.Run.Ops (run)
 import Beng.Types.Ops.Declarations (Associativity(..))
 import Beng.Types.Ops.Definitions (Definition(..))
 
 import Data.Map ((!))
+import Data.Text.Lazy (unpack)
 
 -- constants
 
 -- These primitive builtins are placeholders for testing.
 
-two :: Definition
-two = defineLiteralData "2" 2
-
-three :: Definition
-three = defineLiteralData "3" 3
+integers :: Definition
+integers = define None
+	[t "Integer" $ c [cr '0' '9'] []]
+	\args -> do
+		let (StringCapture text) = args ! "Integer"
+		-- `read` is safe because we only match '0'-'9'.
+		return (read $ unpack text :: Int)
 
 add :: Definition
 add = define Default
@@ -41,15 +46,24 @@ subtract = define (At add.declaration)
 		subtrahend <- run $ asOp $ args ! "Subtrahend"
 		return $ minuend - subtrahend
 
-declareVarA :: Definition  -- a := 'Value' 'Scope'
-declareVarA = defineUsing (Below add.declaration) Righty
-	[l "a", s, l ":=", s, a "Value", l "\n", s, a "Scope"]
+valueName :: Pattern
+valueName = do
+	let uppercaseLetter = c [cr 'A' 'Z'] []
+	let letter = c [cr 'A' 'Z', cr 'a' 'z'] []
+	let capitalizedWord = And [uppercaseLetter, Or [e, Delimited e letter]]
+	Delimited { delimiter = Space, delimitend = capitalizedWord }
+
+defineValue :: Definition  -- "Name" := 'Value' 'Scope'
+defineValue = defineUsing (Below add.declaration) Righty
+	[t "Name" valueName, s, l ":=", s, a "Value", s, a "Scope"]
 	(\name args -> return case name of
-		"Scope" -> [DefCard $ defineLiteral "a" $ asOp $ args ! "Value"]
+		"Scope" -> do
+			let (StringCapture name) = args ! "Name"
+			[DefCard $ defineLiteral (unpack name) $ asOp $ args ! "Value"]
 		_ -> [])
 	\args -> run $ asOp $ args ! "Scope"
 
 -- exported
 
 context :: Context
-context = buildContext [two, three, add, subtract, declareVarA]
+context = buildContext [integers, add, subtract, defineValue]

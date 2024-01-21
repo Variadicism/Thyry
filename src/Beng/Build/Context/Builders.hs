@@ -1,8 +1,12 @@
 module Beng.Build.Context.Builders (
 	a,
+	c,
+	nc,
+	cr,
 	e,
 	s,
 	l,
+	t,
 	asOp,
 	declare,
 	define,
@@ -18,7 +22,7 @@ import qualified Beng.Build.Context as Context
 import Beng.Ops.Declarations (ArgContextBuilder, Associativity(..), Declaration(..), PrecedenceBound(..))
 import Beng.Ops.Definitions (Definition(..), Runner)
 import Beng.Parse.Types.Matches (Capture(..))
-import Beng.Parse.Patterns (Pattern(..))
+import Beng.Parse.Patterns (CharRange(..), Pattern(..))
 import Beng.Run.Ops (run)
 import Beng.Run.Types.Data (Data)
 import Beng.Types.Ops (Op)
@@ -44,6 +48,15 @@ defineLiteralRunning literal runner = Definition {
 a :: (String -> Pattern)
 a = Argument
 
+c :: [CharRange] -> [Char] -> Pattern
+c ranges chars = CharClass { chars, ranges, negate = False }
+
+nc :: [CharRange] -> [Char] -> Pattern
+nc ranges chars = CharClass { chars, ranges, negate = True }
+
+cr :: Char -> Char -> CharRange
+cr = CharRange
+
 e :: Pattern
 e = Literal ""
 
@@ -52,6 +65,9 @@ s = Space
 
 l :: (Text -> Pattern)
 l = Literal
+
+t :: (String -> Pattern -> Pattern)
+t = NamedText
 
 asOp :: (Capture -> Op)
 asOp = \case
