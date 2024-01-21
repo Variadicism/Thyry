@@ -44,25 +44,23 @@ hasHigherPrecedenceWithin context prev next =
 			debugEqS "associativity" next.declaration.associativity Righty
 
 parseFor :: PrefixState -> Card -> Parser Op
-parseFor prefixState card = show card @> \state -> do
-	let oldParent = state.parent
-	let oldMaxPrecedence = state.maxPrecedence
+parseFor prefixState card = show card @> \initialState -> do
 	let parsePatternToOp :: Parser Op =
 		Pattern.parse card.declaration.pattern >\>
 		\match -> Op { card, match }
-	state{
+	initialState{
 			prefixState,
 			parent = Just card,
 			maxPrecedence = Nothing } >>> (
 		parsePatternToOp >/\> (\s op -> s{
 			arguments = Map.empty,
-			parent = oldParent,
+			parent = initialState.parent,
 			maxPrecedence = if hasSuffix op
-				then oldMaxPrecedence
+				then initialState.maxPrecedence
 				else Just op.card }) >^\>
 		buildNonPrefixed >/> \s -> s{
-			arguments = Map.empty,
-			maxPrecedence = oldMaxPrecedence })
+			arguments = initialState.arguments,
+			maxPrecedence = initialState.maxPrecedence })
 
 buildNonPrefixed :: Op -> Parser Op
 buildNonPrefixed predecessor = "non-prefixed op for " ++ show predecessor @> \state -> do
