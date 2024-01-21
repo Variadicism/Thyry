@@ -5,7 +5,7 @@ module Beng.Build.Context.Builtin (
 import Prelude hiding (subtract)
 
 import Beng.Build.Context (Context(..), PrecedenceBound(..))
-import Beng.Build.Context.Builders (a, c, cr, e, s, l, t, asOp, buildContext, define, defineUsing, defineLiteral)
+import Beng.Build.Context.Builders (a, c, cr, e, s, l, t, multi, asOp, buildContext, define, defineUsing, defineLiteral)
 import Beng.Build.Types.Cards (Card(DefCard))
 import Beng.Parse.Types.Matches (Capture(..))
 import Beng.Parse.Types.Patterns (Pattern(..))
@@ -22,7 +22,7 @@ import Data.Text.Lazy (unpack)
 
 integers :: Definition
 integers = define None
-	[t "Integer" $ Delimited e $ c [cr '0' '9'] []]
+	[t "Integer" $ multi $ c [cr '0' '9'] []]
 	\args -> do
 		let (StringCapture text) = args ! "Integer"
 		-- `read` is safe because we only match '0'-'9'.
@@ -50,10 +50,10 @@ valueName :: Pattern
 valueName = do
 	let uppercaseLetter = c [cr 'A' 'Z'] []
 	let letter = c [cr 'A' 'Z', cr 'a' 'z'] []
-	let capitalizedWord = And [uppercaseLetter, Or [e, Delimited e letter]]
+	let capitalizedWord = And [uppercaseLetter, Or [e, multi letter]]
 	Delimited { delimiter = Space, delimitend = capitalizedWord }
 
-defineValue :: Definition  -- "Name" := 'Value' 'Scope'
+defineValue :: Definition
 defineValue = defineUsing (Below add.declaration) Righty
 	[t "Name" valueName, s, l ":=", s, a "Value", s, a "Scope"]
 	(\name args -> return case name of

@@ -7,6 +7,7 @@ module Beng.Build.Context.Builders (
 	s,
 	l,
 	t,
+	multi,
 	asOp,
 	declare,
 	define,
@@ -68,6 +69,9 @@ l = Literal
 
 t :: (String -> Pattern -> Pattern)
 t = NamedText
+
+multi :: (Pattern -> Pattern)
+multi = Delimited e
 
 asOp :: (Capture -> Op)
 asOp = \case
