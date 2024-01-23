@@ -19,7 +19,7 @@ parse :: Text -> Text -> [Result ()]
 parse literalText = \text ->
 	Literal.parse literalText >\>
 	(\Match.Literal{} -> ()) <<<
-	fileStartState mockNothing text
+	fileStartState "Literal test" mockNothing text
 
 parseL = parse "l"
 

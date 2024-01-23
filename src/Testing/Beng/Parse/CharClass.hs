@@ -15,7 +15,7 @@ import Beng.Parse.Types.Patterns (CharRange(..))
 import Data.Text.Lazy (Text)
 
 parse :: [CharRange] -> [Char] -> Bool -> Text -> [Result ()]
-parse ranges chars negate text = fileStartState mockNothing text >>>
+parse ranges chars negate text = fileStartState "CharClass test" mockNothing text >>>
 	CharClass.parse ranges chars negate >\>
 	\Match.CharClass{} -> ()
 

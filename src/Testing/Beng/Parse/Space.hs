@@ -22,7 +22,7 @@ parse :: SpaceState -> Text -> [Result Text]
 parse spaceState text = sort (
 	Space.parse >\>
 	(\Match.Space{text} -> text) <<<
-	(fileStartState mockNothing text){ spaceState })
+	(fileStartState "Space test" mockNothing text){ spaceState })
 
 assertMatch :: Text -> Result Text -> Fallible ()
 assertMatch text result = do

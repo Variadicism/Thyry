@@ -5,12 +5,12 @@ module Testing.Beng.Run.Context (
 import Utils.Testing
 
 import qualified Testing.Beng.Utils.Build as Test
-import Testing.Beng.Utils.Mocks (aValue, bValue, mockABMathScopedCD)
+import Testing.Beng.Utils.Mocks (aValue, bValue, mockABCD)
 import Testing.Beng.Utils.Run (assertEval)
 
 import Beng.Parse.Types.Parsers (Result(..))
 
-build = Test.build mockABMathScopedCD
+build = Test.build mockABCD
 
 -- tests
 

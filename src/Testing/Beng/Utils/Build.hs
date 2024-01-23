@@ -27,4 +27,4 @@ sortResults r1 r2 = compare (getTextLength r1) (getTextLength r2)
 build :: Context -> Text -> [Result Op]
 build mockContext mockCode = sortBy sortResults (
 	Op.build (unpack mockCode) <<<
-	fileStartState mockContext mockCode)
+	fileStartState "Test" mockContext mockCode)

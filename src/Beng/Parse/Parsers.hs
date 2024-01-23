@@ -38,6 +38,7 @@ import Utils.Messaging (Messagable, debug, msg)
 import Beng.Build.Context (Context)
 import Beng.Ops ()
 import Beng.Parse.Types.Parsers (Parser(..), ParseRunner, PrefixState(..), Result(..), SpaceState(..), State(..))
+import Beng.Types.Locations (Location(..))
 
 import Data.Char (isAlphaNum, isSpace, toLower)
 import Data.List (singleton)
@@ -137,11 +138,12 @@ instance Show State where
 
 -- exported
 
-fileStartState :: Context -> Text -> State
-fileStartState context text = State {
+fileStartState :: FilePath -> Context -> Text -> State
+fileStartState file context text = State {
 	context, maxPrecedence = Nothing, parent = Nothing,
 	arguments = Map.empty,
 	indentation = 0,
+	location = Dynamic { file, line = 1, column = 1 },
 	prefixState = Needed, spaceState = Space,
 	rest = text }
 
@@ -172,15 +174,25 @@ parse parser state = debugStart $ debugResults $ (map outdent . parser.run . ind
 
 takeAs1 :: Show t => Text -> t -> State -> Result t
 takeAs1 parsed target state = do
-	let rest = Text.drop (Text.length parsed) state.rest
+	let (taken, rest) = Text.splitAt (Text.length parsed) state.rest
 	let spaceState = if Text.null parsed
 		then state.spaceState
 		else case Text.last parsed of
 			c | isSpace c -> Space
 			c | isAlphaNum c -> Word
 			_ -> Punctuation
-	-- TODO: When location metadata is added, this will increment those counters.
-	Result { state = state{ rest, spaceState }, parsed, target}
+
+	let ol = state.location
+	-- `lines` discards trailing empty lines, including "", but `split` does not.
+	let linesTaken = Text.split (=='\n') taken
+	let location = ol{
+		line = ol.line + length linesTaken - 1,  -- The first Text is from the current line.
+		-- `last` is safe because `split` guarantees a non-empty result.
+		column = fromIntegral (Text.length $ last linesTaken) +
+			if length linesTaken == 1 then ol.column else 1 {- Column numbers start at 1. -} }
+
+	Result { parsed, target, state = state{
+		rest, spaceState, location } }
 
 takeAs :: Show t => Text -> t -> ParseRunner t
 takeAs parsed target = singleton . takeAs1 parsed target

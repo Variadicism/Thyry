@@ -24,7 +24,7 @@ import qualified Data.Text.Lazy as Text
 parse subpatterns = \text ->
 	And.parse subpatterns >\>
 	(\Match.And{matches} -> matches) <<<
-	fileStartState mockNothing text
+	fileStartState "And test" mockNothing text
 
 parseLits :: [Char] -> Text -> [Result [Match]]
 parseLits chars = parse $ map (l . Text.singleton) chars

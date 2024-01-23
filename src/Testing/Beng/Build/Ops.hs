@@ -5,7 +5,7 @@ module Testing.Beng.Build.Ops (
 import Utils.Testing
 
 import qualified Testing.Beng.Utils.Build as Test
-import Testing.Beng.Utils.Mocks (a, b, assertAdd, assertAddWords, assertApp, assertDiv, assertExp, mockABMath)
+import Testing.Beng.Utils.Mocks (a, b, assertAdd, assertAddWords, assertApp, assertDiv, assertExp, mockABCD)
 import Testing.Beng.Utils.Ops ()
 import Testing.Beng.Utils.Parsers (assertRest)
 
@@ -15,7 +15,7 @@ import Beng.Parse.Parsers (Result(..))
 import Data.Text.Lazy (Text)
 
 build :: Text -> [Result Op]
-build = Test.build mockABMath
+build = Test.build mockABCD
 
 -- tests
 

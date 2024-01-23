@@ -34,7 +34,7 @@ buildAs :: String -> ArgumentType -> ArgContextBuilder -> Parser (Capture, Op)
 buildAs name captureType contextualize = "build " ++ wrap "'" name @> \state -> do
 	case captureType of
 		OpType -> do
-			let argContext = case contextualize name state.arguments of
+			let argContext = case contextualize name state.arguments state.location of
 				-- TODO: when the Parser results can include errors, carry this error back correctly.
 				Error errorMessage -> error $
 					"There was an error attempting to build a context to parse the preop for " ++

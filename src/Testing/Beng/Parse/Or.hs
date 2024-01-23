@@ -23,7 +23,7 @@ parse :: [Char] -> Text -> [Result (Int, Match)]
 parse chars = \text ->
 	Or.parse (map (l . Text.singleton) chars) >\>
 	(\Match.Or{matchIndex,match} -> (matchIndex, match)) <<<
-	fileStartState mockNothing text
+	fileStartState "Or test" mockNothing text
 
 assertMatch :: Int -> Char -> Result (Int, Match) -> Fallible ()
 assertMatch index char result = do

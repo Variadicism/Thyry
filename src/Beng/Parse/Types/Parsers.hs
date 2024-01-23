@@ -10,6 +10,7 @@ module Beng.Parse.Types.Parsers (
 import Beng.Build.Types.Cards (Card)
 import Beng.Build.Types.Context (Context)
 import Beng.Parse.Types.Matches (Capture)
+import Beng.Types.Locations (Location)
 import Beng.Types.Ops (Op)
 
 import Data.Map as Map
@@ -38,6 +39,7 @@ data SpaceState = Word | Space | Punctuation
 	deriving (Eq, Show)
 
 data State = State {
+	location :: Location,
 	context :: Context,
 	parent :: Maybe Card,
 	maxPrecedence :: Maybe Card,

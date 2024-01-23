@@ -6,7 +6,7 @@ import Utils.Fallible
 import Utils.Testing
 import Utils.Tuples (mapSnd2)
 
-import Testing.Beng.Utils.Mocks (mockABMath, divide)
+import Testing.Beng.Utils.Mocks (mockABCD, divide)
 import Testing.Beng.Utils.Parsers (assertRest)
 
 import Beng.Build.Types.Cards (Card(..))
@@ -30,7 +30,7 @@ assertCannotBeEmpty pattern = assert (not $ NamedText.canBeEmpty pattern) $
 
 parse :: Pattern -> Text -> [Result Text]
 parse pattern code =
-	(fileStartState mockABMath code){
+	(fileStartState "NamedText test" mockABCD code){
 		parent = Just $ DefCard divide,
 		prefixState = Unneeded } >>>
 	NamedText.parse "Dividend Text" pattern >\>

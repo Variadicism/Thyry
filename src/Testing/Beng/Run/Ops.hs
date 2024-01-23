@@ -17,6 +17,7 @@ import Beng.Parse.Matches (Capture(..), Match)
 import qualified Beng.Parse.Matches as M
 import Beng.Parse.Patterns (Pattern(..))
 import Beng.Run.Ops (run)
+import Beng.Types.Locations (Location(..))
 
 import Data.List (singleton)
 import Data.Map ((!))
@@ -28,18 +29,20 @@ noneValue = 0
 someOrNone :: Definition
 someOrNone = define Default
 	[Or [l "none", a "Some"]]
-	\args -> do
+	(\args -> do
 		let (MaybeCapture maybeSome) = args ! "Some"
 		case maybeSome of
 			Nothing -> return noneValue
-			Just capture -> run $ asOp capture
+			Just capture -> run $ asOp capture)
+	(Builtin 0)
 
 sumCommas :: Definition
 sumCommas = define Default
 	[Delimited (a "Element") (l ",")]
-	\args -> do
+	(\args -> do
 		let (ListCapture elements) = args ! "Element"
-		fmap sum $ reduceErrors $ map (run . asOp) elements
+		fmap sum $ reduceErrors $ map (run . asOp) elements)
+	(Builtin 1)
 
 noneOp :: Op
 noneOp = Op {
@@ -87,6 +90,6 @@ testRunOps = TestCategories "evaluate" [
 			assertEval (aValue + bValue*3) $ sumCommasOp aOp [bOp, bOp, bOp]) ],
 	PureTests "undefined" [
 		("declaration", do
-			let declaration = declare None [l "test"]
+			let declaration = declare None [l "test"] $ Dynamic "undefined test" 1 1
 			let op = Op { card = DecCard declaration, match = M.Literal "test" }
 			assertUndefinedError op)]]

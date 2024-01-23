@@ -31,13 +31,13 @@ import System.IO (IOMode(ReadMode), openFile)
 
 -- exports
 
-buildCodeUsing :: Context -> String -> Text -> Fallible [Op]
-buildCodeUsing context contextDescription code = do
+buildCodeUsing :: Context -> FilePath -> Text -> Fallible [Op]
+buildCodeUsing context filePath code = do
 	assert (not $ Text.all isSpace code) $
 		"Did-- did you really ask me to compile code that's all whitespace?\n" ++
 		"This isn't Whitespace lang."
-	let initialState = fileStartState context code
-	let opParser = Op.build contextDescription
+	let initialState = fileStartState filePath context code
+	let opParser = Op.build filePath
 	let parser = Space.parse >:> opParser >\> snd
 	let results = parseWhile parser <<< initialState
 	let completeResults = map target $ filter (Text.all isSpace . rest . state) results
@@ -52,7 +52,7 @@ buildCodeUsing context contextDescription code = do
 					map (intercalate "\n" . map (parenthesize . show)) readPossibilities))
 			return firstPossibility
 
-buildCode :: (String -> Text -> Fallible [Op])
+buildCode :: (FilePath -> Text -> Fallible [Op])
 buildCode = buildCodeUsing Builtin.context
 
 buildFile :: FilePath -> IOFallible [Op]

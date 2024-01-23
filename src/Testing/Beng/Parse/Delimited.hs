@@ -22,7 +22,7 @@ parse :: Text -> [Result (Match, [(Match, Match)])]
 parse = \text ->
 	Delimited.parse (l ",") (l "p") >\>
 	(\match@Match.Delimited{} -> (match.head, match.tail)) <<<
-	fileStartState mockNothing text
+	fileStartState "Delimited test" mockNothing text
 
 assertMatches :: Int -> Result (Match, [(Match, Match)]) -> Fallible ()
 assertMatches repetitions result = do
