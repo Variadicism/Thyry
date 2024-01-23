@@ -5,6 +5,7 @@ module Beng.Parse.Patterns.Arg (
 import Utils.Fallible
 import Utils.Messaging (debugM)
 import Utils.Lists (wrap)
+import Utils.Strings (pluralCount)
 import Utils.Tuples (mapFst2)
 
 import {-# SOURCE #-} qualified Beng.Build.Ops as Op
@@ -39,8 +40,8 @@ buildAs name captureType contextualize = "build " ++ wrap "'" name @> \state -> 
 					"There was an error attempting to build a context to parse the preop for " ++
 					wrap "'" name ++ ": " ++ errorMessage
 				Falue argContexts -> argContexts
-			when (not $ null $ argContext) $ debugM $
-				show (length argContext) ++ " contextual cards generated for '" ++
+			when (not $ null argContext) $ debugM $
+				pluralCount (length argContext) "contextual card" ++ " generated for '" ++
 				name ++ "': " ++ show argContext
 			let newContext = foldl (flip pushCard) state.context argContext
 			state >>>

@@ -22,7 +22,6 @@ import Beng.Parse.Parsers ((<<<), (>:>), (>\>), Result(..), State(..), fileStart
 import qualified Beng.Parse.Patterns.Space as Space
 import Beng.Types.Ops (Op)
 
-import Control.Monad (when)
 import Data.Char (isSpace)
 import Data.List (intercalate)
 import Data.Text.Lazy (Text)
@@ -34,7 +33,7 @@ import System.IO (IOMode(ReadMode), openFile)
 
 buildCodeUsing :: Context -> String -> Text -> Fallible [Op]
 buildCodeUsing context contextDescription code = do
-	when (Text.all isSpace code) $ Error $
+	assert (not $ Text.all isSpace code) $
 		"Did-- did you really ask me to compile code that's all whitespace?\n" ++
 		"This isn't Whitespace lang."
 	let initialState = fileStartState context code
