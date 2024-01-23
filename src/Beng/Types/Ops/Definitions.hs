@@ -3,7 +3,7 @@ module Beng.Types.Ops.Definitions (
 	Runner
 ) where
 
-import Utils.Errors
+import Utils.Fallible
 
 import Beng.Parse.Matches (Capture)
 import Beng.Run.Types.Data (Data)

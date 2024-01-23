@@ -4,7 +4,7 @@ module Beng.Types.Ops.Declarations (
 	Declaration(..)
 ) where
 
-import Utils.Errors
+import Utils.Fallible
 
 import Beng.Build.Types.Cards (Card)
 import Beng.Build.Types.Context (PrecedenceBound)

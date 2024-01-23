@@ -2,7 +2,7 @@ module Testing.Beng.Run.Ops (
 	testRunOps
 ) where
 
-import Utils.Errors
+import Utils.Fallible
 import Utils.Testing
 
 import Testing.Beng.Utils.Mocks (aOp, aValue, addOp, appOp, bOp, bValue, divOp, expOp)

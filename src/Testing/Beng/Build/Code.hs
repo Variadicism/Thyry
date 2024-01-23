@@ -2,7 +2,7 @@ module Testing.Beng.Build.Code (
 	testBuildCode
 ) where
 
-import Utils.Errors
+import Utils.Fallible
 import Utils.Testing
 
 import Testing.Beng.Utils.Mocks (a, b, assertDiv, mockABDivision)

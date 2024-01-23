@@ -2,6 +2,7 @@ module Beng.Parse.Patterns.Arg (
 	parse
 ) where
 
+import Utils.Fallible
 import Utils.Messaging (debugM)
 import Utils.Lists (wrap)
 import Utils.Tuples (mapFst2)
@@ -34,10 +35,10 @@ buildAs name captureType contextualize = "build " ++ wrap "'" name @> \state -> 
 		OpType -> do
 			let argContext = case contextualize name state.arguments of
 				-- TODO: when the Parser results can include errors, carry this error back correctly.
-				Left errorMessage -> error $
+				Error errorMessage -> error $
 					"There was an error attempting to build a context to parse the preop for " ++
 					wrap "'" name ++ ": " ++ errorMessage
-				Right argContexts -> argContexts
+				Falue argContexts -> argContexts
 			when (not $ null $ argContext) $ debugM $
 				show (length argContext) ++ " contextual cards generated for '" ++
 				name ++ "': " ++ show argContext

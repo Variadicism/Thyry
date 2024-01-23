@@ -2,7 +2,7 @@ module Testing.Beng.Parse.NamedText (
 	testNamedText
 ) where
 
-import Utils.Errors
+import Utils.Fallible
 import Utils.Testing
 import Utils.Tuples (mapSnd2)
 

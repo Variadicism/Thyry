@@ -1,6 +1,6 @@
 module Testing.Beng.Utils.Ops () where
 
-import Utils.Errors
+import Utils.Fallible
 import Utils.Lists (wrap)
 import Utils.Messaging (debugM)
 import Utils.Testing
@@ -21,7 +21,7 @@ import GHC.Records (HasField(..))
 instance HasField "op" (Op -> Fallible a) (Capture -> Fallible a) where
 	getField assertion = \case
 		OpCapture op -> assertion op
-		capture -> toError $ "A single OpCapture was expected, but I found a(n) " ++ show capture ++ "!"
+		capture -> Error $ "A single OpCapture was expected, but I found a(n) " ++ show capture ++ "!"
 
 instance HasField "op" (i -> Op -> Fallible a) (i -> Capture -> Fallible a) where
 	getField assertion = \i -> (assertion i).op
@@ -37,7 +37,7 @@ instance HasField "args" Definition ([(String, Capture -> Fallible ())] -> Op ->
 	
 			let args = getArgs op
 			let assertArg name assertion = case OMap.lookup name args of
-				Nothing -> toError $ "The argument '" ++ name ++ "' was expected, but not found!"
+				Nothing -> Error $ "The argument '" ++ name ++ "' was expected, but not found!"
 				Just argOp -> assertion argOp
 			reduceErrors $ map (uncurry assertArg) argAssertions
 	

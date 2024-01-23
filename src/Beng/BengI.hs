@@ -1,8 +1,8 @@
 module Main where
 
-import Utils.Errors
+import Utils.Fallible
+import Utils.Fallible.Trans
 import Utils.Messaging
-import Utils.Monads
 
 import Beng.Interpret (interpret)
 
@@ -15,4 +15,4 @@ main = doFallibleMain $ do
 		[path] -> do
 			debugM "Command arguments accepted"
 			interpret path
-		_ -> falT $ toError "This program expects exactly one argument: the file to interpret."
+		_ -> falT $ Error "This program expects exactly one argument: the file to interpret."

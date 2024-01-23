@@ -2,7 +2,7 @@ module Testing.Beng.Parse.And (
 	testAnd
 ) where
 
-import Utils.Errors
+import Utils.Fallible
 import Utils.Testing
 
 import Testing.Beng.Utils.Mocks (mockNothing)

@@ -2,7 +2,7 @@ module Beng.Interpret (
 	interpret
 ) where
 
-import Utils.Monads
+import Utils.Fallible.Trans
 
 import Beng.Build (buildFile)
 import Beng.Run.Ops (run)

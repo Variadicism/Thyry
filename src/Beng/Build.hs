@@ -9,10 +9,10 @@ module Beng.Build (
 	buildFile
 ) where
 
-import Utils.Errors (Fallible, toError)
+import Utils.Fallible
+import Utils.Fallible.Trans
 import Utils.Lists (wrap)
 import Utils.Messaging (debugM)
-import Utils.Monads (IOFallible, falT, tryIO)
 import Utils.Strings (parenthesize)
 
 import qualified Beng.Build.Context.Builtin as Builtin
@@ -34,7 +34,7 @@ import System.IO (IOMode(ReadMode), openFile)
 
 buildCodeUsing :: Context -> String -> Text -> Fallible [Op]
 buildCodeUsing context contextDescription code = do
-	when (Text.all isSpace code) $ toError $
+	when (Text.all isSpace code) $ Error $
 		"Did-- did you really ask me to compile code that's all whitespace?\n" ++
 		"This isn't Whitespace lang."
 	let initialState = fileStartState context code
@@ -44,7 +44,7 @@ buildCodeUsing context contextDescription code = do
 	let completeResults = map target $ filter (Text.all isSpace . rest . state) results
 	-- TODO: include last state information in errors
 	case completeResults of
-		[] -> toError "There was a problem parsing this Beng code!"
+		[] -> Error "There was a problem parsing this Beng code!"
 		[onlyRead] -> return onlyRead
 		readPossibilities@(firstPossibility:(_:_)) -> do
 			debugM ("This Beng code is ambiguous! " ++

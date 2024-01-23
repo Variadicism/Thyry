@@ -3,7 +3,7 @@ module Testing.Beng.Utils.Run (
 	assertUndefinedError
 ) where
 
-import Utils.Errors
+import Utils.Fallible
 import Utils.Testing
 
 import Beng.Run.Ops as Run (run)

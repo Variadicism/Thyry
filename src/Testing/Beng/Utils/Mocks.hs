@@ -35,7 +35,7 @@ module Testing.Beng.Utils.Mocks (
 
 import Prelude hiding ((<), (>), exp)
 
-import Utils.Errors
+import Utils.Fallible
 
 import Testing.Beng.Utils.Ops ()
 

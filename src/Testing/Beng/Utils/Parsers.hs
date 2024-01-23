@@ -4,7 +4,7 @@ module Testing.Beng.Utils.Parsers (
 	assertRest
 ) where
 
-import Utils.Errors
+import Utils.Fallible
 import Utils.Testing
 
 import Beng.Parse.Types.Parsers (Result(..), SpaceState, State(..))

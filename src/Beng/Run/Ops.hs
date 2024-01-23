@@ -3,7 +3,7 @@ module Beng.Run.Ops (
 	run
 ) where
 
-import Utils.Errors
+import Utils.Fallible
 
 import Beng.Parse.Matches (Capture(..))
 import Beng.Run.Types.Data (Data)
@@ -26,5 +26,5 @@ runArg = \case
 
 run :: Op -> Fallible Data
 run op = case op.card.definition of
-	Nothing -> toError $ show op.card.declaration ++ " cannot be run without being defined!"
+	Nothing -> Error $ show op.card.declaration ++ " cannot be run without being defined!"
 	Just definition -> definition.runWith $ OMap.toMap $ getArgs op
