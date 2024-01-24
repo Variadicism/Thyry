@@ -14,10 +14,14 @@ import Beng.Types.Ops.Definitions (Definition(..), Runner)
 -- instances
 
 instance Eq Definition where
-	(==) d1 d2 = d1.declaration == d2.declaration
+	(==) d1 d2 = d1.location == d2.location
 
 instance Show Definition where
-	show = show . declaration
+	show definition =
+		(if definition.location == definition.declaration.location
+				then show definition.location ++ ": "
+				else "" ) ++
+			show definition.declaration
 
 -- exported
 

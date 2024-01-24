@@ -10,10 +10,9 @@ module Beng.Ops.Declarations (
 	mustHaveSuffix
 ) where
 
-import Utils.Lists (wrap)
-
 import Beng.Build.Types.Context (PrecedenceBound(..))
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
+import Beng.Locations ()
 import Beng.Types.Ops.Declarations (ArgContextBuilder, Associativity(..), Declaration(..))
 
 -- instances
@@ -23,12 +22,10 @@ deriving instance Eq Associativity
 deriving instance Show Associativity
 
 instance Eq Declaration where
-	-- TODO: when OpDeclarations can be dynamic, equality will use code location.
-	(==) d1 d2 = d1.pattern == d2.pattern
+	(==) d1 d2 = d1.location == d2.location
 
 instance Show Declaration where
-	-- TODO: when ops can be dynamically defined, replace "BUILTIN" with the code locus.
-	show = ("[builtin]: "++) . wrap "`" . show . pattern
+	show declaration = show declaration.location ++ ": " ++ show declaration.pattern
 
 -- exported
 
