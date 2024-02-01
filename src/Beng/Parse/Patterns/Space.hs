@@ -2,9 +2,13 @@ module Beng.Parse.Patterns.Space (
 	parse
 ) where
 
+import Utils.Fallible hiding (Fallible)
+import Utils.Lists (wrap)
+
 import Beng.Parse.Matches (Match)
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers (Parser, ParseRunner, PrefixState(..), SpaceState(..), State(..), (@>), (@+>), (>|>), (>:>), (>\>), parseWhile, takeAs, takeNone)
+import Beng.Parse.Parsers (Parser, ParseRunner, PrefixState(..), SpaceState(..), State(..), (@>), (@+>), (>|>), (>:>), (>\>), parseWhile, takeAs)
+import Beng.Types.Errors (Error(ParseError), Fallible)
 
 import Data.Char (isAlphaNum, isSpace)
 import Data.Text.Lazy (pack)
@@ -16,18 +20,22 @@ parse = "space pattern" @+> parseBoundary >|> parseSpaces where
 	parseBoundary = "parse word boundary" @> \state ->
 		case Text.uncons state.rest of
 			Nothing -> takeBoundary state
-			Just (headChar, _) -> case state.spaceState of
-				Space -> takeBoundary state
-				Word -> flip takeBoundaryIf state $ not $ isAlphaNum headChar
-				Punctuation -> flip takeBoundaryIf state $ isAlphaNum headChar
+			Just (headChar, _) ->
+				if state.spaceState == Space then
+					takeBoundary state
+				else if (state.spaceState == Word) /= (isAlphaNum headChar) then
+					takeBoundary state
+				else
+					failBoundary headChar state
+
+	failBoundary :: Char -> State -> Fallible a
+	failBoundary nextChar state = Error $ ParseError state $
+		wrap "'" [nextChar] ++ " doesn't form a word boundary because it was preceded by a " ++
+			show state.spaceState ++ " character.\n" ++
+			"Note: in Beng, underscores are considered Punctuation."
 
 	takeBoundary :: ParseRunner Match
-	takeBoundary = takeBoundaryIf True
-
-	takeBoundaryIf :: Bool -> ParseRunner Match
-	takeBoundaryIf condition = if condition
-		then takeAs "" (Match.Space "")
-		else takeNone
+	takeBoundary = takeAs "" (Match.Space "")
 
 	parseSpaces :: Parser Match
 	parseSpaces =
@@ -41,4 +49,7 @@ parse = "space pattern" @+> parseBoundary >|> parseSpaces where
 		case Text.uncons state.rest of
 			Just (headChar, _) | isSpace headChar ->
 				takeAs (Text.singleton headChar) headChar state{ prefixState = Unneeded }
-			_ -> takeNone state
+			Just (headChar, _) -> Error $ ParseError state $
+				"Whitespace was expected where '" ++ [headChar] ++ "' was found!"
+			Nothing -> Error $ ParseError state
+				"The end of the text was reached while trying to parse whitespace!"

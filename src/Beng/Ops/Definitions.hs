@@ -18,7 +18,7 @@ instance Eq Definition where
 
 instance Show Definition where
 	show definition =
-		(if definition.location == definition.declaration.location
+		(if definition.location /= definition.declaration.location
 				then show definition.location ++ ": "
 				else "" ) ++
 			show definition.declaration

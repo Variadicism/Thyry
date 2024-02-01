@@ -3,16 +3,20 @@ module Testing.Beng.Parse.NamedText (
 ) where
 
 import Utils.Fallible
+import Utils.Messaging (msg)
+import qualified Utils.Populace as P
+import Utils.Populace.Populace2 (dualton)
+import qualified Utils.Populace.Populace2 as P2
 import Utils.Testing
 import Utils.Tuples (mapSnd2)
 
 import Testing.Beng.Utils.Mocks (mockABCD, divide)
-import Testing.Beng.Utils.Parsers (assertRest)
+import Testing.Beng.Utils.Parsers (MockParser, assertRest)
 
 import Beng.Build.Types.Cards (Card(..))
-import Beng.Build.Context.Builders (a, l, s)
+import Beng.Build.Context.Builders (a, cr2, l, s)
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers ((>>>), (>\>), fileStartState, PrefixState(..), Result(..), State(..))
+import Beng.Parse.Parsers ((>>>), (>\>), Parse(..), PrefixState(..), State(..), fileStartState)
 import qualified Beng.Parse.Patterns.NamedText as NamedText
 import Beng.Parse.Patterns (Pattern(..))
 
@@ -28,15 +32,15 @@ assertCannotBeEmpty :: Pattern -> Fallible ()
 assertCannotBeEmpty pattern = assert (not $ NamedText.canBeEmpty pattern) $
 	show pattern ++ " cannot be empty, but the tested code believes it can!"
 
-parse :: Pattern -> Text -> [Result Text]
-parse pattern code =
-	(fileStartState "NamedText test" mockABCD code){
+parse :: Pattern -> MockParser Text
+parse pattern = \code -> mapError msg $
+	((fileStartState "NamedText test" mockABCD code){
 		parent = Just $ DefCard divide,
 		prefixState = Unneeded } >>>
 	NamedText.parse "Dividend Text" pattern >\>
-	\Match.NamedText{match} -> Match.getText match
+	\Match.NamedText{match} -> Match.getText match)
 
-assertParsed :: Text -> Result Text -> Fallible ()
+assertParsed :: Text -> Parse Text -> Fallible ()
 assertParsed expected actual = (expected, actual.target) `isEqualElse`
 	"The named text was did not match what was expected!"
 
@@ -47,38 +51,38 @@ testNamedText = TestCategories "NamedText" [
 	TestCategories "canBeEmpty" [
 		PureTests "false" $ map (mapSnd2 assertCannotBeEmpty) [
 			("non-empty l", l "G"),
-			("CharClass", CharClass ['l'] [] True),
-			("cannot Or cannot", Or [l "h", l "k"]),
-			("can And cannot", And [l "", l "F"]),
+			("CharClass", CharClass (P.singleton $ cr2 'l') True),
+			("cannot Or cannot", Or $ dualton (l "h") (l "k")),
+			("can And cannot", And $ dualton (l "") (l "F")),
 			("Delimited cannot", Delimited (l "JJ") (l "k")),
 			("Argument", Argument { name = "Test" })],
 		PureTests "true" $ map (mapSnd2 assertCanBeEmpty) [
 			("Space", Space),
 			("empty l", l ""),
-			("cannot Or can", Or [l "h", Space]),
-			("can And can", And [l "", Space]),
+			("cannot Or can", Or $ dualton (l "h") Space),
+			("can And can", And $ dualton (l "") Space),
 			("Delimited can", Delimited (l ",") (l ""))]],
 	PureTests "parse" [
 		("Literal then junk", do
-			result <- assert1 "result" $ parse (l "K") "Kh"
+			result <- assert1 "result" =<< parse (l "K") "Kh"
 			assertParsed "K" result
 			assertRest "h" result),
 		("two results then junk", do
-			(kResult, kkResult) <- assert2 "results" $ parse (Or [l "K", l "KK"]) "KKp"
+			(kResult, kkResult) <- assert2 "results" =<< parse (Or $ dualton (l "K") (l "KK")) "KKp"
 			assertParsed "K" kResult
 			assertRest "Kp" kResult
 			assertParsed "KK" kkResult
 			assertRest "p" kkResult),
 		-- I mocked `divide` as the parent op and Argument names must match the parent's.
 		("op exactly", do
-			result <- assert1 "result" $ parse (a "Dividend") "b"
+			result <- assert1 "result" =<< parse (a "Dividend") "b"
 			assertParsed "b" result
 			assertRest "" result),
 		("op then junk", do
-			result <- assert1 "result" $ parse (a "Dividend") "b[]"
+			result <- assert1 "result" =<< parse (a "Dividend") "b[]"
 			assertParsed "b" result
 			assertRest "[]" result),
 		("ops spaced then junk", do
-			result <- assert1 "result" $ parse (And [a "Dividend", s, a "Divisor"]) "a b 9"
+			result <- assert1 "result" =<< parse (And $ P2.Populace2 (a "Dividend") s [a "Divisor"]) "a b 9"
 			assertParsed "a b" result
 			assertRest " 9" result)]]

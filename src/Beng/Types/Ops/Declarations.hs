@@ -4,12 +4,11 @@ module Beng.Types.Ops.Declarations (
 	Declaration(..)
 ) where
 
-import Utils.Fallible
-
 import Beng.Build.Types.Cards (Card)
 import Beng.Build.Types.Context (PrecedenceBound)
 import Beng.Parse.Types.Matches (Capture)
 import Beng.Parse.Types.Patterns (Pattern)
+import Beng.Types.Errors (Fallible)
 import Beng.Types.Locations (Location)
 
 import Data.Map (Map)

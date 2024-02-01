@@ -1,8 +1,11 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module Testing.Beng.Run.Ops (
 	testRunOps
 ) where
 
-import Utils.Fallible
+import Utils.Collective
+import Utils.Populace.Populace2 (dualton)
 import Utils.Testing
 
 import Testing.Beng.Utils.Mocks (aOp, aValue, addOp, appOp, bOp, bValue, divOp, expOp)
@@ -19,7 +22,6 @@ import Beng.Parse.Patterns (Pattern(..))
 import Beng.Run.Ops (run)
 import Beng.Types.Locations (Location(..))
 
-import Data.List (singleton)
 import Data.Map ((!))
 
 -- constants
@@ -28,7 +30,7 @@ noneValue = 0
 
 someOrNone :: Definition
 someOrNone = define Default
-	[Or [l "none", a "Some"]]
+	[Or $ dualton (l "none") (a "Some")]
 	(\args -> do
 		let (MaybeCapture maybeSome) = args ! "Some"
 		case maybeSome of
@@ -41,12 +43,13 @@ sumCommas = define Default
 	[Delimited (a "Element") (l ",")]
 	(\args -> do
 		let (ListCapture elements) = args ! "Element"
-		fmap sum $ reduceErrors $ map (run . asOp) elements)
+		fmap sum $ sequence $ map (run . asOp) elements)
 	(Builtin 1)
 
 noneOp :: Op
 noneOp = Op {
 	card = DefCard someOrNone,
+	location = Builtin 2,
 	match = M.Or { matchIndex = 0, misses = ["Some"], match = M.Literal "none" }}
 
 -- private
@@ -54,14 +57,14 @@ noneOp = Op {
 someOp :: Op -> Op
 someOp op = Op {
 	card = DefCard someOrNone,
-	match = M.And $ singleton $
-		M.Or { matchIndex = 1, misses = [], match = M.Argument "Some" op }}
+	location = Builtin 3,
+	match = M.Or { matchIndex = 1, misses = [], match = M.Argument "Some" op }}
 
 sumCommasOp :: Op -> [Op] -> Op
 sumCommasOp firstArgOp argOpsTail = Op {
 	card = DefCard sumCommas,
-	match = M.And $ singleton $
-		M.Delimited { M.head = M.Argument "Element" firstArgOp, M.tail = toTail argOpsTail }}
+	location = Builtin 4,
+	match = M.Delimited { M.head = M.Argument "Element" firstArgOp, M.tail = toTail argOpsTail }}
 	where
 		toTail :: ([Op] -> [(Match, Match)])
 		toTail = map $ (M.Literal ",",) . M.Argument "Element"
@@ -90,6 +93,7 @@ testRunOps = TestCategories "evaluate" [
 			assertEval (aValue + bValue*3) $ sumCommasOp aOp [bOp, bOp, bOp]) ],
 	PureTests "undefined" [
 		("declaration", do
-			let declaration = declare None [l "test"] $ Dynamic "undefined test" 1 1
-			let op = Op { card = DecCard declaration, match = M.Literal "test" }
+			let location = Dynamic "undefined test" 1 1
+			let declaration = declare None [l "test"] location
+			let op = Op { card = DecCard declaration, location, match = M.Literal "test" }
 			assertUndefinedError op)]]

@@ -3,6 +3,7 @@ module Testing.Beng.Build.Code (
 ) where
 
 import Utils.Fallible
+import qualified Utils.Populace as P
 import Utils.Testing
 
 import Testing.Beng.Utils.Mocks (a, b, assertDiv, mockABDivision)
@@ -16,7 +17,7 @@ import Data.Text.Lazy (Text, unpack)
 -- private
 
 build :: Text -> Fallible [Op]
-build mockCode = buildCodeUsing mockABDivision (unpack mockCode) mockCode
+build mockCode = fmap P.toList $ buildCodeUsing mockABDivision (unpack mockCode) mockCode
 
 noBuild :: Text -> Fallible ()
 noBuild mockCode = build mockCode `hasErrorElse` "Building should have failed!"

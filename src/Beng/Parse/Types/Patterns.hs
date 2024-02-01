@@ -4,6 +4,9 @@ module Beng.Parse.Types.Patterns (
 	Pattern(..)
 ) where
 
+import Utils.Populace (Populace)
+import Utils.Populace.Populace2 (Populace2)
+
 import Data.Text.Lazy (Text)
 
 data ArgumentType =
@@ -19,10 +22,10 @@ data CharRange = CharRange { start :: Char, end :: Char }
 data Pattern =
 	Space |
 	Literal { literal :: Text } |
-	CharClass { chars :: [Char], ranges :: [CharRange], negate :: Bool } |
+	CharClass { ranges :: Populace CharRange, negate :: Bool } |
 	NamedText { name :: String, subpattern :: Pattern } |
-	Or { subpatterns :: [Pattern] } |
-	And { subpatterns :: [Pattern] } |
+	Or { subpatterns :: Populace2 Pattern } |
+	And { subpatterns :: Populace2 Pattern } |
 	-- Yeah, I made up "delimitend" akin to "dividend" and "subtrahend". So?! Come at me! :P
 	Delimited { delimiter :: Pattern, delimitend :: Pattern } |
 	Argument { name :: String }

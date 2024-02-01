@@ -4,48 +4,46 @@ module Beng.Parse.Patterns.CharClass (
 	parse
 ) where
 
-import Utils.Strings (escape)
+import Utils.Fallible (FallibleI(Error))
+import Utils.Populace (Populace)
 
-import Beng.Parse.Parsers ((@>), Parser, takeAs, takeNone)
+import Beng.Parse.Parsers ((@>), Parser, takeAs)
 import Beng.Parse.Types.Matches (Match)
 import qualified Beng.Parse.Types.Matches as Match
 import {-# SOURCE #-} Beng.Parse.Patterns ()
 import Beng.Parse.Types.Parsers (State(..))
 import Beng.Parse.Types.Patterns (CharRange(..))
+import Beng.Types.Errors (Error(ParseError))
 
 import Data.List (isPrefixOf)
-import Data.List.Extra (dropEnd, replace)
 import qualified Data.Text.Lazy as Text
 
 -- constants
 
 -- This only lists characters that are special regardless of position.
-specials = "{}]"
+specials = "{}]-"
 
 -- exported
 
-showClass :: [CharRange] -> [Char] -> Bool -> String
-showClass ranges chars negate = do
-	let charsMostlyEscaped = escape specials chars
-	let escapeDash = replace "-" "\\-"
-	let charsEscaped = if null charsMostlyEscaped || last charsMostlyEscaped /= '-'
-		then escapeDash charsMostlyEscaped
-		else escapeDash (dropEnd 1 charsMostlyEscaped) ++ "-"
-	let contents = concatMap show ranges ++ charsEscaped
+showClass :: Populace CharRange -> Bool -> String
+showClass ranges negate = do
+	let contents = concatMap show ranges.l
 	let contentsEscaped = if "^" `isPrefixOf` contents
 		then '^':contents
 		else contents
 	"[" ++ (if negate then "^" else "") ++ contentsEscaped ++ "]"
 
-parse :: [CharRange] -> [Char] -> Bool -> Parser Match
-parse ranges chars negate = "parse " ++ showClass ranges chars negate @> \state ->
+parse :: Populace CharRange -> Bool -> Parser Match
+parse ranges negate = "parse " ++ shown @> \state ->
 	case Text.uncons state.rest of
-		Nothing -> takeNone state
+		Nothing -> Error $ ParseError state $ shown ++ " was expected, but the end was reached!"
 		Just (firstChar, _) -> do
 			let inRange :: Char -> CharRange -> Bool = \char CharRange{start,end} ->
 				char >= start && char <= end
-			let matchesContent = firstChar `elem` chars || any (inRange firstChar) ranges
+			let matchesContent = any (inRange firstChar) ranges
 			let matches = matchesContent /= negate
 			if matches
 				then takeAs (Text.singleton firstChar) (Match.CharClass firstChar) state
-				else takeNone state
+				else Error $ ParseError state $
+					shown ++ " was expected, but '" ++ [firstChar] ++ "' was found!"
+	where shown = showClass ranges negate

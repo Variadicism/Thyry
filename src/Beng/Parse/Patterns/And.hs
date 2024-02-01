@@ -2,26 +2,27 @@ module Beng.Parse.Patterns.And (
 	parse
 ) where
 
+import Utils.Populace (Populace)
+import qualified Utils.Populace as P
+import Utils.Populace.Populace2 (Populace2)
+
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Parse.Matches (Match)
 import qualified Beng.Parse.Types.Matches as Match
-import Beng.Parse.Parsers ((@>), (@+>), (>:>), (>\>), Parser, takeAs)
+import Beng.Parse.Parsers ((@+>), (>:>), (>\>), Parser)
 import Beng.Parse.Types.Patterns (Pattern)
-
-import Data.List (singleton)
 
 -- exported
 
-parse :: [Pattern] -> Parser Match
+parse :: Populace2 Pattern -> Parser Match
 parse subpatterns =
 	show (length subpatterns) ++ " patterns" @+>
-	parseAsList subpatterns >\> Match.And
+	parseAsP subpatterns.p1 >\> Match.And
 	where
-		parseAsList :: [Pattern] -> Parser [Match]
-		parseAsList = \case
-			[] -> "Empty And" @> takeAs "" []
-			[next] -> Pattern.parse next >\> singleton
-			(next:rest) ->
+		parseAsP :: Populace Pattern -> Parser (Populace Match)
+		parseAsP p = case P.uncons p of
+			(next, []) -> Pattern.parse next >\> P.singleton
+			(next, (nextHead:nextTail)) ->
 				Pattern.parse next >:>
-				parseAsList rest >\>
-				\(nextMatch, restMatches) -> nextMatch:restMatches
+				parseAsP (P.Populace nextHead nextTail) >\>
+				uncurry P.cons

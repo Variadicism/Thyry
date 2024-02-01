@@ -3,11 +3,13 @@ module Beng.Build.Context.Builders (
 	c,
 	nc,
 	cr,
+	cr2,
 	e,
 	s,
 	l,
 	t,
 	multi,
+	patConcat,
 	asOp,
 	declare,
 	define,
@@ -19,6 +21,9 @@ module Beng.Build.Context.Builders (
 	declarationOf,
 	buildContextFrom
 ) where
+
+import qualified Utils.Populace as P
+import qualified Utils.Populace.Populace2 as P2
 
 import Beng.Build.Context (Context(..), pushDef)
 import qualified Beng.Build.Context as Context
@@ -54,14 +59,17 @@ defineLiteralRunning literal runWith location = Definition {
 a :: (String -> Pattern)
 a = Argument
 
-c :: [CharRange] -> [Char] -> Pattern
-c ranges chars = CharClass { chars, ranges, negate = False }
+c :: [CharRange] -> Pattern
+c ranges = CharClass { ranges = P.assume ranges, negate = False }
 
-nc :: [CharRange] -> [Char] -> Pattern
-nc ranges chars = CharClass { chars, ranges, negate = True }
+nc :: [CharRange] -> Pattern
+nc ranges = CharClass { ranges = P.assume ranges, negate = True }
 
 cr :: Char -> Char -> CharRange
 cr = CharRange
+
+cr2 :: Char -> CharRange
+cr2 c = CharRange c c
 
 e :: Pattern
 e = Literal ""
@@ -78,6 +86,12 @@ t = NamedText
 multi :: (Pattern -> Pattern)
 multi = Delimited e
 
+patConcat :: [Pattern] -> Pattern
+patConcat = \case
+	[] -> e
+	[solo] -> solo
+	(first:(second:rest)) -> And $ P2.Populace2 first second rest
+
 asOp :: (Capture -> Op)
 asOp = \case
 	OpCapture op -> op
@@ -88,7 +102,7 @@ asOp = \case
 declare :: PrecedenceBound -> [Pattern] -> Location -> Declaration
 declare precedence subpatterns location =
 	Declaration { precedence, location,
-		pattern = And subpatterns,
+		pattern = patConcat subpatterns,
 		associativity = Lefty, contextualize = noContexts }
 
 defineUsing ::
@@ -98,7 +112,7 @@ defineUsing precedence associativity subpatterns contextualize runWith location 
 	Definition { location, runWith,
 		declaration = Declaration {
 			precedence, location, contextualize, associativity,
-			pattern = And subpatterns }}
+			pattern = patConcat subpatterns }}
 
 define :: PrecedenceBound -> [Pattern] -> (Runner -> Location -> Definition)
 define precedence subpatterns = defineUsing precedence Lefty subpatterns noContexts

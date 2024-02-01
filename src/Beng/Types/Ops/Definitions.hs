@@ -3,10 +3,9 @@ module Beng.Types.Ops.Definitions (
 	Runner
 ) where
 
-import Utils.Fallible
-
 import Beng.Parse.Matches (Capture)
 import Beng.Run.Types.Data (Data)
+import Beng.Types.Errors (Fallible)
 import Beng.Types.Locations (Location)
 import Beng.Types.Ops.Declarations (Declaration)
 

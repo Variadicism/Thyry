@@ -3,6 +3,7 @@ module Beng.Build.Ops (
 ) where
 
 import Utils.Messaging (debug, debugEq, debugEqS)
+import qualified Utils.Populace as P
 
 import Beng.Build.Context (Context(..), comparePrecedence)
 import Beng.Build.Cards (Card, declaration)
@@ -11,6 +12,7 @@ import Beng.Parse.Parsers ((>>>), (@>), (@+>), (>/>), (>/\>), (>^\>), (>\>), Par
 import qualified Beng.Parse.Patterns as Pattern
 import Beng.Ops (Op(..), hasSuffix)
 import Beng.Ops.Declarations (Declaration(..))
+import Beng.Types.Errors (Error(..))
 
 import qualified Data.Map as Map
 
@@ -47,7 +49,7 @@ parseFor :: PrefixState -> Card -> Parser Op
 parseFor prefixState card = show card @> \initialState -> do
 	let parsePatternToOp :: Parser Op =
 		Pattern.parse card.declaration.pattern >\>
-		\match -> Op { card, match }
+		\match -> Op { card, match, location = initialState.location }
 	initialState{
 			prefixState,
 			parent = Just card,
@@ -71,11 +73,14 @@ buildNonPrefixed predecessor = "non-prefixed op for " ++ show predecessor @> \st
 		maybe True (card `hasLowerPrecedenceThan`) state.maxPrecedence &&
 			maybe True (card `hasHigherPrecedenceThan`) state.parent
 
+	let nonPrefixedCards =
+		filter meetsPredecenceRequirement $
+		filter (not . mustHavePrefix . declaration) state.context.deck
+	cardPopulace <- P.assert nonPrefixedCards $ ParseError state
+		"There were no non-prefixed Cards applicable in the current Context!"
 	let nonPrefixedParser :: Op -> Parser Op = \firstArg ->
-		parseAny $
-			map (parseFor $ AvoidingFor firstArg) $
-			filter meetsPredecenceRequirement $
-			filter (not . mustHavePrefix . declaration) state.context.deck
+		parseAny $ P.map (parseFor $ AvoidingFor firstArg) cardPopulace
+			
 	state >>> nonPrefixedParser predecessor
 
 -- exported
@@ -86,7 +91,7 @@ build contextDescription = contextDescription @+>
 	-- Maybe that can wait for the self-hosted rewrite?
 	-- It's an extremely niche edge case that would require a significant refactor of this logic.
 	"prefixed op" @> \state -> do
-		state >>> (
-			parseAny $
-			map (parseFor Needed) $
-			filter (canHavePrefix . declaration) state.context.deck)
+		let prefixedCards = filter (canHavePrefix . declaration) state.context.deck
+		cardPopulace <- P.assert prefixedCards $ ParseError state
+			"There were no prefixed Cards applicable in the current Context!"
+		state >>> (parseAny $ P.map (parseFor Needed) cardPopulace)

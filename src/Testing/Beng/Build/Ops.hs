@@ -2,6 +2,9 @@ module Testing.Beng.Build.Ops (
 	testBuildOp
 ) where
 
+import Utils.Fallible
+import Utils.Messaging (msg)
+import qualified Utils.Populace as P
 import Utils.Testing
 
 import qualified Testing.Beng.Utils.Build as Test
@@ -10,12 +13,17 @@ import Testing.Beng.Utils.Ops ()
 import Testing.Beng.Utils.Parsers (assertRest)
 
 import Beng.Ops (Op)
-import Beng.Parse.Parsers (Result(..))
+import Beng.Parse.Parsers (Parse(..))
 
 import Data.Text.Lazy (Text)
 
-build :: Text -> [Result Op]
-build = Test.build mockABCD
+build :: Text -> Fallible [Parse Op]
+build mockCode =
+	prependToError
+		("An unexpected error occurred while building the mock code, " ++ show mockCode ++ "!") $
+	mapError msg $
+	fmap P.toList $
+	Test.build mockABCD mockCode
 
 -- tests
 
@@ -23,224 +31,224 @@ testBuildOp :: TestCategory
 testBuildOp = TestCategories "build Op" [
 	PureTests "prefixed nullary" [
 		("one exactly", do
-			result <- assert1 "result" $ build "a"
+			result <- assert1 "result" =<< build "a"
 			a.null result.target
 			assertRest "" result),
 		("one then junk", do
-			result <- assert1 "result" $ build "aj"
+			result <- assert1 "result" =<< build "aj"
 			a.null result.target
 			assertRest "j" result),
 		("junk then one", do
-			assert0 "results" $ build "ja"),
+			build "ja" `hasErrorElse` "Beng built successfully prefixed with junk code!"),
 		("empty", do
-			assert0 "results" $ build "")],
+			build "" `hasErrorElse` "Beng built empty code successfully!")],
 	PureTests "nonprefixed lefty equal precedence" [
 		("one exactly", do
-			(aResult, divResult) <- assert2 "results" $ build "a/a"
-			a.null aResult.target
-			assertRest "/a" aResult
-			assertDiv a.null.op a.null.op divResult.target
-			assertRest "" divResult),
+			(aParse, divParse) <- assert2 "results" =<< build "a/a"
+			a.null aParse.target
+			assertRest "/a" aParse
+			assertDiv a.null.op a.null.op divParse.target
+			assertRest "" divParse),
 		("twice exactly", do
-			(aResult, divResult, fullResult) <- assert3 "results" $ build "a/b/a"
-			a.null aResult.target
-			assertRest "/b/a" aResult
-			assertDiv a.null.op b.null.op divResult.target
-			assertRest "/a" divResult
-			assertDiv (assertDiv.op a.null.op b.null.op) a.null.op fullResult.target
-			assertRest "" fullResult),
+			(aParse, divParse, fullParse) <- assert3 "results" =<< build "a/b/a"
+			a.null aParse.target
+			assertRest "/b/a" aParse
+			assertDiv a.null.op b.null.op divParse.target
+			assertRest "/a" divParse
+			assertDiv (assertDiv.op a.null.op b.null.op) a.null.op fullParse.target
+			assertRest "" fullParse),
 		("twice then junk", do
-			(aResult, divResult, fullResult) <- assert3 "results" $ build "a/b/a{}"
-			a.null aResult.target
-			assertRest "/b/a{}" aResult
-			assertDiv a.null.op b.null.op divResult.target
-			assertRest "/a{}" divResult
-			assertDiv (assertDiv.op a.null.op b.null.op) a.null.op fullResult.target
-			assertRest "{}" fullResult)],
+			(aParse, divParse, fullParse) <- assert3 "results" =<< build "a/b/a{}"
+			a.null aParse.target
+			assertRest "/b/a{}" aParse
+			assertDiv a.null.op b.null.op divParse.target
+			assertRest "/a{}" divParse
+			assertDiv (assertDiv.op a.null.op b.null.op) a.null.op fullParse.target
+			assertRest "{}" fullParse)],
 	PureTests "nonprefixed righty equal precedence" [
 		("one exactly", do
-			(aResult, appResult) <- assert2 "results" $ build "a$a"
-			a.null aResult.target
-			assertRest "$a" aResult
-			assertApp a.null.op a.null.op appResult.target
-			assertRest "" appResult),
+			(aParse, appParse) <- assert2 "results" =<< build "a$a"
+			a.null aParse.target
+			assertRest "$a" aParse
+			assertApp a.null.op a.null.op appParse.target
+			assertRest "" appParse),
 		("twice exactly", do
-			(aResult, appResult, fullResult) <- assert3 "results" $ build "a$b$a"
-			a.null aResult.target
-			assertRest "$b$a" aResult
-			assertApp a.null.op b.null.op appResult.target
-			assertRest "$a" appResult
-			assertApp a.null.op (assertApp.op b.null.op a.null.op) fullResult.target
-			assertRest "" fullResult),
+			(aParse, appParse, fullParse) <- assert3 "results" =<< build "a$b$a"
+			a.null aParse.target
+			assertRest "$b$a" aParse
+			assertApp a.null.op b.null.op appParse.target
+			assertRest "$a" appParse
+			assertApp a.null.op (assertApp.op b.null.op a.null.op) fullParse.target
+			assertRest "" fullParse),
 		("twice then junk", do
-			(aResult, appResult, fullResult) <- assert3 "results" $ build "a$b$a{}"
-			a.null aResult.target
-			assertRest "$b$a{}" aResult
-			assertApp a.null.op b.null.op appResult.target
-			assertRest "$a{}" appResult
-			assertApp a.null.op (assertApp.op b.null.op a.null.op) fullResult.target
-			assertRest "{}" fullResult)],
+			(aParse, appParse, fullParse) <- assert3 "results" =<< build "a$b$a{}"
+			a.null aParse.target
+			assertRest "$b$a{}" aParse
+			assertApp a.null.op b.null.op appParse.target
+			assertRest "$a{}" appParse
+			assertApp a.null.op (assertApp.op b.null.op a.null.op) fullParse.target
+			assertRest "{}" fullParse)],
 	PureTests "nonprefixed ascending precedence" [
 		("precedence ascending once exactly", do
-			(aResult, addResult, fullResult) <- assert3 "results" $ build "b+b/a"
-			b.null aResult.target
-			assertRest "+b/a" aResult
-			assertAdd b.null.op b.null.op addResult.target
-			assertRest "/a" addResult
-			assertAdd b.null.op (assertDiv.op b.null.op a.null.op) fullResult.target
-			assertRest "" fullResult),
+			(aParse, addParse, fullParse) <- assert3 "results" =<< build "b+b/a"
+			b.null aParse.target
+			assertRest "+b/a" aParse
+			assertAdd b.null.op b.null.op addParse.target
+			assertRest "/a" addParse
+			assertAdd b.null.op (assertDiv.op b.null.op a.null.op) fullParse.target
+			assertRest "" fullParse),
 		("precedence ascending twice exactly", do
-			(aResult, addResult, addDivResult, fullResult) <- assert4 "results" $ build "a+a/b^b"
-			a.null aResult.target
-			assertRest "+a/b^b" aResult
-			assertAdd a.null.op a.null.op addResult.target
-			assertRest "/b^b" addResult
-			assertAdd a.null.op (assertDiv.op a.null.op b.null.op) addDivResult.target
-			assertRest "^b" addDivResult
+			(aParse, addParse, addDivParse, fullParse) <- assert4 "results" =<< build "a+a/b^b"
+			a.null aParse.target
+			assertRest "+a/b^b" aParse
+			assertAdd a.null.op a.null.op addParse.target
+			assertRest "/b^b" addParse
+			assertAdd a.null.op (assertDiv.op a.null.op b.null.op) addDivParse.target
+			assertRest "^b" addDivParse
 			assertAdd
 				a.null.op
 				(assertDiv.op a.null.op (assertExp.op b.null.op b.null.op))
-				fullResult.target
-			assertRest "" fullResult),
+				fullParse.target
+			assertRest "" fullParse),
 		("precedence ascending after suffixed once exactly", do
-			(aResult, addResult, fullResult) <- assert3 "results" $ build "a and a added/b"
-			a.null aResult.target
-			assertRest " and a added/b" aResult
-			assertAddWords a.null.op a.null.op addResult.target
-			assertRest "/b" addResult
-			assertDiv (assertAddWords.op a.null.op a.null.op) b.null.op fullResult.target
-			assertRest "" fullResult)],
+			(aParse, addParse, fullParse) <- assert3 "results" =<< build "a and a added/b"
+			a.null aParse.target
+			assertRest " and a added/b" aParse
+			assertAddWords a.null.op a.null.op addParse.target
+			assertRest "/b" addParse
+			assertDiv (assertAddWords.op a.null.op a.null.op) b.null.op fullParse.target
+			assertRest "" fullParse)],
 	PureTests "nonprefixed descending precedence" [
 		("precedence descending once exactly", do
-			(aResult, divResult, fullResult) <- assert3 "results" $ build "b/b+a"
-			b.null aResult.target
-			assertRest "/b+a" aResult
-			assertDiv b.null.op b.null.op divResult.target
-			assertRest "+a" divResult
-			assertAdd (assertDiv.op b.null.op b.null.op) a.null.op fullResult.target
-			assertRest "" fullResult),
+			(aParse, divParse, fullParse) <- assert3 "results" =<< build "b/b+a"
+			b.null aParse.target
+			assertRest "/b+a" aParse
+			assertDiv b.null.op b.null.op divParse.target
+			assertRest "+a" divParse
+			assertAdd (assertDiv.op b.null.op b.null.op) a.null.op fullParse.target
+			assertRest "" fullParse),
 		("precedence descending twice exactly", do
-			(aResult, expResult, divExpResult, fullResult) <- assert4 "results" $ build "a^b/a+a"
-			a.null aResult.target
-			assertRest "^b/a+a" aResult
-			assertExp a.null.op b.null.op expResult.target
-			assertRest "/a+a" expResult
-			assertDiv (assertExp.op a.null.op b.null.op) a.null.op divExpResult.target
-			assertRest "+a" divExpResult
+			(aParse, expParse, divExpParse, fullParse) <- assert4 "results" =<< build "a^b/a+a"
+			a.null aParse.target
+			assertRest "^b/a+a" aParse
+			assertExp a.null.op b.null.op expParse.target
+			assertRest "/a+a" expParse
+			assertDiv (assertExp.op a.null.op b.null.op) a.null.op divExpParse.target
+			assertRest "+a" divExpParse
 			assertAdd
 				(assertDiv.op (assertExp.op a.null.op b.null.op) a.null.op)
 				a.null.op
-				fullResult.target
-			assertRest "" fullResult)],
+				fullParse.target
+			assertRest "" fullParse)],
 	PureTests "nonprefixed mixed precedence" [
 		("precedence down then up exactly", do
-			(aResult, divResult, addDivResult, fullResult) <- assert4 "results" $ build "a/b+b^a"
-			a.null aResult.target
-			assertRest "/b+b^a" aResult
-			assertDiv a.null.op b.null.op divResult.target
-			assertRest "+b^a" divResult
-			assertAdd (assertDiv.op a.null.op b.null.op) b.null.op addDivResult.target
-			assertRest "^a" addDivResult
-			assertAdd (assertDiv.op a.null.op b.null.op) (assertExp.op b.null.op a.null.op) fullResult.target
-			assertRest "" fullResult),
+			(aParse, divParse, addDivParse, fullParse) <- assert4 "results" =<< build "a/b+b^a"
+			a.null aParse.target
+			assertRest "/b+b^a" aParse
+			assertDiv a.null.op b.null.op divParse.target
+			assertRest "+b^a" divParse
+			assertAdd (assertDiv.op a.null.op b.null.op) b.null.op addDivParse.target
+			assertRest "^a" addDivParse
+			assertAdd (assertDiv.op a.null.op b.null.op) (assertExp.op b.null.op a.null.op) fullParse.target
+			assertRest "" fullParse),
 		("precedence up then down exactly", do
-			(aResult, addResult, addDivResult, fullResult) <- assert4 "results" $ build "a+a/b+a"
-			a.null aResult.target
-			assertRest "+a/b+a" aResult
-			assertAdd a.null.op a.null.op addResult.target
-			assertRest "/b+a" addResult
-			assertAdd a.null.op (assertDiv.op a.null.op b.null.op) addDivResult.target
-			assertRest "+a" addDivResult
+			(aParse, addParse, addDivParse, fullParse) <- assert4 "results" =<< build "a+a/b+a"
+			a.null aParse.target
+			assertRest "+a/b+a" aParse
+			assertAdd a.null.op a.null.op addParse.target
+			assertRest "/b+a" addParse
+			assertAdd a.null.op (assertDiv.op a.null.op b.null.op) addDivParse.target
+			assertRest "+a" addDivParse
 			assertAdd
 				(assertAdd.op a.null.op (assertDiv.op a.null.op b.null.op))
-				a.null.op fullResult.target
-			assertRest "" fullResult),
+				a.null.op fullParse.target
+			assertRest "" fullParse),
 		("precedence down then up then junk", do
-			(aResult, divResult, addDivResult, fullResult) <- assert4 "results" $ build "a/b+b^a!!"
-			a.null aResult.target
-			assertRest "/b+b^a!!" aResult
-			assertDiv a.null.op b.null.op divResult.target
-			assertRest "+b^a!!" divResult
-			assertAdd (assertDiv.op a.null.op b.null.op) b.null.op addDivResult.target
-			assertRest "^a!!" addDivResult
-			assertAdd (assertDiv.op a.null.op b.null.op) (assertExp.op b.null.op a.null.op) fullResult.target
-			assertRest "!!" fullResult),
+			(aParse, divParse, addDivParse, fullParse) <- assert4 "results" =<< build "a/b+b^a!!"
+			a.null aParse.target
+			assertRest "/b+b^a!!" aParse
+			assertDiv a.null.op b.null.op divParse.target
+			assertRest "+b^a!!" divParse
+			assertAdd (assertDiv.op a.null.op b.null.op) b.null.op addDivParse.target
+			assertRest "^a!!" addDivParse
+			assertAdd (assertDiv.op a.null.op b.null.op) (assertExp.op b.null.op a.null.op) fullParse.target
+			assertRest "!!" fullParse),
 		("precedence up then down then junk", do
-			(aResult, addResult, addDivResult, fullResult) <- assert4 "results" $ build "a+a/b+a?"
-			a.null aResult.target
-			assertRest "+a/b+a?" aResult
-			assertAdd a.null.op a.null.op addResult.target
-			assertRest "/b+a?" addResult
-			assertAdd a.null.op (assertDiv.op a.null.op b.null.op) addDivResult.target
-			assertRest "+a?" addDivResult
+			(aParse, addParse, addDivParse, fullParse) <- assert4 "results" =<< build "a+a/b+a?"
+			a.null aParse.target
+			assertRest "+a/b+a?" aParse
+			assertAdd a.null.op a.null.op addParse.target
+			assertRest "/b+a?" addParse
+			assertAdd a.null.op (assertDiv.op a.null.op b.null.op) addDivParse.target
+			assertRest "+a?" addDivParse
 			assertAdd
 				(assertAdd.op a.null.op (assertDiv.op a.null.op b.null.op))
-				a.null.op fullResult.target
-			assertRest "?" fullResult),
+				a.null.op fullParse.target
+			assertRest "?" fullParse),
 		("precedence down then up then down further exactly", do
-			(aResult, expResult, divExpResult, divExpExpResult, fullResult) <-
-				assert5 "results" $ build "a^b/b^b$a"
-			a.null aResult.target
-			assertExp a.null.op b.null.op expResult.target
-			assertDiv (assertExp.op a.null.op b.null.op) b.null.op divExpResult.target
-			assertDiv (assertExp.op a.null.op b.null.op) (assertExp.op b.null.op b.null.op) divExpExpResult.target
+			(aParse, expParse, divExpParse, divExpExpParse, fullParse) <-
+				assert5 "results" =<< build "a^b/b^b$a"
+			a.null aParse.target
+			assertExp a.null.op b.null.op expParse.target
+			assertDiv (assertExp.op a.null.op b.null.op) b.null.op divExpParse.target
+			assertDiv (assertExp.op a.null.op b.null.op) (assertExp.op b.null.op b.null.op) divExpExpParse.target
 			assertApp
 				(assertDiv.op (assertExp.op a.null.op b.null.op) (assertExp.op b.null.op b.null.op))
-				a.null.op fullResult.target),
+				a.null.op fullParse.target),
 		("precedence down then up then down but higher than first exactly", do
-			(aResult, expResult, appExpResult, appExpExpResult, fullResult) <-
-				assert5 "results" $ build "a^b$b^b/a"
-			a.null aResult.target
-			assertExp a.null.op b.null.op expResult.target
-			assertApp (assertExp.op a.null.op b.null.op) b.null.op appExpResult.target
-			assertApp (assertExp.op a.null.op b.null.op) (assertExp.op b.null.op b.null.op) appExpExpResult.target
+			(aParse, expParse, appExpParse, appExpExpParse, fullParse) <-
+				assert5 "results" =<< build "a^b$b^b/a"
+			a.null aParse.target
+			assertExp a.null.op b.null.op expParse.target
+			assertApp (assertExp.op a.null.op b.null.op) b.null.op appExpParse.target
+			assertApp (assertExp.op a.null.op b.null.op) (assertExp.op b.null.op b.null.op) appExpExpParse.target
 			assertApp
 				(assertExp.op a.null.op b.null.op)
 				(assertDiv.op (assertExp.op b.null.op b.null.op) a.null.op)
-				fullResult.target)],
+				fullParse.target)],
 	PureTests "nonprefixed mixed associativity" [
 		("unequal lefty then righty exactly", do
-			(aResult, divResult, fullResult) <- assert3 "results" $ build "a/b$b"
-			a.null aResult.target
-			assertRest "/b$b" aResult
-			assertDiv a.null.op b.null.op divResult.target
-			assertRest "$b" divResult
-			assertApp (assertDiv.op a.null.op b.null.op) b.null.op fullResult.target
-			assertRest "" fullResult),
+			(aParse, divParse, fullParse) <- assert3 "results" =<< build "a/b$b"
+			a.null aParse.target
+			assertRest "/b$b" aParse
+			assertDiv a.null.op b.null.op divParse.target
+			assertRest "$b" divParse
+			assertApp (assertDiv.op a.null.op b.null.op) b.null.op fullParse.target
+			assertRest "" fullParse),
 		("unequal righty then lefty exactly", do
-			(aResult, appResult, fullResult) <- assert3 "results" $ build "a$b/b"
-			a.null aResult.target
-			assertRest "$b/b" aResult
-			assertApp a.null.op b.null.op appResult.target
-			assertRest "/b" appResult
-			assertApp a.null.op (assertDiv.op b.null.op b.null.op) fullResult.target
-			assertRest "" fullResult),
+			(aParse, appParse, fullParse) <- assert3 "results" =<< build "a$b/b"
+			a.null aParse.target
+			assertRest "$b/b" aParse
+			assertApp a.null.op b.null.op appParse.target
+			assertRest "/b" appParse
+			assertApp a.null.op (assertDiv.op b.null.op b.null.op) fullParse.target
+			assertRest "" fullParse),
 		("unequal lefty then righty then junk", do
-			(aResult, divResult, fullResult) <- assert3 "results" $ build "a/b$bl"
-			a.null aResult.target
-			assertRest "/b$bl" aResult
-			assertDiv a.null.op b.null.op divResult.target
-			assertRest "$bl" divResult
-			assertApp (assertDiv.op a.null.op b.null.op) b.null.op fullResult.target
-			assertRest "l" fullResult),
+			(aParse, divParse, fullParse) <- assert3 "results" =<< build "a/b$bl"
+			a.null aParse.target
+			assertRest "/b$bl" aParse
+			assertDiv a.null.op b.null.op divParse.target
+			assertRest "$bl" divParse
+			assertApp (assertDiv.op a.null.op b.null.op) b.null.op fullParse.target
+			assertRest "l" fullParse),
 		("unequal righty then lefty then junk", do
-			(aResult, appResult, fullResult) <- assert3 "results" $ build "a$b/bkk"
-			a.null aResult.target
-			assertRest "$b/bkk" aResult
-			assertApp a.null.op b.null.op appResult.target
-			assertRest "/bkk" appResult
-			assertApp a.null.op (assertDiv.op b.null.op b.null.op) fullResult.target
-			assertRest "kk" fullResult),
+			(aParse, appParse, fullParse) <- assert3 "results" =<< build "a$b/bkk"
+			a.null aParse.target
+			assertRest "$b/bkk" aParse
+			assertApp a.null.op b.null.op appParse.target
+			assertRest "/bkk" appParse
+			assertApp a.null.op (assertDiv.op b.null.op b.null.op) fullParse.target
+			assertRest "kk" fullParse),
 		-- Note: in the mocks, `$` and `+` have equal precedence for these tests.
 		("equal lefty then righty exactly", do
-			(aResult, addResult) <- assert2 "results" $ build "a+b$a"
-			a.null aResult.target
-			assertRest "+b$a" aResult
-			assertAdd a.null.op b.null.op addResult.target
-			assertRest "$a" addResult),
+			(aParse, addParse) <- assert2 "results" =<< build "a+b$a"
+			a.null aParse.target
+			assertRest "+b$a" aParse
+			assertAdd a.null.op b.null.op addParse.target
+			assertRest "$a" addParse),
 		("equal righty then lefty exactly", do
-			(bResult, appResult) <-assert2 "results" $ build "b$b+a"
-			b.null bResult.target
-			assertRest "$b+a" bResult
-			assertApp b.null.op b.null.op appResult.target
-			assertRest "+a" appResult)]]
+			(bParse, appParse) <-assert2 "results" =<< build "b$b+a"
+			b.null bParse.target
+			assertRest "$b+a" bParse
+			assertApp b.null.op b.null.op appParse.target
+			assertRest "+a" appParse)]]

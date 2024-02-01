@@ -4,6 +4,8 @@ module Beng.Build.Context.Builtin (
 
 import Prelude hiding (subtract)
 
+import Utils.Populace.Populace2 as P2
+
 import Beng.Build.Context (Context(..), PrecedenceBound(..))
 import Beng.Build.Context.Builders (a, c, cr, e, s, l, t, multi, asOp, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf)
 import Beng.Build.Types.Cards (Card(DefCard))
@@ -22,9 +24,9 @@ import GHC.Records (HasField, getField)
 
 valueName :: Pattern
 valueName = do
-	let uppercaseLetter = c [cr 'A' 'Z'] []
-	let letter = c [cr 'A' 'Z', cr 'a' 'z'] []
-	let capitalizedWord = And [uppercaseLetter, Or [e, multi letter]]
+	let uppercaseLetter = c [cr 'A' 'Z']
+	let letter = c [cr 'A' 'Z', cr 'a' 'z']
+	let capitalizedWord = And $ P2.dualton uppercaseLetter (Or $ P2.dualton e $ multi letter)
 	Delimited { delimiter = Space, delimitend = capitalizedWord }
 
 -- builtin enumeration
@@ -55,7 +57,7 @@ hangingDefinitionOf = \case
 	-- Types of the arguments and the values in these definitions are disjointed,
 	-- losing all type guarantees. This will not be an issue in Beng! :)
 	Integers -> define None
-		[t "Integer" $ multi $ c [cr '0' '9'] []]
+		[t "Integer" $ multi $ c [cr '0' '9']]
 		\args -> do
 			let (StringCapture text) = args ! "Integer"
 			-- `read :: Int` is safe because we only match '0'-'9'.

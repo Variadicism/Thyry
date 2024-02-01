@@ -10,7 +10,9 @@ module Beng.Parse.Matches (
 ) where
 
 import Utils.Lists (takeUntilIncl, updateAt)
-import Utils.Maps (mapOmap)
+import qualified Utils.Maps.Ordered as OMap
+import Utils.Populace (Populace)
+import qualified Utils.Populace as P
 import Utils.Tuples (mapSnd2, toList2)
 
 import {-# SOURCE #-} Beng.Ops ()
@@ -49,12 +51,12 @@ instance Show Match where
 
 -- exports
 
-getSubmatches :: (Match -> [Match])
+getSubmatches :: (Match -> Populace Match)
 getSubmatches = \case
-	Or{match} -> [match]
+	Or{match} -> P.singleton match
 	And{matches} -> matches
-	match@Delimited{} -> match.head : concatMap toList2 match.tail
-	match -> [match]
+	match@Delimited{} -> P.Populace match.head $ concatMap toList2 match.tail
+	match -> P.singleton match
 
 -- This is defined here for use in defining `show Match`.
 getText :: (Match -> Text)
@@ -64,8 +66,8 @@ getText = \case
 	CharClass{char} -> Text.singleton char
 	NamedText{match} -> getText match
 	Or{match} -> getText match
-	And{matches} -> Text.concat $ map getText matches
-	match@Delimited{} -> Text.concat $ map getText $ getSubmatches match
+	And{matches} -> Text.concat $ map getText matches.l
+	match@Delimited{} -> Text.concat $ map getText $ P.toList $ getSubmatches match
 	Argument{op} -> getText op.match
 
 getArgs :: (Match -> OMap String Capture)
@@ -75,19 +77,20 @@ getArgs = \case
 	CharClass{} -> OMap.empty
 	NamedText{name,match} -> OMap.singleton (name, StringCapture $ getText match)
 	Or{match,misses} ->
-		mapOmap (MaybeCapture . Just) (getArgs match) |<>
+		OMap.map (MaybeCapture . Just) (getArgs match) |<>
 		(OMap.fromList $ map (,MaybeCapture Nothing) misses)
-	And{matches} -> foldl (<>|) OMap.empty $ map getArgs matches
+	And{matches} -> OMap.concat $ P.map getArgs matches
 	Delimited{head=headMatch,tail=tailMatch} -> do
 		let delimitendMatches = headMatch : map snd tailMatch
 		let delimiterMatches = map fst tailMatch
+		let foldInEntry :: (String, Capture) -> [(String, Populace Capture)] ->
+				[(String, Populace Capture)] = \(name, capture) entries ->
+			case findIndex ((name==) . fst) entries of
+				Nothing -> (name, P.singleton capture) : entries
+				Just index -> updateAt index (mapSnd2 $ P.cons capture) entries
 		let listCapturesByArgNames :: [Match] -> OMap String Capture = \matches -> do
-			let foldInEntry :: [(String, [Capture])] -> (String, Capture) -> [(String, [Capture])] =
-				\entries (name, capture) -> case findIndex ((name==) . fst) entries of
-					Nothing -> entries ++ [(name, [capture])]
-					Just index -> updateAt index (mapSnd2 (++[capture])) entries
 			OMap.fromList $ map (mapSnd2 ListCapture) $
-				foldl foldInEntry [] $ concatMap (OMap.assocs . getArgs) matches
+				foldr foldInEntry [] $ concatMap (OMap.assocs . getArgs) matches
 		listCapturesByArgNames delimitendMatches <>| listCapturesByArgNames delimiterMatches
 	Argument{name,op} -> OMap.singleton (name, OpCapture op)
 
@@ -98,8 +101,8 @@ hasPrefix :: Match -> Bool
 hasPrefix = \case
 	NamedText{match} -> not $ Text.null $ getText match
 	Or{match} -> hasPrefix match
-	And{matches} -> any hasPrefix $ takeUntilIncl hasArgs matches
-	match@Delimited{} -> any hasPrefix $ takeUntilIncl hasArgs $ getSubmatches match
+	And{matches} -> any hasPrefix $ takeUntilIncl hasArgs matches.l
+	match@Delimited{} -> any hasPrefix $ takeUntilIncl hasArgs $ P.toList $ getSubmatches match
 	Argument{} -> False
 	match -> not $ Text.null $ getText match
 
@@ -107,7 +110,7 @@ hasSuffix :: Match -> Bool
 hasSuffix = \case
 	NamedText{match} -> not $ Text.null $ getText match
 	Or{match} -> hasSuffix match
-	And{matches} -> any hasSuffix $ takeUntilIncl hasArgs $ reverse matches
-	match@Delimited{} -> any hasSuffix $ takeUntilIncl hasArgs $ reverse $ getSubmatches match
+	And{matches} -> any hasSuffix $ takeUntilIncl hasArgs $ reverse matches.l
+	match@Delimited{} -> any hasSuffix $ takeUntilIncl hasArgs $ reverse $ P.toList $ getSubmatches match
 	Argument{} -> False
 	match -> not $ Text.null $ getText match

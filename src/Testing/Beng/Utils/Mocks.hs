@@ -39,6 +39,7 @@ module Testing.Beng.Utils.Mocks (
 import Prelude hiding ((<), (>), exp)
 
 import Utils.Fallible
+import qualified Utils.Populace as P
 
 import Testing.Beng.Utils.Ops ()
 
@@ -154,11 +155,16 @@ declarationOf = Builder.declarationOf hangingDefinitionOf
 cardOf :: (ABCD -> Card)
 cardOf = DefCard . definitionOf
 
+locationOf :: (ABCD -> Location)
+locationOf = Builtin . fromEnum
+
+opOf :: ABCD -> (Match -> Op)
+opOf a = Op (cardOf a) (locationOf a)
+
 infixOpMatch :: String -> Text -> String -> Op -> Op -> Match
-infixOpMatch leftName literal rightName leftOp rightOp = Match.And [
-	Match.Argument leftName leftOp,
-	Match.Literal literal,
-	Match.Argument rightName rightOp]
+infixOpMatch leftName literal rightName leftOp rightOp = Match.And $ P.Populace
+	(Match.Argument leftName leftOp)
+	[Match.Literal literal, Match.Argument rightName rightOp]
 
 type AssertTwoArgs = (Capture -> Fallible ()) -> (Capture -> Fallible ()) -> Op -> Fallible ()
 
@@ -198,10 +204,10 @@ bMatch :: Match
 bMatch = Match.Literal "b"
 
 aOp :: Op
-aOp = Op (cardOf A) aMatch
+aOp = opOf A aMatch
 
 bOp :: Op
-bOp = Op (cardOf B) bMatch
+bOp = opOf B bMatch
 
 appMatch :: (Op -> Op -> Match)
 appMatch = infixOpMatch "Left" "$" "Right"
@@ -216,16 +222,16 @@ addMatch :: (Op -> Op -> Match)
 addMatch = infixOpMatch "Augend" "+" "Addend"
 
 appOp :: (Op -> Op -> Op)
-appOp = Op (cardOf App) .* appMatch
+appOp = opOf App .* appMatch
 
 expOp :: (Op -> Op -> Op)
-expOp = Op (cardOf Exp) .* expMatch
+expOp = opOf Exp .* expMatch
 
 divOp :: (Op -> Op -> Op)
-divOp = Op (cardOf Divide) .* divMatch
+divOp = opOf Divide .* divMatch
 
 addOp :: (Op -> Op -> Op)
-addOp = Op (cardOf Add) .* addMatch
+addOp = opOf Add .* addMatch
 
 ---- assertions
 

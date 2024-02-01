@@ -5,15 +5,17 @@ module Beng.Parse.Patterns.Arg (
 import Utils.Fallible
 import Utils.Messaging (debugM)
 import Utils.Lists (wrap)
+import qualified Utils.Populace as P
 import Utils.Strings (pluralCount)
 import Utils.Tuples (mapFst2)
 
 import {-# SOURCE #-} qualified Beng.Build.Ops as Op
 import Beng.Build.Context (Context, pushCard)
 import Beng.Parse.Matches (Capture(..), Match(..))
-import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/>), (>/\>), Parser, PrefixState(..), State(..), takeAs, takeNone)
+import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/>), (>/\>), Parser, PrefixState(..), State(..), takeAs)
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Parse.Types.Patterns (ArgumentType(..))
+import Beng.Types.Errors (Error(ParseError, state, message))
 import Beng.Types.Ops (Op)
 import Beng.Types.Ops.Declarations (ArgContextBuilder, Declaration(..))
 
@@ -34,12 +36,10 @@ buildAs :: String -> ArgumentType -> ArgContextBuilder -> Parser (Capture, Op)
 buildAs name captureType contextualize = "build " ++ wrap "'" name @> \state -> do
 	case captureType of
 		OpType -> do
-			let argContext = case contextualize name state.arguments state.location of
-				-- TODO: when the Parser results can include errors, carry this error back correctly.
-				Error errorMessage -> error $
-					"There was an error attempting to build a context to parse the preop for " ++
-					wrap "'" name ++ ": " ++ errorMessage
-				Falue argContexts -> argContexts
+			argContext <- prependToError
+					("There was an error attempting to build a context to parse the preop for " ++
+					wrap "'" name ++ ": ") $
+				contextualize name state.arguments state.location
 			when (not $ null argContext) $ debugM $
 				pluralCount (length argContext) "contextual card" ++ " generated for '" ++
 				name ++ "': " ++ show argContext
@@ -48,13 +48,14 @@ buildAs name captureType contextualize = "build " ++ wrap "'" name @> \state -> 
 				buildOpWith name newContext >\>
 				\op -> (OpCapture op, op)
 		ListType{element} -> state >>>
-			buildAs name element contextualize >\> \(newCaptureElement, newOp) -> do
+			buildAs name element contextualize >\>
+			\(newCaptureElement, newOp) -> do
 				let newListCapture = case state.arguments !? name of
-					Nothing -> ListCapture { captures = [newCaptureElement] }
+					Nothing -> ListCapture { captures = P.singleton newCaptureElement }
 					Just oldCapture -> do
-						-- A ListType corresponds to a ListCapture.
+						-- Assume it's a ListCapture because it's for a ListType argument.
 						let ListCapture{captures=oldCaptures} = oldCapture
-						ListCapture { captures = oldCaptures ++ [newCaptureElement] }
+						ListCapture { captures = oldCaptures <> P.singleton newCaptureElement }
 				(newListCapture, newOp)
 		MaybeType{inner} -> state >>>
 			buildAs name inner contextualize >\>
@@ -70,7 +71,8 @@ parse name = "argument " ++ wrap "'" name @> \state ->
 		AvoidingFor op -> do
 			let match = Argument { name, op }
 			takeAs "" match state{ prefixState = Unneeded }
-		Needed -> takeNone state
+		Needed -> Error $ ParseError { state, message =
+			"An op prefix was needed, but " ++ show state.parent ++ " has none!" }
 		Unneeded -> do
 			-- Arg Patterns are only applicable within ops, so parent must be present.
 			let (Just parent) = state.parent

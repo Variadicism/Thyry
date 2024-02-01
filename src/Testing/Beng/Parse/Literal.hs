@@ -5,21 +5,20 @@ module Testing.Beng.Parse.Literal (
 import Utils.Testing
 
 import Testing.Beng.Utils.Mocks (mockNothing)
-import Testing.Beng.Utils.Parsers (assertState)
+import Testing.Beng.Utils.Parsers ((!>>>), MockParser, assertState)
 
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers ((>\>), (<<<), SpaceState(..), Result(..), fileStartState)
+import Beng.Parse.Parsers ((>\>), SpaceState(..))
 import qualified Beng.Parse.Patterns.Literal as Literal
 
 import Data.Text.Lazy (Text)
 
 -- private
 
-parse :: Text -> Text -> [Result ()]
-parse literalText = \text ->
+parse :: Text -> MockParser ()
+parse literalText = mockNothing !>>>
 	Literal.parse literalText >\>
-	(\Match.Literal{} -> ()) <<<
-	fileStartState "Literal test" mockNothing text
+	\Match.Literal{} -> ()
 
 parseL = parse "l"
 
@@ -28,19 +27,19 @@ parseL = parse "l"
 testLiteral :: TestCategory
 testLiteral = PureTests "Literal" [
 	("match exactly", do
-		result <- assert1 "result" $ parseL "l"
+		result <- assert1 "result" =<< parseL "l"
 		assertState Word "" result),
 	("match then unknown", do
-		result <- assert1 "result" $ parseL "lk"
+		result <- assert1 "result" =<< parseL "lk"
 		assertState Word "k" result),
-	("unknown then match", do
-		assert0 "results" $ parseL "kl"),
+	("junk then match", do
+		parseL "kl" `hasErrorElse` "Literal should not parse text except its own!"),
 	("match duplicated", do
-		result <- assert1 "result" $ parseL "ll"
+		result <- assert1 "result" =<< parseL "ll"
 		assertState Word "l" result),
 	("empty from empty", do
-		result <- assert1 "result" $ parse "" ""
+		result <- assert1 "result" =<< parse "" ""
 		assertState Space "" result),
 	("empty then unknown", do
-		result <- assert1 "result" $ parse "" "j"
+		result <- assert1 "result" =<< parse "" "j"
 		assertState Space "j" result) ]

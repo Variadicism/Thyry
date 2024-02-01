@@ -1,22 +1,29 @@
 module Beng.Parse.Types.Parsers (
+	Results,
 	ParseRunner,
 	Parser(..),
 	PrefixState(..),
 	SpaceState(..),
 	State(..),
-	Result(..),
+	Parse(..),
 ) where
+
+import Utils.Populace (Populace)
 
 import Beng.Build.Types.Cards (Card)
 import Beng.Build.Types.Context (Context)
 import Beng.Parse.Types.Matches (Capture)
 import Beng.Types.Locations (Location)
 import Beng.Types.Ops (Op)
+import Beng.Types.Errors (Fallible)
 
 import Data.Map as Map
 import Data.Text.Lazy (Text)
 
-type ParseRunner t = State -> [Result t]
+-- Fallible = FallibleI Beng.Error
+type Results t = Fallible (Populace (Parse t))
+
+type ParseRunner t = State -> Results t
 
 data Parser t = Parser {
 	name :: String,
@@ -49,7 +56,7 @@ data State = State {
 	spaceState :: SpaceState,
 	rest :: Text }
 
-data Result t = Result {
+data Parse t = Parse {
 	state :: State,
 	parsed :: Text,
 	target :: t }

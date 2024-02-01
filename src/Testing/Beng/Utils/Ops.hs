@@ -1,4 +1,6 @@
-module Testing.Beng.Utils.Ops () where
+module Testing.Beng.Utils.Ops (
+	argAssertionsOf
+) where
 
 import Utils.Fallible
 import Utils.Lists (wrap)
@@ -30,20 +32,24 @@ instance HasField "op" (i -> j -> Op -> Fallible a) (i -> j -> Capture -> Fallib
 	getField assertion = \i j -> (assertion i j).op
 
 instance HasField "args" Definition ([(String, Capture -> Fallible ())] -> Op -> Fallible ()) where
-	getField definition argAssertions op =
-		prependToError ("In op " ++ wrap "`" (show op) ++ ", ") do
-			debugM $ "Asserting correct structure of " ++ show op ++ "..."
-			(definition.declaration, op.card.declaration) `isEqualElse` "The definition was not the one expected!"
-	
-			let args = getArgs op
-			let assertArg name assertion = case OMap.lookup name args of
-				Nothing -> Error $ "The argument '" ++ name ++ "' was expected, but not found!"
-				Just argOp -> assertion argOp
-			reduceErrors $ map (uncurry assertArg) argAssertions
-	
-			map2 sort (map fst argAssertions, Map.keys $ OMap.toMap args) `isEqualElse`
-				-- If |args| < |argAssertions|, there would be an error above.
-				"There are extra arguments!"
+	getField = argAssertionsOf
 
 instance HasField "null" Definition (Op -> Fallible ()) where
 	getField definition = definition.args []
+
+argAssertionsOf :: Definition -> [(String, Capture -> Fallible ())] -> Op -> Fallible ()
+argAssertionsOf definition argAssertions op =
+	prependToError ("In op " ++ wrap "`" (show op) ++ ", ") do
+		debugM $ "Asserting correct structure of " ++ show op ++ "..."
+		(definition.declaration, op.card.declaration) `isEqualElse`
+			"The definition was not the one expected!"
+
+		let args = getArgs op
+		let assertArg name assertion = case OMap.lookup name args of
+			Nothing -> Error $ "The argument '" ++ name ++ "' was expected, but not found!"
+			Just argOp -> assertion argOp
+		sequence $ map (uncurry assertArg) argAssertions
+
+		map2 sort (map fst argAssertions, Map.keys $ OMap.toMap args) `isEqualElse`
+			-- If |args| < |argAssertions|, there would be an error above.
+			"There are extra arguments!"
