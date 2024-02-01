@@ -8,7 +8,7 @@ import qualified Utils.Populace as P
 import Utils.Testing
 
 import qualified Testing.Beng.Utils.Build as Test
-import Testing.Beng.Utils.Mocks (a, assertNegate, mockABCD)
+import Testing.Beng.Utils.Mocks (a, assertNegate, assertNot, mockABCD)
 import Testing.Beng.Utils.Ops ()
 import Testing.Beng.Utils.Parsers (assertRest)
 
@@ -46,4 +46,12 @@ testBuildPrefixed = TestCategories "build prefixed Op" [
 		("one exactly", do
 			result <- assert1 "result" =<< build "~a"
 			assertNegate a.null.op result.target
-			assertRest "" result)]]
+			assertRest "" result),
+		("one then junk", do
+			result <- assert1 "result" =<< build "!al"
+			assertNot a.null.op result.target
+			assertRest "l" result),
+		("one in another then junk", do
+			result <- assert1 "result" =<< build "~!ah"
+			assertNegate (assertNot.op a.null.op) result.target
+			assertRest "h" result)]]

@@ -11,6 +11,7 @@ module Testing.Beng.Utils.Mocks (
 	divide,
 	addWords,
 	add,
+	not,
 	negate,
 	aMatch,
 	bMatch,
@@ -22,11 +23,13 @@ module Testing.Beng.Utils.Mocks (
 	expMatch,
 	divMatch,
 	addMatch,
+	notMatch,
 	negateMatch,
 	appOp,
 	expOp,
 	divOp,
 	addOp,
+	notOp,
 	negateOp,
 	definitionOf,
 	declarationOf,
@@ -37,10 +40,11 @@ module Testing.Beng.Utils.Mocks (
 	assertAdd,
 	assertAddWords,
 	assertDivWords,
+	assertNot,
 	assertNegate
 ) where
 
-import Prelude hiding (exp, negate)
+import Prelude hiding (exp, negate, not)
 
 import Utils.Fallible
 import Utils.Populace.Populace2 (dualton)
@@ -63,6 +67,7 @@ import Beng.Types.Locations (Location(..))
 import Beng.Run.Ops (run)
 
 import Control.Composition ((.*))
+import Data.Bits (complement)
 import Data.Map ((!))
 import Data.Text.Lazy (Text)
 
@@ -79,7 +84,7 @@ bValue = 7
 data ABDiv = ABDivA | ABDivB | ABDivDivide deriving (Show, Eq, Enum)
 
 data ABCD = A | B | Divide |
-	DivideWords | Exp | App | AddWords | Add | Negate |
+	DivideWords | Exp | App | AddWords | Add | Not | Negate |
 	C | D
 	deriving (Show, Eq, Enum)
 
@@ -140,13 +145,16 @@ hangingDefinitionOf = \case
 			augend <- run $ asOp $ args ! "Augend"
 			addend <- run $ asOp $ args ! "Addend"
 			return $ augend + addend
-	Negate ->
-		-- Without types, using "-" for negation and subtraction would get messy, so I used "~".
-		define (Above $ declarationOf Divide)
-			[l "~", arg "Negend"]  -- That's probably not a word. Too bad! It is now!
-			\args -> do
-				negend <- run $ asOp $ args ! "Negend"
-				return (-negend)
+	Not -> define (Above $ declarationOf Divide)
+		[l "!", arg "Value"]  -- I couldn't come up with a cool name for this one.
+		\args -> do
+			value <- run $ asOp $ args ! "Value"
+			return (-value)
+	Negate -> define (Above $ declarationOf Not)
+		[l "~", arg "Negend"]  -- That's probably not a word. Too bad! It is now!
+		\args -> do
+			negend <- run $ asOp $ args ! "Negend"
+			return $ complement negend
 	C -> defineStaticNameValue "C"
 	D -> defineStaticNameValue "D"
 
@@ -171,6 +179,10 @@ locationOf = Builtin . fromEnum
 
 opOf :: ABCD -> (Match -> Op)
 opOf a = Op (cardOf a) (locationOf a)
+
+prefixedUnaryOpMatch :: Text -> String -> Op -> Match
+prefixedUnaryOpMatch prefix argName op =
+	Match.And $ dualton (Match.Literal prefix) (Match.Argument argName op)
 
 infixOpMatch :: String -> Text -> String -> Op -> Op -> Match
 infixOpMatch leftName literal rightName leftOp rightOp = Match.And $ P2.Populace2
@@ -209,6 +221,8 @@ divideWords = definitionOf DivideWords
 
 addWords = definitionOf AddWords
 
+not = definitionOf Not
+
 negate = definitionOf Negate
 
 ---- matches
@@ -231,8 +245,11 @@ divMatch = infixOpMatch "Dividend" "/" "Divisor"
 addMatch :: (Op -> Op -> Match)
 addMatch = infixOpMatch "Augend" "+" "Addend"
 
+notMatch :: (Op -> Match)
+notMatch = prefixedUnaryOpMatch "!" "Value"
+
 negateMatch :: (Op -> Match)
-negateMatch = Match.And . dualton (Match.Literal "~") . Match.Argument "Negend"
+negateMatch = prefixedUnaryOpMatch "~" "Negend"
 
 ---- ops
 
@@ -253,6 +270,9 @@ divOp = opOf Divide .* divMatch
 
 addOp :: (Op -> Op -> Op)
 addOp = opOf Add .* addMatch
+
+notOp :: (Op -> Op)
+notOp = opOf Not . notMatch
 
 negateOp :: (Op -> Op)
 negateOp = opOf Negate . negateMatch
@@ -282,6 +302,9 @@ assertAddWords assertAugend assertAddend = addWords.args
 assertDivWords :: AssertTwoArgs
 assertDivWords assertDividend assertDivisor = divideWords.args
 	[("Dividend", assertDividend), ("Divisor", assertDivisor)]
+
+assertNot :: AssertOneArg
+assertNot assertValue = not.args [("Value", assertValue)]
 
 assertNegate :: AssertOneArg
 assertNegate assertNegend = negate.args [("Negend", assertNegend)]
