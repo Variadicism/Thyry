@@ -1,5 +1,5 @@
-module Testing.Beng.Build.Ops (
-	testBuildOp
+module Testing.Beng.Build.NonPrefixed (
+	testBuildNonPrefixed
 ) where
 
 import Utils.Fallible
@@ -27,22 +27,9 @@ build mockCode =
 
 -- tests
 
-testBuildOp :: TestCategory
-testBuildOp = TestCategories "build Op" [
-	PureTests "prefixed nullary" [
-		("one exactly", do
-			result <- assert1 "result" =<< build "a"
-			a.null result.target
-			assertRest "" result),
-		("one then junk", do
-			result <- assert1 "result" =<< build "aj"
-			a.null result.target
-			assertRest "j" result),
-		("junk then one", do
-			build "ja" `hasErrorElse` "Beng built successfully prefixed with junk code!"),
-		("empty", do
-			build "" `hasErrorElse` "Beng built empty code successfully!")],
-	PureTests "nonprefixed lefty equal precedence" [
+testBuildNonPrefixed :: TestCategory
+testBuildNonPrefixed = TestCategories "build non-repfixed Op" [
+	PureTests "lefty equal precedence" [
 		("one exactly", do
 			(aParse, divParse) <- assert2 "results" =<< build "a/a"
 			a.null aParse.target
@@ -65,7 +52,7 @@ testBuildOp = TestCategories "build Op" [
 			assertRest "/a{}" divParse
 			assertDiv (assertDiv.op a.null.op b.null.op) a.null.op fullParse.target
 			assertRest "{}" fullParse)],
-	PureTests "nonprefixed righty equal precedence" [
+	PureTests "righty equal precedence" [
 		("one exactly", do
 			(aParse, appParse) <- assert2 "results" =<< build "a$a"
 			a.null aParse.target
@@ -88,7 +75,7 @@ testBuildOp = TestCategories "build Op" [
 			assertRest "$a{}" appParse
 			assertApp a.null.op (assertApp.op b.null.op a.null.op) fullParse.target
 			assertRest "{}" fullParse)],
-	PureTests "nonprefixed ascending precedence" [
+	PureTests "ascending precedence" [
 		("precedence ascending once exactly", do
 			(aParse, addParse, fullParse) <- assert3 "results" =<< build "b+b/a"
 			b.null aParse.target
@@ -118,7 +105,7 @@ testBuildOp = TestCategories "build Op" [
 			assertRest "/b" addParse
 			assertDiv (assertAddWords.op a.null.op a.null.op) b.null.op fullParse.target
 			assertRest "" fullParse)],
-	PureTests "nonprefixed descending precedence" [
+	PureTests "descending precedence" [
 		("precedence descending once exactly", do
 			(aParse, divParse, fullParse) <- assert3 "results" =<< build "b/b+a"
 			b.null aParse.target
@@ -140,7 +127,7 @@ testBuildOp = TestCategories "build Op" [
 				a.null.op
 				fullParse.target
 			assertRest "" fullParse)],
-	PureTests "nonprefixed mixed precedence" [
+	PureTests "mixed precedence" [
 		("precedence down then up exactly", do
 			(aParse, divParse, addDivParse, fullParse) <- assert4 "results" =<< build "a/b+b^a"
 			a.null aParse.target
@@ -206,7 +193,7 @@ testBuildOp = TestCategories "build Op" [
 				(assertExp.op a.null.op b.null.op)
 				(assertDiv.op (assertExp.op b.null.op b.null.op) a.null.op)
 				fullParse.target)],
-	PureTests "nonprefixed mixed associativity" [
+	PureTests "mixed associativity" [
 		("unequal lefty then righty exactly", do
 			(aParse, divParse, fullParse) <- assert3 "results" =<< build "a/b$b"
 			a.null aParse.target

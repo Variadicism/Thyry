@@ -2,9 +2,8 @@ module Beng.Parse.Patterns.And (
 	parse
 ) where
 
-import Utils.Populace (Populace)
-import qualified Utils.Populace as P
-import Utils.Populace.Populace2 (Populace2)
+import Utils.Populace.Populace2 (Populace2, dualton)
+import qualified Utils.Populace.Populace2 as P2
 
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Parse.Matches (Match)
@@ -17,12 +16,15 @@ import Beng.Parse.Types.Patterns (Pattern)
 parse :: Populace2 Pattern -> Parser Match
 parse subpatterns =
 	show (length subpatterns) ++ " patterns" @+>
-	parseAsP subpatterns.p1 >\> Match.And
+	parseAsP subpatterns >\> Match.And
 	where
-		parseAsP :: Populace Pattern -> Parser (Populace Match)
-		parseAsP p = case P.uncons p of
-			(next, []) -> Pattern.parse next >\> P.singleton
-			(next, (nextHead:nextTail)) ->
-				Pattern.parse next >:>
-				parseAsP (P.Populace nextHead nextTail) >\>
-				uncurry P.cons
+		parseAsP :: Populace2 Pattern -> Parser (Populace2 Match)
+		parseAsP p = case p.tailTail of
+			[] ->
+				Pattern.parse p.head >:>
+				Pattern.parse p.next >\>
+				uncurry dualton
+			tailTailHead:tailTailTail ->  -- This naming scheme is quickly getting ridiculous. :P
+				Pattern.parse p.head >:>
+				parseAsP (P2.Populace2 p.next tailTailHead tailTailTail) >\>
+				uncurry P2.cons

@@ -4,6 +4,7 @@ module Beng.Parse.Types.Matches (
 ) where
 
 import Utils.Populace (Populace)
+import Utils.Populace.Populace2 (Populace2)
 
 import {-# SOURCE #-} Beng.Types.Ops (Op)
 
@@ -22,6 +23,6 @@ data Match =
 	CharClass { char :: Char } |
 	NamedText { name :: String, match :: Match } |
 	Or { match :: Match, matchIndex :: Int, misses :: [String] } |
-	And { matches :: Populace Match } |
+	And { matches :: Populace2 Match } |
 	Delimited { head :: Match, tail :: [(Match, Match)] } |
 	Argument { name :: String, op :: Op }

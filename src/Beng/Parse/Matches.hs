@@ -13,6 +13,7 @@ import Utils.Lists (takeUntilIncl, updateAt)
 import qualified Utils.Maps.Ordered as OMap
 import Utils.Populace (Populace)
 import qualified Utils.Populace as P
+import qualified Utils.Populace.Populace2 as P2
 import Utils.Tuples (mapSnd2, toList2)
 
 import {-# SOURCE #-} Beng.Ops ()
@@ -54,7 +55,7 @@ instance Show Match where
 getSubmatches :: (Match -> Populace Match)
 getSubmatches = \case
 	Or{match} -> P.singleton match
-	And{matches} -> matches
+	And{matches} -> matches.p1
 	match@Delimited{} -> P.Populace match.head $ concatMap toList2 match.tail
 	match -> P.singleton match
 
@@ -79,7 +80,7 @@ getArgs = \case
 	Or{match,misses} ->
 		OMap.map (MaybeCapture . Just) (getArgs match) |<>
 		(OMap.fromList $ map (,MaybeCapture Nothing) misses)
-	And{matches} -> OMap.concat $ P.map getArgs matches
+	And{matches} -> OMap.concat $ P2.map getArgs matches
 	Delimited{head=headMatch,tail=tailMatch} -> do
 		let delimitendMatches = headMatch : map snd tailMatch
 		let delimiterMatches = map fst tailMatch

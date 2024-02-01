@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name: BengI
-version: 0.13.0.0
+version: 0.13.1.0
 synopsis: This is the interpreter for the Beng programming language.
 -- description:
 license: Artistic-2.0
@@ -113,7 +113,9 @@ test-suite build-test
   main-is: Testing/Beng/Build.hs
   other-modules:
     Testing.Beng.Build.Code
-    Testing.Beng.Build.Ops
+    Testing.Beng.Build.NonPrefixed
+    Testing.Beng.Build.Prefixed
+    -- Testing.Beng.Build.Scoped
     Testing.Beng.Utils.Build
     Testing.Beng.Utils.Mocks
     Testing.Beng.Utils.Ops

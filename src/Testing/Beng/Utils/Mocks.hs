@@ -11,6 +11,7 @@ module Testing.Beng.Utils.Mocks (
 	divide,
 	addWords,
 	add,
+	negate,
 	aMatch,
 	bMatch,
 	aOp,
@@ -21,10 +22,12 @@ module Testing.Beng.Utils.Mocks (
 	expMatch,
 	divMatch,
 	addMatch,
+	negateMatch,
 	appOp,
 	expOp,
 	divOp,
 	addOp,
+	negateOp,
 	definitionOf,
 	declarationOf,
 	cardOf,
@@ -34,18 +37,20 @@ module Testing.Beng.Utils.Mocks (
 	assertAdd,
 	assertAddWords,
 	assertDivWords,
+	assertNegate
 ) where
 
-import Prelude hiding ((<), (>), exp)
+import Prelude hiding (exp, negate)
 
 import Utils.Fallible
-import qualified Utils.Populace as P
+import Utils.Populace.Populace2 (dualton)
+import qualified Utils.Populace.Populace2 as P2
 
 import Testing.Beng.Utils.Ops ()
 
 import Beng.Build.Cards (Card(..))
 import qualified Beng.Build.Context as Context
-import Beng.Build.Context.Builders (s, l, asOp, buildContextFrom, define, defineRighty, defineLiteral, defineLiteralData, defineUsing)
+import Beng.Build.Context.Builders (l, s, asOp, buildContextFrom, define, defineRighty, defineLiteral, defineLiteralData, defineUsing)
 import qualified Beng.Build.Context.Builders as Builder
 import Beng.Build.Types.Context (PrecedenceBound(..))
 import qualified Beng.Parse.Matches as Match
@@ -74,13 +79,12 @@ bValue = 7
 data ABDiv = ABDivA | ABDivB | ABDivDivide deriving (Show, Eq, Enum)
 
 data ABCD = A | B | Divide |
-	DivideWords | Exp | App | AddWords | Add |
+	DivideWords | Exp | App | AddWords | Add | Negate |
 	C | D
 	deriving (Show, Eq, Enum)
 
 -- private
 
-arg :: String -> Pattern
 arg = Argument
 
 defineStaticNameValue :: Text -> (Location -> Definition)
@@ -136,6 +140,13 @@ hangingDefinitionOf = \case
 			augend <- run $ asOp $ args ! "Augend"
 			addend <- run $ asOp $ args ! "Addend"
 			return $ augend + addend
+	Negate ->
+		-- Without types, using "-" for negation and subtraction would get messy, so I used "~".
+		define (Above $ declarationOf Divide)
+			[l "~", arg "Negend"]  -- That's probably not a word. Too bad! It is now!
+			\args -> do
+				negend <- run $ asOp $ args ! "Negend"
+				return (-negend)
 	C -> defineStaticNameValue "C"
 	D -> defineStaticNameValue "D"
 
@@ -162,11 +173,14 @@ opOf :: ABCD -> (Match -> Op)
 opOf a = Op (cardOf a) (locationOf a)
 
 infixOpMatch :: String -> Text -> String -> Op -> Op -> Match
-infixOpMatch leftName literal rightName leftOp rightOp = Match.And $ P.Populace
+infixOpMatch leftName literal rightName leftOp rightOp = Match.And $ P2.Populace2
 	(Match.Argument leftName leftOp)
-	[Match.Literal literal, Match.Argument rightName rightOp]
+	(Match.Literal literal)
+	[Match.Argument rightName rightOp]
 
-type AssertTwoArgs = (Capture -> Fallible ()) -> (Capture -> Fallible ()) -> Op -> Fallible ()
+type AssertOneArg = (Capture -> Fallible ()) -> Op -> Fallible ()
+
+type AssertTwoArgs = (Capture -> Fallible ()) -> AssertOneArg
 
 -- exported
 ---- contexts
@@ -195,6 +209,8 @@ divideWords = definitionOf DivideWords
 
 addWords = definitionOf AddWords
 
+negate = definitionOf Negate
+
 ---- matches
 
 aMatch :: Match
@@ -202,12 +218,6 @@ aMatch = Match.Literal "a"
 
 bMatch :: Match
 bMatch = Match.Literal "b"
-
-aOp :: Op
-aOp = opOf A aMatch
-
-bOp :: Op
-bOp = opOf B bMatch
 
 appMatch :: (Op -> Op -> Match)
 appMatch = infixOpMatch "Left" "$" "Right"
@@ -221,6 +231,17 @@ divMatch = infixOpMatch "Dividend" "/" "Divisor"
 addMatch :: (Op -> Op -> Match)
 addMatch = infixOpMatch "Augend" "+" "Addend"
 
+negateMatch :: (Op -> Match)
+negateMatch = Match.And . dualton (Match.Literal "~") . Match.Argument "Negend"
+
+---- ops
+
+aOp :: Op
+aOp = opOf A aMatch
+
+bOp :: Op
+bOp = opOf B bMatch
+
 appOp :: (Op -> Op -> Op)
 appOp = opOf App .* appMatch
 
@@ -232,6 +253,9 @@ divOp = opOf Divide .* divMatch
 
 addOp :: (Op -> Op -> Op)
 addOp = opOf Add .* addMatch
+
+negateOp :: (Op -> Op)
+negateOp = opOf Negate . negateMatch
 
 ---- assertions
 
@@ -258,3 +282,6 @@ assertAddWords assertAugend assertAddend = addWords.args
 assertDivWords :: AssertTwoArgs
 assertDivWords assertDividend assertDivisor = divideWords.args
 	[("Dividend", assertDividend), ("Divisor", assertDivisor)]
+
+assertNegate :: AssertOneArg
+assertNegate assertNegend = negate.args [("Negend", assertNegend)]
