@@ -2,6 +2,8 @@ module Beng.Locations (
 	Location(..)
 ) where
 
+import Utils.Messaging (Messagable, msg)
+
 import Beng.Types.Locations (Location(..))
 
 import Data.List (intercalate)
@@ -11,8 +13,13 @@ import Data.List (intercalate)
 deriving instance Eq Location
 
 instance Show Location where
-	show Builtin{} = "[builtin]"
+	show Builtin{index} = "[builtin " ++ show index ++ "]"
 	show Dynamic{file,line,column} = intercalate ":" [file, show line, show column]
+
+instance Messagable Location where
+	msg b@Builtin{} = "in " ++ show b
+	msg Dynamic{file,line,column} =
+		"on line " ++ show line ++ " at " ++ show column ++ " in " ++ file
 
 instance Ord Location where
 	compare l1 l2 = case (l1, l2) of

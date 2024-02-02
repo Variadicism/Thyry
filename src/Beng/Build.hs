@@ -12,7 +12,7 @@ module Beng.Build (
 import Utils.Fallible
 import Utils.Fallible.Trans
 import Utils.Lists (wrap)
-import Utils.Messaging (debugM, msg)
+import Utils.Messaging (debugM)
 import Utils.Populace (Populace)
 import qualified Utils.Populace as P
 import Utils.Strings (parenthesize)
@@ -20,6 +20,7 @@ import Utils.Strings (parenthesize)
 import qualified Beng.Build.Context.Builtin as Builtin
 import qualified Beng.Build.Ops as Op
 import Beng.Build.Types.Context (Context)
+import Beng.Errors (printError)
 import Beng.Parse.Parsers ((@>), (<<<), (>>>), (>:>), (>\>), Parse(..), ParseRunner, Results, State(..), fileStartState, takeAs)
 import qualified Beng.Parse.Patterns.Space as Space
 import Beng.Types.Ops (Op)
@@ -66,7 +67,7 @@ buildCodeUsing context filePath code = do
 		parseOpsIfText
 
 	let resultsOrBengError = parser <<< initialState
-	results <- mapError msg resultsOrBengError
+	results <- mapError printError resultsOrBengError
 
 	let opsLists :: Populace [Op] = P.map target results
 	let assertOpsPresent = flip P.assert "Is it just me or is there no code in here?"
