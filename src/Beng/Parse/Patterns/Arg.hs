@@ -11,11 +11,11 @@ import Utils.Tuples (mapFst2)
 
 import {-# SOURCE #-} qualified Beng.Build.Ops as Op
 import Beng.Build.Context (Context, pushCard)
+import Beng.Errors (parseError)
 import Beng.Parse.Matches (Capture(..), Match(..))
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/>), (>/\>), Parser, PrefixState(..), State(..), takeAs)
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Parse.Types.Patterns (ArgumentType(..))
-import Beng.Types.Errors (Error(ParseError, state, message))
 import Beng.Types.Ops (Op)
 import Beng.Types.Ops.Declarations (ArgContextBuilder, Declaration(..))
 
@@ -71,8 +71,8 @@ parse name = "argument " ++ wrap "'" name @> \state ->
 		AvoidingFor op -> do
 			let match = Argument { name, op }
 			takeAs "" match state{ prefixState = Unneeded }
-		Needed -> Error $ ParseError { state, message =
-			"An op prefix was needed, but " ++ show state.parent ++ " has none!" }
+		Needed -> Error $ parseError state $
+			"An op prefix was needed, but " ++ show state.parent ++ " has none!"
 		Unneeded -> do
 			-- Arg Patterns are only applicable within ops, so parent must be present.
 			let (Just parent) = state.parent

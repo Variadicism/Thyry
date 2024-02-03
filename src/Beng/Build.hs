@@ -52,9 +52,11 @@ buildCodeUsing context filePath code = do
 				else do
 					opResults <- falOpResults
 					let prependOpAndContinue :: Parse Op -> Results [Op] = \opParse -> do
-						debugM $ wrap "\n" $ "Done parsing op from " ++ show filePath ++
+						debugM $ wrap "\n" $ "Done parsing " ++ show opParse.target ++
+							" from " ++ show filePath ++
 							"; parsing " ++ show (Text.length state.rest) ++
-							" characters remaining in " ++ filePath ++ "..."
+							" characters remaining in " ++ filePath ++
+							" at " ++ show opParse.state ++ "..."
 						tailResults <- parseOpsIfText opParse.state
 						let prependOp :: Parse [Op] -> Parse [Op] = \tailParse ->
 							tailParse{ target = opParse.target : tailParse.target }

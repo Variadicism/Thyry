@@ -41,7 +41,7 @@ import Beng.Build.Context (Context)
 import Beng.Ops ()
 import Beng.Parse.Types.Parsers (Parse(..), Parser(..), ParseRunner, PrefixState(..), Results, SpaceState(..), State(..))
 import qualified Beng.Parse.Types.Parsers as Parser
-import Beng.Errors (Error(..))
+import Beng.Errors (Fallible)
 import Beng.Types.Locations (Location(..))
 
 import Control.Monad (when)
@@ -290,7 +290,7 @@ infixl 3 >:\>
 infixl 3 >:>
 
 -- "Filter 2": filter out unwanted results by turning them to Nothing; transform successes if desired
-(>-\\>) :: Show t => Parser t -> (t -> Text -> FallibleI Error u) -> Parser u
+(>-\\>) :: Show t => Parser t -> (t -> Text -> Fallible u) -> Parser u
 (>-\\>) parser transform = parser.name ++ " filtered" @> \state -> do
 	results <- parser <<< state
 	let applyFilter parse = do
@@ -301,7 +301,7 @@ infixl 3 >:>
 infixl 2 >-\\>
 
 -- "Filter 1": filter out unwanted results by turning them to Nothing; transform successes if desired
-(>-\>) :: Show t => Parser t -> (t -> FallibleI Error u) -> Parser u
+(>-\>) :: Show t => Parser t -> (t -> Fallible u) -> Parser u
 (>-\>) parser transform = parser >-\\> \t _ -> transform t
 infixl 2 >-\>
 

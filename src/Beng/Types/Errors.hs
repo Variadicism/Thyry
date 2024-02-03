@@ -6,16 +6,19 @@ module Beng.Types.Errors (
 
 import Utils.Fallible (FallibleI)
 import Utils.Fallible.Trans (IOFallibleI)
-import Utils.Populace.Populace2 (Populace2)
+import Utils.Populace (Populace)
 
-import {-# SOURCE #-} qualified Beng.Parse.Types.Parsers as Parser
+import Beng.Build.Types.Cards (Card)
 import Beng.Types.Ops (Op)
 
 data Error =
-	EqualErrors { errors :: Populace2 Error } |
 	UndefinedError { context :: String, op :: Op } | -- TODO: callStack :: [(String, Location, Op)]
-	-- TypeError { context :: String, state :: Parser.State, expected :: Type, alternatives :: [Parse Op] } |
-	ParseError { state :: Parser.State, message :: String }
+	-- TypeError { context :: String, expected :: Type, alternatives :: [Parse Op], state... } |
+	ParseError {
+		messages :: Populace (String, Maybe Card),
+		file :: FilePath,
+		line :: Int,
+		column :: Int }
 
 type Fallible a = FallibleI Error a
 

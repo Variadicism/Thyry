@@ -7,13 +7,13 @@ module Beng.Parse.Patterns.CharClass (
 import Utils.Fallible (FallibleI(Error))
 import Utils.Populace (Populace)
 
+import Beng.Errors (parseError)
 import Beng.Parse.Parsers ((@>), Parser, takeAs)
 import Beng.Parse.Types.Matches (Match)
 import qualified Beng.Parse.Types.Matches as Match
 import {-# SOURCE #-} Beng.Parse.Patterns ()
 import Beng.Parse.Types.Parsers (State(..))
 import Beng.Parse.Types.Patterns (CharRange(..))
-import Beng.Types.Errors (Error(ParseError))
 
 import Data.List (isPrefixOf)
 import qualified Data.Text.Lazy as Text
@@ -36,7 +36,7 @@ showClass ranges negate = do
 parse :: Populace CharRange -> Bool -> Parser Match
 parse ranges negate = "parse " ++ shown @> \state ->
 	case Text.uncons state.rest of
-		Nothing -> Error $ ParseError state $ shown ++ " was expected, but the end was reached!"
+		Nothing -> Error $ parseError state $ shown ++ " was expected, but the end was reached!"
 		Just (firstChar, _) -> do
 			let inRange :: Char -> CharRange -> Bool = \char CharRange{start,end} ->
 				char >= start && char <= end
@@ -44,6 +44,6 @@ parse ranges negate = "parse " ++ shown @> \state ->
 			let matches = matchesContent /= negate
 			if matches
 				then takeAs (Text.singleton firstChar) (Match.CharClass firstChar) state
-				else Error $ ParseError state $
+				else Error $ parseError state $
 					shown ++ " was expected, but '" ++ [firstChar] ++ "' was found!"
 	where shown = showClass ranges negate
