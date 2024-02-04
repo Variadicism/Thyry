@@ -16,10 +16,11 @@ import Testing.Beng.Utils.Parsers (MockParser, assertRest)
 import Beng.Build.Types.Cards (Card(..))
 import Beng.Build.Context.Builders (a, cr2, l, s)
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers ((>>>), (>\>), Parse(..), PrefixState(..), State(..), fileStartState)
+import Beng.Parse.Parsers ((>>>), (>\>), Parse(..), Parses(..), PrefixState(..), State(..), fileStartState)
 import qualified Beng.Parse.Patterns.NamedText as NamedText
 import Beng.Parse.Patterns (Pattern(..))
 
+import Data.Bifunctor (bimap)
 import Data.Text.Lazy (Text)
 
 -- private
@@ -33,7 +34,7 @@ assertCannotBeEmpty pattern = assert (not $ NamedText.canBeEmpty pattern) $
 	show pattern ++ " cannot be empty, but the tested code believes it can!"
 
 parse :: Pattern -> MockParser Text
-parse pattern = \code -> mapError msg $
+parse pattern = \code -> bimap msg parses $
 	((fileStartState "NamedText test" mockABCD code){
 		parent = Just $ DefCard divide,
 		prefixState = Unneeded } >>>

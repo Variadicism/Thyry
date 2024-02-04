@@ -9,10 +9,10 @@ module Beng.Build (
 	buildFile
 ) where
 
-import Utils.Fallible
+import Utils.Fallible hiding (Fallible)
 import Utils.Fallible.Trans
 import Utils.Lists (wrap)
-import Utils.Messaging (debugM)
+import Utils.Messaging (debug, debugM)
 import Utils.Populace (Populace)
 import qualified Utils.Populace as P
 import Utils.Strings (parenthesize)
@@ -21,7 +21,7 @@ import qualified Beng.Build.Context.Builtin as Builtin
 import qualified Beng.Build.Ops as Op
 import Beng.Build.Types.Context (Context)
 import Beng.Errors (printError)
-import Beng.Parse.Parsers ((@>), (<<<), (>>>), (>:>), (>\>), Parse(..), ParseRunner, Results, State(..), fileStartState, takeAs)
+import Beng.Parse.Parsers ((@+>), (<<<), (>:>), (>\>), Parse(..), Parses(..), State(..), fileStartState, parseWhile)
 import qualified Beng.Parse.Patterns.Space as Space
 import Beng.Types.Ops (Op)
 
@@ -35,43 +35,21 @@ import System.IO (IOMode(ReadMode), openFile)
 
 -- exports
 
--- Unlike much of this program, this module uses the traditional Fallibles with String-type errors.
-
-buildCodeUsing :: Context -> FilePath -> Text -> Fallible (Populace Op)
+buildCodeUsing :: Context -> FilePath -> Text -> FallibleI String (Populace Op)
 buildCodeUsing context filePath code = do
 	let initialState = fileStartState filePath context code
 
-	let parser = "build code" @> do
-		let parseOpsIfText :: ParseRunner [Op] = \state ->
-			if Text.null state.rest then
-				takeAs "" [] state
-			else do
-				let falOpResults = state >>> Space.parse >:> Op.build filePath >\> snd
-				if hasError falOpResults && Text.all isSpace state.rest then
-					takeAs "" [] state
-				else do
-					opResults <- falOpResults
-					let prependOpAndContinue :: Parse Op -> Results [Op] = \opParse -> do
-						debugM $ wrap "\n" $ "Done parsing " ++ show opParse.target ++
-							" from " ++ show filePath ++
-							"; parsing " ++ show (Text.length state.rest) ++
-							" characters remaining in " ++ filePath ++
-							" at " ++ show opParse.state ++ "..."
-						tailResults <- parseOpsIfText opParse.state
-						let prependOp :: Parse [Op] -> Parse [Op] = \tailParse ->
-							tailParse{ target = opParse.target : tailParse.target }
-						return $ P.map prependOp tailResults
+	let hasText = \state ->
+		debug (wrap "\n" $ "Done parsing op; parsing " ++
+				show (Text.length state.rest) ++ " characters remaining in " ++
+				filePath ++ " at " ++ show state ++ "...") $
+			Text.any (not . isSpace) state.rest
+	let parser = "build code in " ++ filePath @+>
+		parseWhile "text remains" hasText (Space.parse >:> Op.build filePath >\> snd)
 
-					let continuedResults :: Populace (Results [Op]) =
-						P.map prependOpAndContinue opResults
-					fullResults <- P.sequenceAny continuedResults
-					return $ P.concat fullResults
-		parseOpsIfText
+	Parses{parses} <- mapError printError (parser <<< initialState)
 
-	let resultsOrBengError = parser <<< initialState
-	results <- mapError printError resultsOrBengError
-
-	let opsLists :: Populace [Op] = P.map target results
+	let opsLists :: Populace [Op] = P.map target parses
 	let assertOpsPresent = flip P.assert "Is it just me or is there no code in here?"
 	opPopuli <- P.sequenceAny $ P.map assertOpsPresent opsLists
 
@@ -83,7 +61,7 @@ buildCodeUsing context filePath code = do
 
 	return opPopuli.head
 
-buildCode :: (FilePath -> Text -> Fallible (Populace Op))
+buildCode :: (FilePath -> Text -> FallibleI String (Populace Op))
 buildCode = buildCodeUsing Builtin.context
 
 buildFile :: FilePath -> IOFallible (Populace Op)

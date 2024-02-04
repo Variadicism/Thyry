@@ -1,5 +1,5 @@
 module Beng.Parse.Types.Parsers (
-	Results,
+	Parses(..),
 	ParseRunner,
 	Parser(..),
 	PrefixState(..),
@@ -15,15 +15,16 @@ import Beng.Build.Types.Context (Context)
 import Beng.Parse.Types.Matches (Capture)
 import Beng.Types.Locations (Location)
 import Beng.Types.Ops (Op)
-import Beng.Types.Errors (Fallible)
+import Beng.Types.Errors (Error, Fallible)
 
 import Data.Map as Map
 import Data.Text.Lazy (Text)
 
--- Fallible = FallibleI Beng.Error
-type Results t = Fallible (Populace (Parse t))
+data Parses t = Parses {
+	parses :: Populace (Parse t),
+	bestError :: Maybe Error }
 
-type ParseRunner t = State -> Results t
+type ParseRunner t = State -> Fallible (Parses t)
 
 data Parser t = Parser {
 	name :: String,

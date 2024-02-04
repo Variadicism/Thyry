@@ -1,17 +1,20 @@
 module Beng.Parse.Parsers (
 	Parse(..),
+	Parses(..),
 	Parser,  -- Do not export Parser internals.
 	ParseRunner,
 	PrefixState(..),
-	Results,
 	SpaceState(..),
 	State(..),
+	prependToBestError,
+	onParses,
 	fileStartState,
 	parse,
 	takeAs1,
 	takeAs,
 	parseAs,
 	parseAny,
+	parseAll,
 	parseWhile,
 	(<<<),
 	(>>>),
@@ -33,15 +36,15 @@ module Beng.Parse.Parsers (
 
 import Utils.Fallible hiding (Fallible)
 import Utils.Lists (ifNotNull)
-import Utils.Messaging (Messagable, debug, debugM, msg)
+import Utils.Messaging (Messagable, debugM, msg)
 import Utils.Populace (Populace(..))
 import qualified Utils.Populace as P
 
 import Beng.Build.Context (Context)
 import Beng.Ops ()
-import Beng.Parse.Types.Parsers (Parse(..), Parser(..), ParseRunner, PrefixState(..), Results, SpaceState(..), State(..))
+import Beng.Parse.Types.Parsers (Parse(..), Parses(..), Parser(..), ParseRunner, PrefixState(..), SpaceState(..), State(..))
 import qualified Beng.Parse.Types.Parsers as Parser
-import Beng.Errors (Fallible)
+import Beng.Errors (Error, Fallible)
 import Beng.Types.Locations (Location(..))
 
 import Control.Monad (when)
@@ -72,60 +75,91 @@ type ParserChain1 t u = t -> Parser u
 
 type ParserChain2 t u = t -> Text -> Parser u
 
+mapParseTarget :: (t -> Text -> u) -> Parse t -> Parse u
+mapParseTarget f parse = parse{ target = f parse.target parse.parsed }
+
+mapParsesTargets :: (t -> Text -> u) -> Parses t -> Parses u
+mapParsesTargets = onParses . P.map . mapParseTarget
+
+(<!?>) :: Maybe Error -> Maybe Error -> Maybe Error
+(<!?>) e1 = \case
+	Nothing -> e1
+	Just e2 -> case e1 of
+		Nothing -> Just e2
+		Just e1 -> Just $ e1 <!> e2
+
+onMaybeBestError :: (Maybe Error -> Maybe Error) -> Parses t -> Parses t
+onMaybeBestError f parses = parses{ bestError = f parses.bestError }
+
+concatParses :: (Populace (Parses t) -> Parses t)
+-- `fold1` is safe for Populaces.
+concatParses = foldl1 foldParses where
+	foldParses = \prev next -> prev{
+		parses = prev.parses <> next.parses,
+		bestError = prev.bestError <!?> next.bestError }
+
+prependParseUsing :: (t -> u -> v) -> Parse t -> Parses u -> Parses v
+prependParseUsing m t = onParses $ P.map (prependToParse t) where
+	prependToParse = \t u -> u{
+		parsed = t.parsed <> u.parsed,
+		target = m t.target u.target }
+
 getIndentation :: State -> String
 getIndentation State{..} = do
 	let numberString = show indentation
 	let numberOfSpaces = indentation - length numberString + 1
 	numberString ++ "|" ++ replicate numberOfSpaces ' '
 
+debugIndented state = debugM . (getIndentation state++)
+
+andParseFrom :: (Show t, Show u) => String -> Parses t -> ParserChain2 t u -> ParseRunner (t, u)
+andParseFrom firstName firstParses secondChain = \state -> do
+	-- If you write this as `let runSecond firstResult =`, HasField complains. Wat? >:(
+	let runSecond = \firstParse -> do
+		let second = secondChain firstParse.target firstParse.parsed
+		debugIndented state $ "Pairing " ++ firstName ++ " with " ++ second.name ++ "..."
+		case firstParse.state >>> second of
+			Error secondError ->
+				Error $ maybe secondError (<!> secondError) firstParses.bestError
+			Falue secondParses ->
+				-- Successes combine the first Parses's best error at the end to avoid redundancy.
+				Falue $ prependParseUsing (,) firstParse secondParses
+
+	-- Type variables prohibit type signatures here. >:(
+	let mergedSubparses = P.map runSecond firstParses.parses  -- Populace (Fallible (Parses (t, u)))
+	sequencedParses <- P.sequenceAny mergedSubparses  -- Fallible (Populace (Parses (t, u)))
+	let pairedParses = concatParses sequencedParses  -- Parses (t, u)
+	return $ onMaybeBestError (firstParses.bestError <!?>) pairedParses
+
 andParse :: (Show t, Show u) => Parser t -> ParserChain2 t u -> ParseRunner (t, u)
 andParse first secondChain = \state -> do
-	firstResults <- state >>> first
-	-- If you write this as `let runSecond firstResult =`, HasField complains. Wat? >:(
-	let runSecond = \firstResult -> do
-		let second = secondChain firstResult.target firstResult.parsed
-		debugM $ getIndentation firstResult.state ++
-			"Pairing " ++ first.name ++ " with " ++ second.name ++ "..."
-		secondResults <- firstResult.state >>> second
-		let combineWithFirst secondResult = secondResult{
-			parsed = firstResult.parsed <> secondResult.parsed,
-			target = (firstResult.target, secondResult.target) }
-		return $ fmap combineWithFirst secondResults
-	-- Type variables prohibit type signatures here. >:(
-	let pairedResults = P.map runSecond firstResults  -- Populace (Fallible (Populace (Parse (t, u))))
-	sequencedResults <- P.sequenceAny pairedResults  -- Fallible (Populace (Populace (Parse (t, u))))
-	return $ P.concat sequencedResults
+	firstParses <- state >>> first
+	andParseFrom first.name firstParses secondChain state
 
-orParse :: ParseRunner t -> ParseRunner t -> ParseRunner t
-orParse first second = \state -> do
-	successes <- P.sequenceAny $ Populace (first state) [second state]  -- Populace (Populace (Parse t))
-	return $ P.concat successes
+orParseBeside :: String -> Fallible (Parses t) -> String -> Fallible (Parses t) -> ParseRunner t
+orParseBeside firstName firstParses secondName secondParses = \state -> do
+	debugIndented state $ "Alternating " ++ firstName ++ " with " ++ secondName ++ "..."
+	case (firstParses, secondParses) of
+		(Error firstError, Error secondError) ->
+			Error $ firstError <!> secondError
+		(Error firstError, Falue secondParses) ->
+			Falue $ onMaybeBestError (Just firstError <!?>) secondParses
+		(Falue firstParses, Error secondError) ->
+			Falue $ onMaybeBestError (<!?> Just secondError) firstParses
+		(Falue firstParses, Falue secondParses) ->
+			Falue $ concatParses $ Populace firstParses [secondParses]
+
+orParse :: Show t => Parser t -> Parser t -> ParseRunner t
+orParse first second = \state ->
+	orParseBeside first.name (state >>> first) second.name (state >>> second) state
 
 teeParse :: Show t => Parser t -> ParserChain2 t t -> ParseRunner t
-teeParse start continueChain = \state -> do
-	startParses <- state >>> start
-
-	-- Type variables prohibit type signatures here. >:(
-	let startAndContinue startParse = do  -- Parse t -> Populace (Parse t)
-		let continue = continueChain startParse.target startParse.parsed
-		debug (getIndentation startParse.state ++
-				"Teeing " ++ start.name ++ " off to " ++ continue.name ++ "...") do
-			let continuedParses =  -- Fallible (Populace (Parse t))
-				startParse.state >>> continue
-			let prependStartResult continuedParse =  -- Parse t -> Parse t
-				continuedParse{ parsed = startParse.parsed <> continuedParse.parsed }
-			let fullContinuedResults =  -- Fallible (Populace (Parse t))
-				fmap (P.map prependStartResult) continuedParses
-			let fullResultsWithContinue =  -- Fallible (Populace (Parse t))
-				fmap (P.cons startParse) fullContinuedResults
-			let successfulResults =  -- Populace (Parse t)
-				falueOr (P.singleton startParse) fullResultsWithContinue
-			successfulResults
-
-	return $ P.concat $ P.map startAndContinue startParses
-
-mapParseTarget :: (t -> Text -> u) -> Parse t -> Parse u
-mapParseTarget f parse = parse{ target = f parse.target parse.parsed }
+teeParse first secondChain = \state -> do
+	firstParses <- state >>> first
+	let teedParses = do
+		secondParses <- andParseFrom first.name firstParses secondChain state
+		return $ mapParsesTargets (\(_, t) _ -> t) secondParses
+	orParseBeside first.name (Falue firstParses) "its tee" teedParses state
 
 -- instances
 
@@ -160,6 +194,12 @@ instance Show State where
 
 -- exported
 
+prependToBestError :: String -> (Parses t -> Parses t)
+prependToBestError prefix = onMaybeBestError (fmap $ prepend prefix)
+
+onParses :: (Populace (Parse t) -> Populace (Parse u)) -> Parses t -> Parses u
+onParses f ts = ts{ parses = f ts.parses }
+
 fileStartState :: FilePath -> Context -> Text -> State
 fileStartState file context text = State {
 	context, maxPrecedence = Nothing, parent = Nothing,
@@ -174,22 +214,22 @@ parse parser = \state -> do
 	when (not $ null parser.name) $ debugM $
 		getIndentation state ++ "Parsing " ++ parser.name ++ " from " ++ show state ++ "..."
 
-	let indentedResults = parser.run $ state{ indentation = state.indentation + 1 }
+	let indentedResults = parser.run state{ indentation = state.indentation + 1 }
 	let outdent = \parse -> parse{ Parser.state = parse.state{ indentation = parse.state.indentation - 1 }}
-	let results = fmap (P.map outdent) indentedResults
+	let parses = fmap (onParses (P.map outdent)) indentedResults
 
-	when (not $ null parser.name) $ debugM $
-		getIndentation state ++
-			(case results of
-				Error error -> "ERROR " ++ show error
-				Falue p | length p == 1 -> "1 result"
-				Falue p -> show (length p) ++ " results") ++
-			" parsing " ++ parser.name ++
-			(case results of
-				Error _ -> ""
-				Falue populus -> (":"++) $
-					concatMap (("\n"++) . (getIndentation state++) . show) populus.l)
-	results
+	when (not $ null parser.name) case parses of
+		Error error -> do
+			debugIndented state $ "ERROR parsing " ++ parser.name ++ ":"
+			debugIndented state $ show error
+		Falue Parses{parses,bestError} -> do
+			debugIndented state $
+				(if length parses == 1 then "1 result" else show (length parses) ++ " results") ++
+				" parsing " ++ parser.name ++ ":"
+			sequence $ flip P.mapIndexed parses
+				\i p -> debugIndented state $ show (i+1) ++ ") " ++ show p
+			debugIndented state $ "Best error: " ++ maybe "[]" show bestError
+	parses
 
 takeAs1 :: Show t => Text -> t -> State -> Parse t
 takeAs1 parsed target state = do
@@ -217,7 +257,8 @@ takeAs1 parsed target state = do
 		rest, spaceState, location } }
 
 takeAs :: Show t => Text -> t -> ParseRunner t
-takeAs parsed target = return . P.singleton . takeAs1 parsed target
+takeAs parsed target = \state -> return Parses {
+	parses = P.singleton $ takeAs1 parsed target state, bestError = Nothing }
 
 parseAs :: Show t => (Text -> t -> Parser t)
 parseAs text = ("" @>) . takeAs text 
@@ -227,22 +268,31 @@ parseAny = foldr1 (>|>)
 
 {- Parse as many instances of the target as possible, "teeing off" each parse
    so that each possible parse result is listed. -}
-parseWhile :: Show t => Parser t -> Parser [t]
-parseWhile parser = parser.name ++ " indefinitely" @+>
+parseAll :: Show t => Parser t -> Parser [t]
+parseAll parser = "all " ++ parser.name @> \state -> state >>>
 	-- A tee's tail ignoring the output of the head is usually bad, but here,
 	-- we're just losing an empty list that would have been concatenated.
 	parseAs "" [] >^\> \_ ->
 	parser >:>
-	parseWhile parser >\>
+	parseAll parser >\>
 	\(next, rest) -> next:rest
-		
+
+parseWhile :: Show t => String -> (State -> Bool) -> Parser t -> Parser [t]
+parseWhile conditionDescription shouldContinue parser =
+	parser.name ++ " while " ++ conditionDescription @> \state ->
+		if shouldContinue state then
+			state >>>
+			parser >:>
+			parseWhile conditionDescription shouldContinue parser >\>
+			\(next, rest) -> next:rest
+		else takeAs "" [] state
 
 -- "Run": Run the parser with the given state and get the results.
 (<<<) :: Show t => (Parser t -> ParseRunner t)
 (<<<) = parse
 infix 0 <<<
 
-(>>>) :: Show t => (State -> Parser t -> Results t)
+(>>>) :: Show t => (State -> Parser t -> Fallible (Parses t))
 (>>>) = flip parse
 infix 0 >>>
 
@@ -261,9 +311,9 @@ infix 0 @+>
 -- "Update with Target": make an update to the state without affecting the target
 (>/\>) :: Show t => Parser t -> (State -> t -> State) -> Parser t
 (>/\>) parser updater = parser.name @> \state -> do
-	fmap (fmap update) (state >>> parser)
-	where
-		update parse = parse{ Parser.state = updater parse.state parse.target }
+	parses <- state >>> parser
+	let update parse = parse{ Parser.state = updater parse.state parse.target }
+	return $ onParses (P.map update) parses
 infixl 2 >/\>
 
 -- "Update": make an update to the state without affecting the target
@@ -292,11 +342,12 @@ infixl 3 >:>
 -- "Filter 2": filter out unwanted results by turning them to Nothing; transform successes if desired
 (>-\\>) :: Show t => Parser t -> (t -> Text -> Fallible u) -> Parser u
 (>-\\>) parser transform = parser.name ++ " filtered" @> \state -> do
-	results <- parser <<< state
+	parses <- parser <<< state
 	let applyFilter parse = do
 		newTarget <- transform parse.target parse.parsed
 		return $ parse{ target = newTarget }
-	P.sequenceAny $ fmap applyFilter results
+	filteredParses <- P.sequenceAny $ P.map applyFilter parses.parses
+	return parses{ parses = filteredParses }
 	
 infixl 2 >-\\>
 
@@ -306,22 +357,21 @@ infixl 2 >-\\>
 infixl 2 >-\>
 
 -- "Or": combine the results of two parsers, i.e., parse using either parser
-(>|>) :: Parser t -> Parser t -> Parser t
+(>|>) :: Show t => Parser t -> Parser t -> Parser t
 (>|>) parser1 parser2 = 
 	parser1.name ++ " or " ++ parser2.name @>
-		orParse parser1.run parser2.run
+		orParse parser1 parser2
 infixl 1 >|>
 
 -- "Tee 2": use the first parser, then chain to the next, BUT accept results from the first alone AND the chain.
 (>^\\>) :: Show t => Parser t -> ParserChain2 t t -> Parser t
-(>^\\>) start continueChain =
-	start.name ++ " teed to ?" @>
-		teeParse start continueChain
+(>^\\>) start continueChain = start.name ++ " teed to ?" @>
+	teeParse start continueChain
 infixl 2 >^\\>
 
 -- "Tee 1"
 (>^\>) :: Show t => Parser t -> ParserChain1 t t -> Parser t
-(>^\>) start continueTee = start >^\\> \t _ -> continueTee t
+(>^\>) start continueChain = start >^\\> \t _ -> continueChain t
 infixl 2 >^\>
 
 --- There is no Tee without chaining because that could silently discard previous results!
@@ -329,7 +379,7 @@ infixl 2 >^\>
 -- "Fmap 2": map the given function to each Parse using its target and parsed Text
 -- This is equivalent to (>\>) except that it passes the parsed Text in addition to the target
 (>\\>) :: Parser t -> (t -> Text -> u) -> Parser u
-(>\\>) parser f = parser{ run = fmap (fmap (mapParseTarget f)) . parser.run }
+(>\\>) parser f = parser{ run = fmap (mapParsesTargets f) . parser.run }
 infixl 2 >\\>
 
 -- "Fmap 1": map the given function to each Parse using its target

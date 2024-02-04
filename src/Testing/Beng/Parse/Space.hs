@@ -4,7 +4,6 @@ module Testing.Beng.Parse.Space (
 
 import Utils.Fallible
 import Utils.Messaging (msg)
-import qualified Utils.Populace as P
 import Utils.Testing
 
 import Testing.Beng.Utils.Mocks (mockNothing)
@@ -12,7 +11,7 @@ import Testing.Beng.Utils.Parsers (MockParser, assertState)
 
 import Beng.Parse.Matches (Match(text))
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers ((>>>), (>\>), Parse(..), SpaceState(..), State(..), fileStartState)
+import Beng.Parse.Parsers ((>>>), (>\>), Parse(..), SpaceState(..), State(..), fileStartState, parses)
 import qualified Beng.Parse.Patterns.Space as Space
 
 import Data.Bifunctor (bimap)
@@ -21,7 +20,7 @@ import Data.Text.Lazy (Text)
 -- private
 
 parse :: SpaceState -> MockParser Text
-parse spaceState text = bimap msg P.sort (
+parse spaceState text = bimap msg parses (
 	(fileStartState "Space test" mockNothing text){ spaceState } >>>
 	Space.parse >\>
 	\Match.Space{text} -> text)

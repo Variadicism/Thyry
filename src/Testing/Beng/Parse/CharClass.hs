@@ -3,16 +3,15 @@ module Testing.Beng.Parse.CharClass (
 ) where
 
 import Utils.Fallible
-import Utils.Messaging (msg)
 import Utils.Populace (Populace)
 import qualified Utils.Populace as P
 import Utils.Testing
 
 import Testing.Beng.Utils.Mocks (mockNothing)
-import Testing.Beng.Utils.Parsers (assertState)
+import Testing.Beng.Utils.Parsers ((!>>>), assertState)
 
 import Beng.Build.Context.Builders (cr, cr2)
-import Beng.Parse.Parsers ((>>>), (>\>), Parse(..), SpaceState(..), fileStartState)
+import Beng.Parse.Parsers ((>\>), Parse(..), SpaceState(..))
 import qualified Beng.Parse.Patterns.CharClass as CharClass
 import qualified Beng.Parse.Types.Matches as Match
 import Beng.Parse.Types.Patterns (CharRange)
@@ -20,10 +19,9 @@ import Beng.Parse.Types.Patterns (CharRange)
 import Data.Text.Lazy (Text)
 
 parse :: [CharRange] -> Bool -> Text -> Fallible (Populace (Parse ()))
-parse ranges negate mockCode = mapError msg $
-	(fileStartState "CharClass test" mockNothing mockCode >>>
+parse ranges negate = mockNothing !>>>
 	CharClass.parse (P.assume ranges) negate >\>
-	\Match.CharClass{} -> ())
+	\Match.CharClass{} -> ()
 
 -- tests
 

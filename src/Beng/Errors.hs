@@ -36,7 +36,7 @@ printErrorBody = \case
 			[] -> printMessageWithCard messages.head
 			_ -> do
 				let numberMessage index =
-					(tColor [Red, Bold] (show index ++ ") ") ++) . tColor [Red]
+					(tColor [Red, Bold] (show (index+1) ++ ") ") ++) . tColor [Red]
 				tColor [Red, Bold, Underlined]
 						("One of " ++ show (length messages) ++ " things went wrong:\n") ++
 					intercalate "\n" (P.mapIndexed numberMessage $ P.map fst messages)
@@ -70,13 +70,10 @@ instance Messagable Error where
 instance Ord Error where
 	-- Lower => closer to success
 	compare e1 e2 = case (e1, e2) of
-		(e1@ParseError{}, e2@ParseError{}) ->
-			compare e1.line e2.line <> compare e1.column e2.column
-		(ue1@UndefinedError{}, ue2@UndefinedError{}) ->
-			-- Operands are flipped because further location => closer to success => lower Ordering
-			compare ue2.location ue1.location
 		(ParseError{}, UndefinedError{}) -> GT
 		(UndefinedError{}, ParseError{}) -> LT
+		_ ->  -- Operands are flipped because further location => closer to success => lower Ordering
+			compare e2.location e1.location
 
 instance IsError Error where
 	prepend prefix = \case
@@ -93,7 +90,7 @@ instance IsError Error where
 				e1{ messages = e1.messages <> e2p.messages }
 			UndefinedError{} -> do
 				let e2u@UndefinedError{} = e2
-				e1{ Error.context = e1.context ++ " AND " ++ e2u.context }
+				e1{ Error.context = e1.context ++ e2u.context }
 
 instance HasField "location" Error Location where
 	getField = getLocation

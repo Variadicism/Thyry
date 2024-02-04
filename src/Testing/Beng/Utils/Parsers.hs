@@ -8,12 +8,13 @@ module Testing.Beng.Utils.Parsers (
 
 import Utils.Fallible
 import Utils.Messaging (msg)
-import Utils.Populace (Populace)
+import Utils.Populace
 import Utils.Testing
 
 import Beng.Build.Types.Context (Context)
-import Beng.Parse.Parsers ((>>>), Parse(..), Parser, SpaceState, State(..), fileStartState)
+import Beng.Parse.Parsers ((>>>), Parse(..), Parses(..), Parser, SpaceState, State(..), fileStartState)
 
+import Data.Bifunctor (bimap)
 import Data.Text.Lazy (Text)
 
 -- types
@@ -25,11 +26,11 @@ type MockParser a = Text -> Fallible (Populace (Parse a))
 
 (!>>>) :: Show a => Context -> Parser a -> MockParser a
 (!>>>) mockContext parser = \mockCode ->
-	mapError msg $ (fileStartState "[TEST]" mockContext mockCode >>> parser)
+	bimap msg parses $ (fileStartState "[TEST]" mockContext mockCode >>> parser)
 infix 0 !>>>
 
 assertSpace :: SpaceState -> Parse a -> Fallible ()
-assertSpace expected result = (expected, result.state.spaceState) `isEqualElse`
+assertSpace expected parse = (expected, parse.state.spaceState) `isEqualElse`
 	"The SpaceState after parsing was unexpected!"
 
 assertState :: SpaceState -> Text -> Parse a -> Fallible ()
@@ -38,5 +39,5 @@ assertState spaceState rest result = do
 	assertSpace spaceState result
 
 assertRest :: Text -> Parse a -> Fallible ()
-assertRest expected result = (expected, result.state.rest) `isEqualElse`
+assertRest expected parse = (expected, parse.state.rest) `isEqualElse`
 	"The text remaining after parsing was unexpected!"
