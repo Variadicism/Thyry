@@ -13,6 +13,7 @@ import Beng.Parse.Parsers ((>>>), (@>), (@+>), (>/>), (>/\>), (>^\>), (>\>), Par
 import qualified Beng.Parse.Patterns as Pattern
 import Beng.Ops (Op(..), hasSuffix)
 import Beng.Ops.Declarations (Declaration(..))
+import qualified Beng.Types.Locations as Location
 
 import qualified Data.Map as Map
 
@@ -53,7 +54,7 @@ parseFor prefixState card = show card @> \initialState ->
 			maxPrecedence = Nothing } >>>
 
 		Pattern.parse card.declaration.pattern >\>
-		(\match -> Op { card, match, location = initialState.location }) >/\> (\s op -> s{
+		(\match -> Op { card, match, location = Location.Code initialState.location }) >/\> (\s op -> s{
 			arguments = Map.empty,
 			parent = initialState.parent,
 			maxPrecedence = if hasSuffix op

@@ -9,6 +9,7 @@ import Utils.Fallible.Trans (IOFallibleI)
 import Utils.Populace (Populace)
 
 import Beng.Build.Types.Cards (Card)
+import Beng.Types.Locations (FileLocation)
 import Beng.Types.Ops (Op)
 
 data Error =
@@ -16,9 +17,7 @@ data Error =
 	-- TypeError { context :: String, expected :: Type, alternatives :: [Parse Op], state... } |
 	ParseError {
 		messages :: Populace (String, Maybe Card),
-		file :: FilePath,
-		line :: Int,
-		column :: Int }
+		fileLocation :: FileLocation }
 
 type Fallible a = FallibleI Error a
 

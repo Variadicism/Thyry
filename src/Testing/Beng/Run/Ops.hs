@@ -20,7 +20,7 @@ import Beng.Parse.Matches (Capture(..), Match)
 import qualified Beng.Parse.Matches as M
 import Beng.Parse.Patterns (Pattern(..))
 import Beng.Run.Ops (run)
-import Beng.Types.Locations (Location(..))
+import Beng.Types.Locations (FileLocation(..), Location(..))
 
 import Data.Map ((!))
 
@@ -93,7 +93,7 @@ testRunOps = TestCategories "evaluate" [
 			assertEval (aValue + bValue*3) $ sumCommasOp aOp [bOp, bOp, bOp]) ],
 	PureTests "undefined" [
 		("declaration", do
-			let location = Dynamic "undefined test" 1 1
+			let location = Code $ FileLocation "undefined test" 1 1
 			let declaration = declare None [l "test"] location
 			let op = Op { card = DecCard declaration, location, match = M.Literal "test" }
 			assertUndefinedError op)]]

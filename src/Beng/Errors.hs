@@ -14,7 +14,8 @@ import qualified Utils.Populace as P
 import Utils.Tuples (mapFst2)
 
 import Beng.Build.Cards (declaration)
-import Beng.Locations (Location(..))
+import Beng.Locations (FileLocation(..), Location)
+import qualified Beng.Locations as Location
 import {-# SOURCE #-} Beng.Parse.Parsers ()
 import Beng.Parse.Types.Parsers (State(..))
 import Beng.Types.Errors
@@ -53,13 +54,13 @@ instance Eq Error where
 
 instance Show Error where
 	show = \case
-		ParseError{..} ->
+		ParseError{messages,fileLocation=FileLocation{..}} ->
 			concatMap (++":") [file, show line, show column] ++ " " ++ show messages
 		UndefinedError{..} -> ifNotNull (++" for ") context ++ show op
 
 instance Messagable Error where
 	msg = \case
-		ParseError{..} -> do
+		ParseError{messages,fileLocation=FileLocation{..}} -> do
 			let showMessageAndCard (message, card) =
 				-- The compiler complains if I use `card.declaration` here. >:(
 				show message ++ maybe "" ((" in "++) . show . declaration) card
@@ -100,13 +101,11 @@ instance HasField "location" Error Location where
 parseError :: State -> String -> Error
 parseError state message = ParseError {
 	messages = P.singleton (message, state.parent),
-	file = state.location.file,
-	line = state.location.line,
-	column = state.location.column }
+	fileLocation = state.location }
 
 getLocation :: Error -> Location
 getLocation = \case
-	ParseError{file,line,column} -> Dynamic { file, line, column }
+	ParseError{fileLocation} -> Location.Code fileLocation
 	UndefinedError{op} -> op.location
 
 printError :: Error -> String

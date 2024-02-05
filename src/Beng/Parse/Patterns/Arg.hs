@@ -16,6 +16,7 @@ import Beng.Parse.Matches (Capture(..), Match(..))
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/>), (>/\>), Parser, PrefixState(..), State(..), takeAs)
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Parse.Types.Patterns (ArgumentType(..))
+import qualified Beng.Types.Locations as Location
 import Beng.Types.Ops (Op)
 import Beng.Types.Ops.Declarations (ArgContextBuilder, Declaration(..))
 
@@ -39,7 +40,7 @@ buildAs name captureType contextualize = "build " ++ wrap "'" name @> \state -> 
 			argContext <- prependToError
 					("There was an error attempting to build a context to parse the preop for " ++
 					wrap "'" name ++ ": ") $
-				contextualize name state.arguments state.location
+				contextualize name state.arguments (Location.Code state.location)
 			when (not $ null argContext) $ debugM $
 				pluralCount (length argContext) "contextual card" ++ " generated for '" ++
 				name ++ "': " ++ show argContext

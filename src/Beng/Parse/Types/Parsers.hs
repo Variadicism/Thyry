@@ -13,7 +13,7 @@ import Utils.Populace (Populace)
 import Beng.Build.Types.Cards (Card)
 import Beng.Build.Types.Context (Context)
 import Beng.Parse.Types.Matches (Capture)
-import Beng.Types.Locations (Location)
+import Beng.Types.Locations (FileLocation)
 import Beng.Types.Ops (Op)
 import Beng.Types.Errors (Error, Fallible)
 
@@ -47,9 +47,9 @@ data SpaceState = Word | Space | Punctuation
 	deriving (Eq, Show)
 
 data State = State {
-	location :: Location,
+	location :: FileLocation,
 	context :: Context,
-	parent :: Maybe Card,
+	parent :: Maybe Card,  -- TODO: turn into a stack of op arguments for debugging
 	maxPrecedence :: Maybe Card,
 	arguments :: Map String Capture,
 	indentation :: Int,

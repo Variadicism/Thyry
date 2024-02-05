@@ -45,7 +45,7 @@ import Beng.Ops ()
 import Beng.Parse.Types.Parsers (Parse(..), Parses(..), Parser(..), ParseRunner, PrefixState(..), SpaceState(..), State(..))
 import qualified Beng.Parse.Types.Parsers as Parser
 import Beng.Errors (Error, Fallible)
-import Beng.Types.Locations (Location(..))
+import Beng.Types.Locations (FileLocation(..))
 
 import Control.Monad (when)
 import Data.Char (isAlphaNum, isSpace, toLower)
@@ -205,7 +205,7 @@ fileStartState file context text = State {
 	context, maxPrecedence = Nothing, parent = Nothing,
 	arguments = Map.empty,
 	indentation = 0,
-	location = Dynamic { file, line = 1, column = 1 },
+	location = FileLocation { file, line = 1, column = 1 },
 	prefixState = Needed, spaceState = Space,
 	rest = text }
 
