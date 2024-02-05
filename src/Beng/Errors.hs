@@ -10,62 +10,70 @@ import Utils.Collective (intercalate)
 import Utils.Fallible hiding (Fallible)
 import Utils.Lists (ifNotNull)
 import Utils.Messaging (Messagable, TerminalColor(..), msg, tColor)
+import Utils.Populace (Populace)
 import qualified Utils.Populace as P
-import Utils.Tuples (mapFst2)
 
-import Beng.Build.Cards (declaration)
 import Beng.Locations (FileLocation(..), Location)
 import qualified Beng.Locations as Location
+import Beng.Ops (Op(..))
 import {-# SOURCE #-} Beng.Parse.Parsers ()
 import Beng.Parse.Types.Parsers (State(..))
 import Beng.Types.Errors
 import qualified Beng.Types.Errors as Error
-import Beng.Types.Ops (Op(..))
 
 import GHC.Records (HasField, getField)
 
 -- private
 
+printParseErrorSubDetails :: Int -> Populace ParseErrorDetails -> String
+printParseErrorSubDetails indent =
+	intercalate "\n" . P.map ((replicate (2*indent) ' '++) . ("• "++) . printParseErrorDetail 0)
+
+printParseErrorDetail :: Int -> ParseErrorDetails -> String
+printParseErrorDetail indent = \case
+	ParseErrorContext context subDetails ->
+		context ++ "\n" ++ printParseErrorSubDetails (indent+1) subDetails
+	ParseErrorMessage message -> message
+
+printParseErrorDetails :: (Populace ParseErrorDetails -> String)
+printParseErrorDetails details =
+	tColor [Red] case details.tail of
+		[] -> printParseErrorDetail 0 details.head
+		_ -> printParseErrorSubDetails 0 details
+
 printErrorBody :: (Error -> String)
 printErrorBody = \case
-	ParseError{messages} -> do
-		let printMessageWithCard (message, card) = do
-			-- The compiler complains if I use `card.declaration` here. >:(
-			let clauseForCard = maybe "" \card -> "While parsing " ++ show (declaration card) ++ ", "
-			tColor [Red] $ clauseForCard card ++ message
-		case messages.tail of
-			[] -> printMessageWithCard messages.head
-			_ -> do
-				let numberMessage index =
-					(tColor [Red, Bold] (show (index+1) ++ ") ") ++) . tColor [Red]
-				tColor [Red, Bold, Underlined]
-						("One of " ++ show (length messages) ++ " things went wrong:\n") ++
-					intercalate "\n" (P.mapIndexed numberMessage $ P.map fst messages)
+	ParseError{details} -> printParseErrorDetails details
 	ue@UndefinedError{} -> tColor [Red] $ msg ue
 
 -- instances
 
+deriving instance Eq ParseErrorDetails
+
+instance Show ParseErrorDetails where
+	show = show . \case
+		ParseErrorContext context subDetails ->
+			context ++ " " ++ case subDetails.tail of
+				[] -> show subDetails.head
+				_ -> show subDetails
+		ParseErrorMessage message -> message
+
 instance Eq Error where
 	(==) p1@ParseError{} p2@ParseError{} =
-		p1.messages == p2.messages &&
+		p1.details == p2.details &&
 		p1.location == p2.location
 	(==) u1@UndefinedError{} u2@UndefinedError{} = u1.op == u2.op
 	(==) _ _ = False
 
 instance Show Error where
 	show = \case
-		ParseError{messages,fileLocation=FileLocation{..}} ->
-			concatMap (++":") [file, show line, show column] ++ " " ++ show messages
+		ParseError{details,fileLocation=FileLocation{..}} ->
+			concatMap (++":") [file, show line, show column] ++ " " ++ show details
 		UndefinedError{..} -> ifNotNull (++" for ") context ++ show op
 
 instance Messagable Error where
 	msg = \case
-		ParseError{messages,fileLocation=FileLocation{..}} -> do
-			let showMessageAndCard (message, card) =
-				-- The compiler complains if I use `card.declaration` here. >:(
-				show message ++ maybe "" ((" in "++) . show . declaration) card
-			concatMap showMessageAndCard messages ++
-				" at " ++ intercalate ":" [file, show line, show column]
+		ParseError{..} -> show fileLocation ++ " " ++ show details
 		UndefinedError{..} -> context ++ show op.card.declaration ++ " cannot run before it is defined!"
 
 instance Ord Error where
@@ -78,7 +86,7 @@ instance Ord Error where
 
 instance IsError Error where
 	prepend prefix = \case
-		pe@ParseError{} -> pe{ messages = P.map (mapFst2 (prefix++)) pe.messages }
+		pe@ParseError{} -> pe{ details = P.singleton $ ParseErrorContext prefix pe.details }
 		ue@UndefinedError{} ->
 			-- I need to qualify the field... even in a record update... even with DuplicateRecordFields. >:(
 			ue{ Error.context = prefix ++ ue.context }
@@ -88,7 +96,7 @@ instance IsError Error where
 			ParseError{} -> do
 				-- If compare e1 e2 == EQ, then e1 and e2 must be of matching types.
 				let e2p@ParseError{} = e2
-				e1{ messages = e1.messages <> e2p.messages }
+				e1{ details = e1.details <> e2p.details }
 			UndefinedError{} -> do
 				let e2u@UndefinedError{} = e2
 				e1{ Error.context = e1.context ++ e2u.context }
@@ -100,7 +108,7 @@ instance HasField "location" Error Location where
 
 parseError :: State -> String -> Error
 parseError state message = ParseError {
-	messages = P.singleton (message, state.parent),
+	details = P.singleton $ ParseErrorMessage message,
 	fileLocation = state.location }
 
 getLocation :: Error -> Location
