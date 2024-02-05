@@ -3,14 +3,15 @@ module Beng.Parse.Patterns.Arg (
 ) where
 
 import Utils.Fallible
-import Utils.Messaging (debugM)
+import Utils.Messaging (debugM, msg)
 import Utils.Lists (wrap)
 import qualified Utils.Populace as P
 import Utils.Strings (pluralCount)
 import Utils.Tuples (mapFst2)
 
-import {-# SOURCE #-} qualified Beng.Build.Ops as Op
+import Beng.Build.Cards ()
 import Beng.Build.Context (Context, pushCard)
+import {-# SOURCE #-} qualified Beng.Build.Ops as Op
 import Beng.Errors (parseError)
 import Beng.Parse.Matches (Capture(..), Match(..))
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/>), (>/\>), Parser, PrefixState(..), State(..), takeAs)
@@ -73,14 +74,15 @@ parse name = "argument " ++ wrap "'" name @> \state ->
 			let match = Argument { name, op }
 			takeAs "" match state{ prefixState = Unneeded }
 		Needed -> Error $ parseError state $
-			"An op prefix was needed, but " ++ show state.parent ++ " has none!"
+			"An op prefix was needed, but " ++ show state.parent ++ " had none!"
 		Unneeded -> do
 			-- Arg Patterns are only applicable within ops, so parent must be present.
 			let (Just parent) = state.parent
 			let declaration = parent.declaration
 			-- If the arg is being parsed in parent, parent must have declared it in the Pattern.
 			let (Just captureType) = OMap.lookup name $ Pattern.getArgs declaration.pattern
-			state >>>
-				buildAs name captureType declaration.contextualize >/\>
+			let parser = buildAs name captureType declaration.contextualize >/\>
 				(\s (capture, _) -> s{ arguments = Map.insert name capture s.arguments }) >\>
 				\(_, op) -> Argument { name, op }
+			prependToError ("in '" ++ name ++ "' of " ++ msg parent ++ ", ")
+				(state >>> parser)

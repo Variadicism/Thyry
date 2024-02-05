@@ -10,6 +10,8 @@ module Beng.Ops.Declarations (
 	mustHaveSuffix
 ) where
 
+import Utils.Messaging (Messagable, msg)
+
 import Beng.Build.Types.Context (PrecedenceBound(..))
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Locations ()
@@ -25,7 +27,10 @@ instance Eq Declaration where
 	(==) d1 d2 = d1.location == d2.location
 
 instance Show Declaration where
-	show declaration = show declaration.location ++ ": " ++ show declaration.pattern
+	show dec = show dec.location ++ ": " ++ show dec.pattern
+
+instance Messagable Declaration where
+	msg Declaration{pattern} = msg pattern
 
 -- exported
 

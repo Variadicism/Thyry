@@ -15,6 +15,7 @@ module Beng.Parse.Patterns (
 
 import Utils.Lists (takeUntilIncl, wrap)
 import qualified Utils.Maps.Ordered as OMap
+import Utils.Messaging (Messagable, msg)
 import Utils.Populace (Populace)
 import qualified Utils.Populace as P
 import Utils.Strings (escape, parenthesize)
@@ -75,6 +76,10 @@ instance Show Pattern where
 			-- TODO: determine if parnehteses are necessary based on precedence.
 			parenthesize (show delimitend) ++ "{" ++ show delimiter ++ "}"
 		Argument{name} -> wrap "'" name
+
+instance Messagable Pattern where
+	-- In the future, I might show simplified versions of some patterns or a simple subset of the pattern here.
+	msg = show
 
 -- exports
 

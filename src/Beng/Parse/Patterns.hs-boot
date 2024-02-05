@@ -1,5 +1,7 @@
 module Beng.Parse.Patterns where
 
+import Utils.Messaging (Messagable)
+
 import Beng.Parse.Types.Matches (Match)
 import Beng.Parse.Types.Parsers (Parser)
 import Beng.Parse.Types.Patterns (ArgumentType, CharRange, Pattern)
@@ -13,6 +15,8 @@ instance Show CharRange
 instance Eq Pattern
 
 instance Show Pattern
+
+instance Messagable Pattern
 
 parse :: Pattern -> Parser Match
 

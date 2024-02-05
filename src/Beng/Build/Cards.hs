@@ -7,6 +7,8 @@ module Beng.Build.Cards (
 	isDefinedUsing
 ) where
 
+import Utils.Messaging (Messagable, msg)
+
 import Beng.Build.Types.Cards (Card(..))
 import Beng.Build.Types.Context (Context(..))
 import Beng.Ops.Declarations (Declaration)
@@ -29,6 +31,9 @@ deriving instance Eq Card
 instance Show Card where
 	show (DecCard dec) = show dec
 	show (DefCard def) = show def
+
+instance Messagable Card where
+	msg card = msg card.declaration
 
 -- exported
 

@@ -8,6 +8,8 @@ module Beng.Ops.Definitions (
 	mustHaveSuffix
 ) where
 
+import Utils.Messaging (Messagable, msg)
+
 import qualified Beng.Ops.Declarations as Declaration
 import Beng.Types.Ops.Definitions (Definition(..), Runner)
 
@@ -22,6 +24,9 @@ instance Show Definition where
 				then show definition.location ++ ": "
 				else "" ) ++
 			show definition.declaration
+
+instance Messagable Definition where
+	msg Definition{declaration} = msg declaration
 
 -- exported
 
