@@ -43,7 +43,7 @@ valueName = do
 data BuiltinOp =
 	Integers |
 	Add | Subtract |
-	DefineValue
+	DefineValue | If
 	deriving (Show, Eq, Enum, Ord)
 
 instance HasField "definition" BuiltinOp Definition where
@@ -82,6 +82,11 @@ hangingDefinitionOf = \case
 				[DefCard $ defineLiteral name (asOp $ args ! "Value") location]
 			_ -> [])
 		\args -> run $ asOp $ args ! "Scope"
+	If -> define (Below $ dec DefineValue)
+		[l "if", s, a "Condition", l ",", s, a "Y", s, l "else", s, a "N"]
+		\args -> do
+			condition <- run $ asOp $ args ! "Condition"
+			run $ asOp $ args ! (if condition > 0 then "Y" else "N")
 	where dec = declarationOf hangingDefinitionOf
 
 -- exported
