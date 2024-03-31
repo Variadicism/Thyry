@@ -24,10 +24,8 @@ parse subpatterns = show (length subpatterns) ++ " possible patterns" @+>
 		parserForSubpattern :: Int -> Pattern -> Parser Match
 		parserForSubpattern matchIndex pattern =
 			Pattern.parse pattern >\> \match -> do
-				let matchedArgNames = map fst $ OMap.assocs $ Match.getArgs match
-				let misses =
-					-- Filter because the same argument can appear in multiple options.
-					filter (`notElem` matchedArgNames) $
-						concatMap (OMap.keys . Pattern.getArgs) $
-						removeAt matchIndex subpatterns.l
+				let missedSubpatterns = removeAt matchIndex subpatterns.l
+				let misses = OMap.values $
+					OMap.filter (\k _ -> k `OMap.notMember` Match.getArgs match) $
+					OMap.concat $ map Pattern.getArgs missedSubpatterns
 				Match.Or { match, matchIndex, misses }

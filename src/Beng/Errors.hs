@@ -15,7 +15,8 @@ import qualified Utils.Populace as P
 
 import Beng.Locations (FileLocation(..), Location)
 import qualified Beng.Locations as Location
-import Beng.Ops (Op(..))
+import {-# SOURCE #-} Beng.Ops ()
+import Beng.Ops.Declarations ()
 import {-# SOURCE #-} Beng.Parse.Parsers ()
 import Beng.Parse.Types.Parsers (State(..))
 import Beng.Types.Errors
@@ -62,19 +63,22 @@ instance Eq Error where
 	(==) p1@ParseError{} p2@ParseError{} =
 		p1.details == p2.details &&
 		p1.location == p2.location
-	(==) u1@UndefinedError{} u2@UndefinedError{} = u1.op == u2.op
+	(==) u1@UndefinedError{} u2@UndefinedError{} =
+		u1.declaration == u2.declaration &&
+		u1.caller == u2.caller
 	(==) _ _ = False
 
 instance Show Error where
 	show = \case
 		ParseError{details,fileLocation=FileLocation{..}} ->
 			concatMap (++":") [file, show line, show column] ++ " " ++ show details
-		UndefinedError{..} -> ifNotNull (++" for ") context ++ show op
+		UndefinedError{..} -> ifNotNull (++" for ") context ++ show declaration ++
+			" at " ++ show callLocation ++ " in " ++ show caller
 
 instance Messagable Error where
 	msg = \case
 		ParseError{..} -> show fileLocation ++ " " ++ show details
-		UndefinedError{..} -> context ++ show op.card.declaration ++ " cannot run before it is defined!"
+		UndefinedError{..} -> context ++ show declaration ++ " in " ++ show caller ++ " cannot run before it is defined!"
 
 instance Ord Error where
 	-- Lower => closer to success
@@ -114,7 +118,7 @@ parseError state message = ParseError {
 getLocation :: Error -> Location
 getLocation = \case
 	ParseError{fileLocation} -> Location.Code fileLocation
-	UndefinedError{op} -> op.location
+	UndefinedError{callLocation} -> callLocation
 
 printError :: Error -> String
 printError error =

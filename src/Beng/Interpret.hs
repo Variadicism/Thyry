@@ -7,7 +7,7 @@ import Utils.Fallible.Trans
 
 import Beng.Build (buildFile)
 import Beng.Errors (printError)
-import Beng.Run.Ops (run)
+import Beng.Run (run)
 
 interpret :: FilePath -> VoidFallible
 interpret path = do

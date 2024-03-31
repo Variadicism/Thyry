@@ -23,7 +23,7 @@ import Beng.Build.Types.Context (Context)
 import Beng.Errors (printError)
 import Beng.Parse.Parsers ((@+>), (<<<), (>:>), (>\>), Parse(..), Parses(..), State(..), fileStartState, parseWhile)
 import qualified Beng.Parse.Patterns.Space as Space
-import Beng.Types.Ops (Op)
+import Beng.Ops.Types (Op)
 
 import Control.Monad (when)
 import Data.Char (isSpace)

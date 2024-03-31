@@ -4,20 +4,26 @@ module Beng.Build.Context.Builtin (
 
 import Prelude hiding (subtract)
 
-import Utils.Populace.Populace2 as P2
+import qualified Utils.Populace.Populace2 as P2
 
 import Beng.Build.Context (Context(..), PrecedenceBound(..))
-import Beng.Build.Context.Builders (a, c, cr, e, s, l, t, multi, asOp, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf)
+import Beng.Build.Context.Builders (c, cr, e, s, l, multi, argAt, asOp, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf, textAt)
 import Beng.Build.Types.Cards (Card(DefCard))
-import Beng.Parse.Types.Matches (Capture(..))
+import Beng.Parse.Types.Matches (value)
 import Beng.Parse.Types.Patterns (Pattern(..))
-import Beng.Run.Ops (run)
-import Beng.Types.Ops.Declarations (Associativity(..), Declaration)
-import Beng.Types.Ops.Definitions (Definition(..))
-import Beng.Types.Locations (Location)
+import Beng.Run (run)
+import Beng.Ops.Types.Declarations (Associativity(..), Declaration)
+import Beng.Ops.Types.Definitions (Definition(..))
+import Beng.Types.Errors (Fallible)
+import Beng.Types.Locations (Location(..))
+import Beng.Values.Types (Type(..), Value(..))
 
+import Data.Bits ((.&.), (.|.), shiftL, shiftR)
+import qualified Data.ByteString as BS
+import Data.Int (Int32)
 import Data.Map ((!))
-import Data.Text.Lazy (unpack)
+import qualified Data.Map as Map
+import Data.Text.Lazy (Text, unpack)
 import GHC.Records (HasField, getField)
 
 -- constants
@@ -28,6 +34,37 @@ valueName = do
 	let letter = c [cr 'A' 'Z', cr 'a' 'z']
 	let capitalizedWord = And $ P2.dualton uppercaseLetter (Or $ P2.dualton e $ multi letter)
 	Delimited { delimiter = Space, delimitend = capitalizedWord }
+
+-- types
+
+-- TODO: replace with an "integer" type operator that returns the type.
+intType = BitsType 32
+
+-- private
+
+assertValue :: (Value -> Fallible a) -> Value -> Fallible a
+assertValue get = \case
+	OpValue op -> run op >>= get
+	other -> error $ "An int was expected, but instead, it's a(n) " ++ show other ++ "!"
+
+asNativeString :: Value -> Fallible Text
+asNativeString = \case
+	NativeStringValue text -> return text
+	other -> assertValue asNativeString other
+
+asInt :: Value -> Fallible Int32
+asInt = \case  -- TODO TEMPORARY
+	BitsValue bytes -> do
+		let (b1:(b2:(b3:(b4:_)))) = BS.unpack bytes
+		return $ (shiftL (fromIntegral b1) 24) .|.
+			(shiftL (fromIntegral b2) 16) .|.
+			(shiftL (fromIntegral b3) 8) .|.
+			(fromIntegral b4)
+	other -> assertValue asInt other
+
+intValue :: Int32 -> Value
+intValue int = BitsValue $ BS.pack $
+	map (fromInteger . toInteger . (.&. 0xFF) . shiftR int) [24, 16, 8, 0]
 
 -- builtin enumeration
 
@@ -52,42 +89,64 @@ instance HasField "definition" BuiltinOp Definition where
 instance HasField "declaration" BuiltinOp Declaration where
 	getField = declarationOf hangingDefinitionOf
 
-hangingDefinitionOf :: (BuiltinOp -> Location -> Definition)
-hangingDefinitionOf = \case
+hangingDefinitionOf :: BuiltinOp -> Location -> Definition
+hangingDefinitionOf opEnum location = case opEnum of
 	-- Types of the arguments and the values in these definitions are disjointed,
 	-- losing all type guarantees. This will not be an issue in Beng! :)
 	Integers -> define None
 		[t "Integer" $ multi $ c [cr '0' '9']]
-		\args -> do
-			let (StringCapture text) = args ! "Integer"
+		intType
+		(\args -> do
+			text <- asNativeString $ args ! "Integer"
 			-- `read :: Int` is safe because we only match '0'-'9'.
-			return (read $ unpack text :: Int)
+			return $ intValue (read $ unpack text :: Int32))
+		location
 	Add -> define Default
-		[a "Augend", s, l "+", s, a "Addend"]
-		\args -> do
-			augend <- run $ asOp $ args ! "Augend"
-			addend <- run $ asOp $ args ! "Addend"
-			return $ augend + addend
+		[a "Augend" intType, s, l "+", s, a "Addend" intType]
+		intType
+		(\args -> do
+			augend <- asInt $ args ! "Augend"
+			addend <- asInt $ args ! "Addend"
+			return $ intValue $ augend + addend)
+		location
 	Subtract -> define (At $ dec Add)
-		[a "Minuend", s, l "-", s, a "Subtrahend"]
-		\args -> do
-			minuend <- run $ asOp $ args ! "Minuend"
-			subtrahend <- run $ asOp $ args ! "Subtrahend"
-			return $ minuend - subtrahend
+		[a "Minuend" intType, s, l "-", s, a "Subtrahend" intType]
+		intType
+		(\args -> do
+			minuend <- asInt $ args ! "Minuend"
+			subtrahend <- asInt $ args ! "Subtrahend"
+			return $ intValue $ minuend - subtrahend)
+		location
 	DefineValue -> defineUsing (Below $ dec Add) Righty
-		[t "Name" valueName, s, l ":=", s, a "Value", s, a "Scope"]
-		(\name args location -> return case name of
+		[t "Name" valueName, s, l ":=", s, a "Value" intType, s, a "Scope" PreOpType]
+		intType
+		(\name args location -> case name of
 			"Scope" -> do
-				let (StringCapture name) = args ! "Name"
-				[DefCard $ defineLiteral name (asOp $ args ! "Value") location]
-			_ -> [])
-		\args -> run $ asOp $ args ! "Scope"
-	If -> define (Below $ dec DefineValue)
-		[l "if", s, a "Condition", l ",", s, a "Y", s, l "else", s, a "N"]
-		\args -> do
-			condition <- run $ asOp $ args ! "Condition"
-			run $ asOp $ args ! (if condition > 0 then "Y" else "N")
-	where dec = declarationOf hangingDefinitionOf
+				name <- asNativeString $ value $ args ! "Name"
+				let value = (args ! "Value").value
+				return [DefCard $ defineLiteral name intType value location]
+			_ -> return [])
+		(\args -> run $ asOp $ args ! "Scope")
+		location
+	If -> do
+		let branchType = OpType { args = Map.empty, returnType = intType }
+		define (Below $ dec DefineValue)
+			[l "if", s, a "Condition" intType, l ",", s, a "Y" branchType, s, l "else", s, a "N" branchType]
+			intType
+			(\args -> do
+				condition <- asInt $ args ! "Condition"
+				return $ args ! (if condition > 0 then "Y" else "N"))
+			location
+	where
+		a name = do
+			-- Since we're building the builtin ops, it must be a Builtin location.
+			-- I wish I could just declare that in the type. DataKinds, maybe? I can't figure that out.
+			let (Builtin parentIndex) = location
+			argAt BuiltinArg { name, parentIndex } name
+		t name = do
+			let (Builtin parentIndex) = location
+			textAt BuiltinArg { name, parentIndex } name
+		dec = declarationOf hangingDefinitionOf
 
 -- exported
 

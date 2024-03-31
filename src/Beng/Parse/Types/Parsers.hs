@@ -12,9 +12,9 @@ import Utils.Populace (Populace)
 
 import Beng.Build.Types.Cards (Card)
 import Beng.Build.Types.Context (Context)
-import Beng.Parse.Types.Matches (Capture)
 import Beng.Types.Locations (FileLocation)
-import Beng.Types.Ops (Op)
+import Beng.Ops.Types (Op)
+import qualified Beng.Parse.Types.Matches as Match
 import Beng.Types.Errors (Error, Fallible)
 
 import Data.Map as Map
@@ -51,7 +51,7 @@ data State = State {
 	context :: Context,
 	parent :: Maybe Card,  -- TODO: turn into a stack of op arguments for debugging
 	maxPrecedence :: Maybe Card,
-	arguments :: Map String Capture,
+	arguments :: Map String Match.Parameter,
 	indentation :: Int,
 	prefixState :: PrefixState,
 	spaceState :: SpaceState,

@@ -3,23 +3,30 @@ module Beng.Ops (
 	isNullary,
 	hasPrefix,
 	hasSuffix,
-	getArgs
+	getArgs,
+	toCode
 ) where
+
+import Utils.Messaging (Messagable, msg)
 
 import Beng.Build.Cards ()
 import qualified Beng.Ops.Declarations as Declaration
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Matches (Capture)
-import Beng.Types.Ops (Op(..))
+import Beng.Parse.Matches (Parameter)
+import Beng.Ops.Types (Op(..))
 
 import Data.Map.Ordered (OMap)
+import Data.Text.Lazy (Text)
 
 -- instances
 
 deriving instance Eq Op
 
 instance Show Op where
-	show = show . match
+	show Op{..} = show location ++ ": " ++ show match ++ " as " ++ show card
+
+instance Messagable Op where
+	msg = msg . match
 
 -- exports
 
@@ -32,5 +39,8 @@ hasPrefix = Match.hasPrefix . match
 hasSuffix :: (Op -> Bool)
 hasSuffix = Match.hasSuffix . match
 
-getArgs :: (Op -> OMap String Capture)
+getArgs :: (Op -> OMap String Parameter)
 getArgs = Match.getArgs . match
+
+toCode :: (Op -> Text)
+toCode = Match.toCode . match

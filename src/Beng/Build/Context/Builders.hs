@@ -1,5 +1,5 @@
 module Beng.Build.Context.Builders (
-	a,
+	argAt,
 	c,
 	nc,
 	cr,
@@ -7,57 +7,44 @@ module Beng.Build.Context.Builders (
 	e,
 	s,
 	l,
-	t,
+	textAt,
+	noContext,
 	multi,
 	patConcat,
 	asOp,
 	declare,
+	declareLiteral,
 	define,
 	defineRighty,
 	defineUsing,
 	defineLiteral,
-	defineLiteralData,
 	definitionOf,
 	declarationOf,
 	buildContextFrom
 ) where
+
+import Utils.Fallible (FallibleI(..))
 
 import qualified Utils.Populace as P
 import qualified Utils.Populace.Populace2 as P2
 
 import Beng.Build.Context (Context(..), pushDef)
 import qualified Beng.Build.Context as Context
+import Beng.Ops.Types (Op)
 import Beng.Ops.Declarations (ArgContextBuilder, Associativity(..), Declaration(..), PrecedenceBound(..))
 import Beng.Ops.Definitions (Definition(..), Runner)
-import Beng.Parse.Types.Matches (Capture(..))
-import Beng.Parse.Patterns (CharRange(..), Pattern(..))
-import Beng.Run.Ops (run)
-import Beng.Run.Types.Data (Data)
+import qualified Beng.Ops.Definitions as Definition
+import Beng.Parse.Types.Patterns (CharRange(..), Pattern(..))
 import Beng.Types.Locations (Location(..))
-import Beng.Types.Ops (Op)
+import Beng.Values.Types (Type, Value(..))
 
 import Control.Composition ((.*))
 import Data.Text.Lazy (Text)
 
--- private
-
-noContexts :: ArgContextBuilder
-noContexts = const $ const $ const $ return []
-
-defineLiteralRunning :: Text -> Runner -> Location -> Definition
-defineLiteralRunning literal runWith location = Definition {
-	runWith, location,
-	declaration = Declaration {
-		location,
-		pattern = Literal literal,
-		associativity = Lefty {- irrelevant in nullary ops -},
-		contextualize = noContexts,
-		precedence = None }}
-
 -- exported
 
-a :: (String -> Pattern)
-a = Argument
+argAt :: Location -> String -> Type -> Pattern
+argAt decLoc name argType = Argument { name, argType, decLoc }
 
 c :: [CharRange] -> Pattern
 c ranges = CharClass { ranges = P.assume ranges, negate = False }
@@ -80,8 +67,11 @@ s = Space
 l :: (Text -> Pattern)
 l = Literal
 
-t :: (String -> Pattern -> Pattern)
-t = NamedText
+textAt :: Location -> String -> Pattern -> Pattern
+textAt decLoc name subpattern = NamedText { name, subpattern, decLoc }
+
+noContext :: ArgContextBuilder
+noContext _ _ _ = Falue []
 
 multi :: (Pattern -> Pattern)
 multi = Delimited e
@@ -92,46 +82,55 @@ patConcat = \case
 	[solo] -> solo
 	(first:(second:rest)) -> And $ P2.Populace2 first second rest
 
-asOp :: (Capture -> Op)
+asOp :: (Value -> Op)
 asOp = \case
-	OpCapture op -> op
-	capture -> error $
-		"A builtin op assumed that an arg captured an op solo, " ++
-		"but it actually captured a(n) " ++ show capture ++ "!"
+	OpValue op -> op
+	value -> error $
+		"A builtin op assumed that an arg was returning a OpValue, " ++
+		"but it actually captured a(n) " ++ show value ++ "!"
 
-declare :: PrecedenceBound -> [Pattern] -> Location -> Declaration
-declare precedence subpatterns location =
-	Declaration { precedence, location,
+declare :: PrecedenceBound -> [Pattern] -> Type -> Location -> Declaration
+declare precedence subpatterns returnType location =
+	Declaration { precedence, location, returnType,
 		pattern = patConcat subpatterns,
-		associativity = Lefty, contextualize = noContexts }
+		associativity = Lefty, contextualize = noContext }
+
+declareLiteral :: Text -> Type -> Location -> Declaration
+declareLiteral literal returnType location = Declaration {
+	location,
+	pattern = Literal literal,
+	returnType,
+	associativity = Lefty {- irrelevant in nullary ops -},
+	contextualize = noContext,
+	precedence = None }
 
 defineUsing ::
 	PrecedenceBound -> Associativity ->
-	[Pattern] -> ArgContextBuilder -> Runner -> Location -> Definition
-defineUsing precedence associativity subpatterns contextualize runWith location =
+	[Pattern] -> Type -> ArgContextBuilder -> Runner -> Location -> Definition
+defineUsing precedence associativity subpatterns returnType contextualize runWith location =
 	Definition { location, runWith,
 		declaration = Declaration {
-			precedence, location, contextualize, associativity,
+			precedence, location, contextualize, associativity, returnType,
 			pattern = patConcat subpatterns }}
 
-define :: PrecedenceBound -> [Pattern] -> (Runner -> Location -> Definition)
-define precedence subpatterns = defineUsing precedence Lefty subpatterns noContexts
+define :: PrecedenceBound -> [Pattern] -> Type -> (Runner -> Location -> Definition)
+define precedence subpatterns returnType =
+	defineUsing precedence Lefty subpatterns returnType noContext
 
-defineRighty :: PrecedenceBound -> [Pattern] -> (Runner -> Location -> Definition)
-defineRighty precedence subpatterns = defineUsing precedence Righty subpatterns noContexts
+defineRighty :: PrecedenceBound -> [Pattern] -> Type -> (Runner -> Location -> Definition)
+defineRighty precedence subpatterns returnType = defineUsing precedence Righty subpatterns returnType noContext
 
-defineLiteral :: Text -> Op -> (Location -> Definition)
-defineLiteral literal op = defineLiteralRunning literal $ const $ run op
-
-defineLiteralData :: Text -> Data -> (Location -> Definition)
-defineLiteralData literal dataValue = defineLiteralRunning literal $ const $ return dataValue
-
+defineLiteral :: Text -> Type -> Value -> Location -> Definition
+defineLiteral literal valueType value location = Definition {
+	runWith = const $ Falue value,
+	location,
+	declaration = declareLiteral literal valueType location }
 
 definitionOf :: Enum e => (e -> Location -> Definition) -> e -> Definition
 definitionOf hangingDefinitionOf e = hangingDefinitionOf e $ Builtin $ fromEnum e
 
 declarationOf :: Enum e => ((e -> Location -> Definition) -> e -> Declaration)
-declarationOf = declaration .* definitionOf
+declarationOf = Definition.declaration .* definitionOf
 
 buildContextFrom :: Enum e => (e -> Location -> Definition) -> (e -> Context)
 buildContextFrom hangingDefinitionOf =

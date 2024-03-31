@@ -1,7 +1,7 @@
 module Beng.Parse.Patterns (
 	specials,
-	ArgumentType(..),
 	CharRange(..),
+	Parameter(..),
 	Pattern(..),
 	parse,
 	getSubpatterns,
@@ -28,12 +28,14 @@ import qualified Beng.Parse.Patterns.Literal as Literal
 import qualified Beng.Parse.Patterns.NamedText as NamedText
 import qualified Beng.Parse.Patterns.Or as Or
 import qualified Beng.Parse.Patterns.Space as Space
-import Beng.Parse.Types.Patterns (ArgumentType(..), CharRange(..), Pattern(..))
+import Beng.Parse.Types.Patterns (CharRange(..), Parameter(..), Pattern(..))
 import Beng.Parse.Matches (Match)
 import Beng.Parse.Parsers (Parser)
+import Beng.Types.Locations (Location)
+import Beng.Values.Types (Type(..))
 
 import Data.List (intercalate)
-import Data.Map.Ordered (OMap)
+import Data.Map.Ordered ((<>|), OMap)
 import qualified Data.Map.Ordered as OMap
 import Data.Text.Lazy (unpack)
 import qualified Data.Text.Lazy as Text
@@ -45,15 +47,6 @@ specials = ".{}[] "
 
 -- instances
 
-instance Show ArgumentType where
-	show = \case
-		OpType -> "op"
-		StringType -> "string"
-		ListType{element} -> "[" ++ show element ++ "]"
-		MaybeType{inner} -> show inner ++ "?"
-
-deriving instance Eq ArgumentType
-
 deriving instance Eq CharRange
 
 instance Show CharRange where
@@ -62,24 +55,50 @@ instance Show CharRange where
 			then escape CharClass.specials [start]
 			else escape CharClass.specials [start] ++ "-" ++ escape CharClass.specials [end]
 
+instance Messagable CharRange where
+	msg = show
+
+instance Eq Parameter where
+	(==) p1 p2 = p1.name == p2.name
+
+instance Show Parameter where
+	show Parameter{name,paramType,decLoc} = showParam name paramType decLoc
+
+instance Messagable Parameter where
+	msg Parameter{name,paramType} = msgParam name paramType
+
 deriving instance Eq Pattern
 
 instance Show Pattern where
-	show = \case
-		Space -> " "
-		Literal literal -> unpack literal
-		CharClass{ranges,negate} -> CharClass.showClass ranges negate
-		NamedText{name,subpattern} -> wrap "\"" name ++ parenthesize (show subpattern)
-		And subpatterns -> concatMap show subpatterns
-		Or subpatterns -> parenthesize $ intercalate "|" $ map show subpatterns.l
-		Delimited delimiter delimitend ->
-			-- TODO: determine if parnehteses are necessary based on precedence.
-			parenthesize (show delimitend) ++ "{" ++ show delimiter ++ "}"
-		Argument{name} -> wrap "'" name
+	show = showPatternWith show
 
 instance Messagable Pattern where
 	-- In the future, I might show simplified versions of some patterns or a simple subset of the pattern here.
-	msg = show
+	msg = \case
+		Argument{name,argType} -> msgParam name argType
+		p -> showPatternWith msg p
+
+-- private
+
+showPatternWith :: (Pattern -> String) -> Pattern -> String
+showPatternWith show = \case
+	Space -> " "
+	Literal literal -> unpack literal
+	CharClass{ranges,negate} -> CharClass.showClass ranges negate
+	NamedText{name,subpattern} -> wrap "\"" name ++ parenthesize (show subpattern)
+	And subpatterns -> concatMap show subpatterns
+	Or subpatterns -> parenthesize $ intercalate "|" $ map show subpatterns.l
+	Delimited delimiter delimitend ->
+		-- TODO: determine if parentheses are necessary based on precedence.
+		parenthesize (show delimitend) ++ "{" ++ show delimiter ++ "}"
+	Argument{name,argType,decLoc} -> showParam name argType decLoc
+	
+
+msgParam :: String -> Type -> String
+msgParam name paramType = wrap "'" $ name ++ ", " ++ msg paramType
+
+showParam :: String -> Type -> Location -> String
+showParam name paramType decLoc = show decLoc ++ ":" ++ msgParam name paramType
 
 -- exports
 
@@ -88,11 +107,11 @@ parse = \case
 	Space -> Space.parse
 	Literal literal -> Literal.parse literal
 	CharClass{ranges,negate} -> CharClass.parse ranges negate
-	NamedText{name,subpattern} -> NamedText.parse name subpattern
+	NamedText{name,subpattern,decLoc} -> NamedText.parse name subpattern decLoc
 	And subpatterns -> And.parse subpatterns
 	Or subpatterns -> Or.parse subpatterns
-	Delimited{..} -> Delimited.parse delimiter delimitend
-	Argument{name} -> Argument.parse name
+	Delimited{delimiter,delimitend} -> Delimited.parse delimiter delimitend
+	Argument{name,argType,decLoc} -> Argument.parse name argType decLoc
 
 getSubpatterns :: Pattern -> Populace Pattern
 getSubpatterns = \case
@@ -102,20 +121,22 @@ getSubpatterns = \case
 	Delimited{..} -> P.Populace delimitend [delimiter]
 	pattern -> P.singleton pattern
 
-getArgs :: Pattern -> OMap String ArgumentType
+getArgs :: Pattern -> OMap String Parameter
 getArgs = \case
-	NamedText{name} -> OMap.singleton (name, StringType)
+	NamedText{decLoc,name} -> OMap.singleton (name,
+		Parameter { decLoc, name, paramType = NativeStringType })
 	And subpatterns -> OMap.concat $ map getArgs subpatterns.l
 	Or subpatterns ->
-		wrapTypes MaybeType $ map getArgs subpatterns.l
+		wrapTypes NativeOptionalType $ OMap.concat $ map getArgs subpatterns.l
 	Delimited delimiter delimitend ->
-		wrapTypes ListType $ map getArgs [delimiter, delimitend]
-	Argument{name} -> OMap.singleton (name, OpType)
+		(wrapTypes NativeSomeType $ getArgs delimiter) <>|
+		(wrapTypes NativeListType $ getArgs delimitend)
+	Argument{decLoc,name,argType} -> OMap.singleton (name,
+		Parameter { decLoc, name, paramType = argType })
 	_ -> OMap.empty
 	where
-		wrapTypes ::
-			(ArgumentType -> ArgumentType) -> [OMap String ArgumentType] -> OMap String ArgumentType
-		wrapTypes wrapper = OMap.map wrapper . OMap.concat
+		wrapTypes :: (Type -> Type) -> OMap String Parameter -> OMap String Parameter
+		wrapTypes wrapper = OMap.map (\p -> p{ paramType = wrapper p.paramType })
 
 hasArgs :: Pattern -> Bool
 hasArgs = not . null . getArgs

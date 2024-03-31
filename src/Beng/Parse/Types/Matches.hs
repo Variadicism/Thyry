@@ -1,28 +1,30 @@
 module Beng.Parse.Types.Matches (
-	Capture(..),
+	Parameter(..),
+	DelimitedTail(..),
 	Match(..)
 ) where
 
 import Utils.Populace (Populace)
 import Utils.Populace.Populace2 (Populace2)
 
-import {-# SOURCE #-} Beng.Types.Ops (Op)
+import qualified Beng.Parse.Types.Patterns as Pattern
+import Beng.Types.Locations (Location)
+import {-# SOURCE #-} Beng.Values.Types (Type, Value)
 
 import Data.Text.Lazy (Text)
 
-data Capture =
-	OpCapture { op :: Op } |
-	-- This name refers to the "string" in Beng, not in Haskell.
-	StringCapture { text :: Text } |
-	ListCapture { captures :: Populace Capture } |
-	MaybeCapture { maybeCapture :: Maybe Capture }
+data Parameter = Parameter { decLoc :: Location, name :: String, paramType :: Type, value :: Value }
+
+data DelimitedTail =
+	DelimitedTailMatch (Populace (Match, Match)) |
+	DelimitedTailMissing [Pattern.Parameter]
 
 data Match =
 	Space { text :: Text } |
 	Literal { text :: Text } |
 	CharClass { char :: Char } |
-	NamedText { name :: String, match :: Match } |
-	Or { match :: Match, matchIndex :: Int, misses :: [String] } |
+	NamedText { decLoc :: Location, name :: String, match :: Match } |
+	Or { match :: Match, matchIndex :: Int, misses :: [Pattern.Parameter] } |
 	And { matches :: Populace2 Match } |
-	Delimited { head :: Match, tail :: [(Match, Match)] } |
-	Argument { name :: String, op :: Op }
+	Delimited { head :: Match, tail :: DelimitedTail } |
+	Argument { decLoc :: Location, name :: String, argType :: Type, argValue :: Value }

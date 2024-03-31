@@ -7,9 +7,11 @@ import Utils.Lists (wrap)
 
 import Beng.Parse.Parsers ((@+>), (>\>), (>/\>), Parser, State(..))
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Types.Matches (Capture(..), Match)
+import Beng.Parse.Types.Matches (Match)
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Parse.Types.Patterns (Pattern(..))
+import Beng.Types.Locations (Location)
+import Beng.Values.Types (Type(NativeStringType), Value(NativeStringValue))
 
 import qualified Data.Map as Map
 import qualified Data.Text.Lazy as Text
@@ -25,8 +27,11 @@ canBeEmpty = \case
 	Delimited{delimitend} -> canBeEmpty delimitend
 	Argument{} -> False
 
-parse :: String -> Pattern -> Parser Match
-parse name subpattern = "named text " ++ wrap "\"" name @+>
-	Pattern.parse subpattern >/\>
-	(\s match -> s{ arguments = Map.insert name (StringCapture $ Match.getText match) s.arguments }) >\>
-	Match.NamedText name
+parse :: String -> Pattern -> Location -> Parser Match
+parse name subpattern decLoc = "named text " ++ wrap "\"" name @+>
+	Pattern.parse subpattern >/\> (\s match -> do
+		let parameter = Match.Parameter {
+			decLoc, name, paramType = NativeStringType,
+			value = NativeStringValue $ Match.toCode match }
+		s{ arguments = Map.insert name parameter s.arguments }) >\> \match ->
+	Match.NamedText { decLoc, name, match }

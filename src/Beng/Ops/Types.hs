@@ -1,4 +1,4 @@
-module Beng.Types.Ops (
+module Beng.Ops.Types (
 	Op(..)
 ) where
 

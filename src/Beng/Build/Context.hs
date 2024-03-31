@@ -12,10 +12,10 @@ module Beng.Build.Context (
 
 import Utils.Lists (insertAt, updateAt)
 
-import Beng.Ops.Declarations (Declaration(..))
-import Beng.Ops.Definitions (Definition(..))
 import Beng.Build.Cards (Card(..))
 import Beng.Build.Types.Context (Context(..), PrecedenceBound(..))
+import Beng.Ops.Declarations (Declaration(..))
+import Beng.Ops.Definitions (Definition(..))
 
 import Data.List (findIndex, intercalate)
 import Data.Maybe (fromMaybe, isJust)

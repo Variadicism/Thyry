@@ -1,4 +1,4 @@
-module Beng.Types.Ops.Declarations (
+module Beng.Ops.Types.Declarations (
 	ArgContextBuilder,
 	Associativity(..),
 	Declaration(..)
@@ -6,10 +6,11 @@ module Beng.Types.Ops.Declarations (
 
 import Beng.Build.Types.Cards (Card)
 import Beng.Build.Types.Context (PrecedenceBound)
-import Beng.Parse.Types.Matches (Capture)
+import qualified Beng.Parse.Types.Matches as Match
 import Beng.Parse.Types.Patterns (Pattern)
 import Beng.Types.Errors (Fallible)
 import Beng.Types.Locations (Location)
+import {-# SOURCE #-} Beng.Values.Types (Type)
 
 import Data.Map (Map)
 
@@ -17,7 +18,7 @@ data Associativity = Lefty | Righty
 
 type ArgContextBuilder =
 	String  -- ^ The name of the argument for which context is needed.
-	-> Map String Capture  -- ^ The arguments built so far; they may be needed to build the preop
+	-> Map String Match.Parameter  -- ^ The arguments built so far; they may be needed to build the preop
 	-> Location
 	-> Fallible [Card]  -- ^ The Cards to appended to context to parse the preop.
 {- TODO: The Location parameter is TEMPORARY and should be removed later!
@@ -39,6 +40,7 @@ type ArgContextBuilder =
 data Declaration = Declaration {
 	location :: Location,
 	pattern :: Pattern,
+	returnType :: Type,  -- TODO: use types from args to formulate the return type
 	associativity :: Associativity,
 	precedence :: PrecedenceBound,
 	contextualize :: ArgContextBuilder }

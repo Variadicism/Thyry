@@ -5,6 +5,7 @@ module Beng.Types.Locations (
 
 data Location =
 	Builtin { index :: Int } |
+	BuiltinArg { name :: String, parentIndex :: Int } |
 	Code { fileLocation :: FileLocation }  -- Beng needs to eliminate annoying wrapping patterns like this.
 
 data FileLocation = FileLocation {

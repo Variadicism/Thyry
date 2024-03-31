@@ -4,7 +4,7 @@ module Beng.Build.Types.Context (
 ) where
 
 import Beng.Build.Types.Cards (Card)
-import {-# SOURCE #-} Beng.Types.Ops.Declarations (Declaration)
+import {-# SOURCE #-} Beng.Ops.Types.Declarations (Declaration)
 
 import Data.Set (Set)
 

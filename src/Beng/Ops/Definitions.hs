@@ -5,13 +5,14 @@ module Beng.Ops.Definitions (
 	canHavePrefix,
 	canHaveSuffix,
 	mustHavePrefix,
-	mustHaveSuffix
+	mustHaveSuffix,
+	nameAsValue
 ) where
 
 import Utils.Messaging (Messagable, msg)
 
 import qualified Beng.Ops.Declarations as Declaration
-import Beng.Types.Ops.Definitions (Definition(..), Runner)
+import Beng.Ops.Types.Definitions (Definition(..), Runner)
 
 -- instances
 
@@ -22,7 +23,7 @@ instance Show Definition where
 	show definition =
 		(if definition.location /= definition.declaration.location
 				then show definition.location ++ ": "
-				else "" ) ++
+				else "") ++
 			show definition.declaration
 
 instance Messagable Definition where
@@ -44,3 +45,6 @@ mustHavePrefix = Declaration.mustHavePrefix . declaration
 
 mustHaveSuffix :: (Definition -> Bool)
 mustHaveSuffix = Declaration.mustHaveSuffix . declaration
+
+nameAsValue :: (Definition -> String)
+nameAsValue = Declaration.nameAsValue . declaration

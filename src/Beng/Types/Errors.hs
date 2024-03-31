@@ -9,12 +9,21 @@ import Utils.Fallible (FallibleI)
 import Utils.Fallible.Trans (IOFallibleI)
 import Utils.Populace (Populace)
 
-import Beng.Types.Locations (FileLocation)
-import Beng.Types.Ops (Op)
+import Beng.Ops.Types (Op)
+import {-# SOURCE #-} Beng.Ops.Types.Declarations (Declaration)
+import Beng.Types.Locations (FileLocation, Location)
 
 data Error =
-	UndefinedError { context :: String, op :: Op } | -- TODO: callStack :: [(String, Location, Op)]
-	-- TypeError { context :: String, expected :: Type, alternatives :: [Parse Op], state... } |
+	-- TODO: callStack :: [(String, Location, Op)]
+	UndefinedError {
+		context :: String,
+		declaration :: Declaration,
+		caller :: Op,
+		callLocation :: Location } |
+	{- TypeError {
+		context :: String,
+		expected :: Type,
+		considerations :: Populace (Parse Op) } | -}
 	ParseError {
 		details :: Populace ParseErrorDetails,
 		fileLocation :: FileLocation }
