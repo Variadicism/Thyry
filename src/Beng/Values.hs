@@ -14,6 +14,7 @@ import Utils.Tuples (mapFst2, toList2)
 
 import Beng.Build.Cards ()
 import Beng.Ops ()
+import qualified Beng.Ops as Op
 import Beng.Ops.Types.Declarations (Declaration)
 import Beng.Values.Types (Type(..), Undefined(..), Value(..))
 
@@ -109,7 +110,7 @@ toCode = \case
 	ThingValue{definitions} -> Text.concat ["a thing where ", pack (msg definitions)]
 	tv@TypeValue{} -> pack $ show tv
 	BitsValue{bytes} -> pack $ show bytes  -- TODO: probably replace with hex digits
-	OpValue op -> pack $ show op
+	OpValue op -> Op.toCode op
 	DefinitionValue def -> pack $ show def
 	DeclarationValue dec -> pack $ show dec
 	PatternValue pat -> pack $ show pat

@@ -43,7 +43,7 @@ parse pattern = \code -> bimap msg parses $
 		parent = Just $ DefCard divide,
 		prefixState = Unneeded } >>>
 	NamedText.parse "Dividend Text" pattern argLoc >\>
-	\Match.NamedText{match} -> Match.toCode match)
+	Match.toCode)
 	where
 		argLoc = do
 			let (Builtin locationIndex) = locationOf Divide
