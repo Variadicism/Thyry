@@ -10,15 +10,16 @@ import qualified Utils.Populace.Populace2 as P2
 import Utils.Testing
 import Utils.Tuples (mapSnd2)
 
-import Testing.Beng.Utils.Mocks (mockABCD, divide)
+import Testing.Beng.Utils.Mocks (ABCD(Divide), argOf, divide, locationOf, mockABCD)
 import Testing.Beng.Utils.Parsers (MockParser, assertRest)
 
 import Beng.Build.Types.Cards (Card(..))
-import Beng.Build.Context.Builders (a, cr2, l, s)
+import Beng.Build.Context.Builders (cr2, intType, l, s)
 import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Parsers ((>>>), (>\>), Parse(..), Parses(..), PrefixState(..), State(..), fileStartState)
 import qualified Beng.Parse.Patterns.NamedText as NamedText
 import Beng.Parse.Patterns (Pattern(..))
+import Beng.Types.Locations (Location(Builtin, BuiltinArg))
 
 import Data.Bifunctor (bimap)
 import Data.Text.Lazy (Text)
@@ -33,13 +34,20 @@ assertCannotBeEmpty :: Pattern -> Fallible ()
 assertCannotBeEmpty pattern = assert (not $ NamedText.canBeEmpty pattern) $
 	show pattern ++ " cannot be empty, but the tested code believes it can!"
 
+a :: String -> Pattern
+a name = argOf Divide name intType
+
 parse :: Pattern -> MockParser Text
 parse pattern = \code -> bimap msg parses $
 	((fileStartState "NamedText test" mockABCD code){
 		parent = Just $ DefCard divide,
 		prefixState = Unneeded } >>>
-	NamedText.parse "Dividend Text" pattern >\>
-	\Match.NamedText{match} -> Match.getText match)
+	NamedText.parse "Dividend Text" pattern argLoc >\>
+	\Match.NamedText{match} -> Match.toCode match)
+	where
+		argLoc = do
+			let (Builtin locationIndex) = locationOf Divide
+			BuiltinArg "Dividend Text" locationIndex
 
 assertParsed :: Text -> Parse Text -> Fallible ()
 assertParsed expected actual = (expected, actual.target) `isEqualElse`
@@ -56,7 +64,7 @@ testNamedText = TestCategories "NamedText" [
 			("cannot Or cannot", Or $ dualton (l "h") (l "k")),
 			("can And cannot", And $ dualton (l "") (l "F")),
 			("Delimited cannot", Delimited (l "JJ") (l "k")),
-			("Argument", Argument { name = "Test" })],
+			("Argument", a "Test")],
 		PureTests "true" $ map (mapSnd2 assertCanBeEmpty) [
 			("Space", Space),
 			("empty l", l ""),

@@ -10,8 +10,8 @@ import qualified Beng.Build.Ops as Op
 import Beng.Build.Types.Context (Context)
 import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Parsers (Parse(..))
-import Beng.Types.Ops (Op)
-import qualified Beng.Types.Ops as Op
+import Beng.Ops.Types (Op)
+import qualified Beng.Ops.Types as Op
 
 import Data.Text.Lazy (unpack)
 import qualified Data.Text.Lazy as Text
@@ -23,7 +23,7 @@ sortParses :: Parse Op -> Parse Op -> Ordering
 sortParses r1 r2 = compare (getTextLength r1) (getTextLength r2)
 	where
 		getTextLength :: Parse Op -> Int64
-		getTextLength = Text.length . Match.getText . Op.match . target
+		getTextLength = Text.length . Match.toCode . Op.match . target
 
 -- exported
 

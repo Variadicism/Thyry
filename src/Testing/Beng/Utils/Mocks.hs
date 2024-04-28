@@ -31,8 +31,10 @@ module Testing.Beng.Utils.Mocks (
 	addOp,
 	notOp,
 	negateOp,
+	argOf,
 	definitionOf,
 	declarationOf,
+	locationOf,
 	cardOf,
 	assertApp,
 	assertExp,
@@ -54,20 +56,22 @@ import Testing.Beng.Utils.Ops ()
 
 import Beng.Build.Cards (Card(..))
 import qualified Beng.Build.Context as Context
-import Beng.Build.Context.Builders (l, s, asOp, buildContextFrom, define, defineRighty, defineLiteral, defineLiteralData, defineUsing)
+import Beng.Build.Context.Builders (l, s, asInt, argAt, asOp, buildContextFrom, define, defineRighty, defineLiteral, defineUsing, intType, intValue)
 import qualified Beng.Build.Context.Builders as Builder
 import Beng.Build.Types.Context (PrecedenceBound(..))
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Types.Matches (Capture, Match)
-import Beng.Parse.Types.Patterns (Pattern(Argument))
-import Beng.Types.Ops (Op(..))
-import Beng.Types.Ops.Declarations (Associativity(..), Declaration)
-import Beng.Types.Ops.Definitions (Definition(..))
+import Beng.Parse.Types.Matches (Match, value)
+import Beng.Parse.Types.Patterns (Pattern(Argument, decLoc, name, argType))
+import Beng.Ops.Types (Op(..))
+import Beng.Ops.Types.Declarations (Associativity(..), Declaration)
+import Beng.Ops.Types.Definitions (Definition(..))
 import Beng.Types.Locations (Location(..))
-import Beng.Run.Ops (run)
+import Beng.Run (run)
+import Beng.Values.Types (Type(PreOpType), Value(..))
 
 import Control.Composition ((.*))
 import Data.Bits (complement)
+import qualified Data.ByteString as BS
 import Data.Map ((!))
 import Data.Text.Lazy (Text)
 
@@ -90,73 +94,100 @@ data ABCD = A | B | Divide |
 
 -- private
 
-arg = Argument
-
-defineStaticNameValue :: Text -> (Location -> Definition)
-defineStaticNameValue name =
+defineStaticNameValue :: Text -> Location -> Definition
+defineStaticNameValue name location = do
+	let (Builtin parentIndex) = location  -- All locations in mocks are Builtin-type.
+	let a name argType = Argument { decLoc = BuiltinArg { name, parentIndex }, name, argType }
 	defineUsing (Below $ declarationOf App) Righty
-		[l name, s, l ":=", s, arg "Value", s, arg "Scope"]
+		[l name, s, l ":=", s, a "Value" intType, s, a "Scope" PreOpType]
+		intType
 		(\argName args location -> return case argName of
 			"Scope" -> do
-				let valueOp = asOp $ args ! "Value"
-				[DefCard $ defineLiteral name valueOp location]
+				let value = (args ! "Value").value
+				[DefCard $ defineLiteral name intType value location]
 			_ -> [])
-		\args -> run $ asOp $ args ! "Scope"
+		(\args -> run $ asOp $ args ! "Scope")
+		location
 
-hangingDefinitionOf :: (ABCD -> Location -> Definition)
-hangingDefinitionOf = \case
-	A -> defineLiteralData "a" aValue
-	B -> defineLiteralData "b" bValue
+defineLiteralInt :: Text -> Int -> (Location -> Definition)
+defineLiteralInt text value =
+	defineLiteral text intType $ BitsValue $ BS.pack [fromIntegral value]
+
+hangingDefinitionOf :: ABCD -> Location -> Definition
+hangingDefinitionOf enum location = case enum of
+	A -> defineLiteralInt "a" aValue location
+	B -> defineLiteralInt "b" bValue location
 	Divide -> define Default
-		[arg "Dividend", l "/", arg "Divisor"]
-		\args -> do
-			dividend <- run $ asOp $ args ! "Dividend"
-			divisor <- run $ asOp $ args ! "Divisor"
-			return $ dividend `div` divisor
+		[a "Dividend" intType, l "/", a "Divisor" intType]
+		intType
+		(\args -> do
+			dividend <- asInt =<< (run $ asOp $ args ! "Dividend")
+			divisor <- asInt =<< (run $ asOp $ args ! "Divisor")
+			return $ intValue $ dividend `div` divisor)
+		location
 	DivideWords -> define (At $ declarationOf Divide)
-		[arg "Dividend", s, l "and", s, arg "Divisor", s, l "divided"]
-		\args -> do
-			dividend <- run $ asOp $ args ! "Dividend"
-			divisor <- run $ asOp $ args ! "Divisor"
-			return $ dividend `div` divisor
+		[a "Dividend" intType, s, l "and", s, a "Divisor" intType, s, l "divided"]
+		intType
+		(\args -> do
+			dividend <- asInt =<< (run $ asOp $ args ! "Dividend")
+			divisor <- asInt =<< (run $ asOp $ args ! "Divisor")
+			return $ intValue $ dividend `div` divisor)
+		location
 	Exp -> define (Above $ declarationOf Divide)
-		[arg "Base", l "^", arg "Exponent"]
-		\args -> do
-			base <- run $ asOp $ args ! "Base"
-			exponent <- run $ asOp $ args ! "Exponent"
-			return $ base ^ exponent
+		[a "Base" intType, l "^", a "Exponent" intType]
+		intType
+		(\args -> do
+			base <- asInt =<< (run $ asOp $ args ! "Base")
+			exponent <- asInt =<< (run $ asOp $ args ! "Exponent")
+			return $ intValue $ base ^ exponent)
+		location
 	App ->
 		{- `app` has the same precedence as `add` for testing purposes.
 		   Sorry that that's inconsistent with Haskell where application has an extremely low precedence,
 		   but there aren't many well-known righty operators and Haskell's builtin operators are
 		   designed to never include two associativities in one precedence level. -}
 		defineRighty (Below $ declarationOf Divide)
-			[arg "Left", l "$", arg "Right"]
+			[a "Left" intType, l "$", a "Right" intType]
+			intType
 			(run . asOp . (! "Left"))
+			location
 	AddWords -> define (At $ declarationOf App)
-		[arg "Augend", s, l "and", s, arg "Addend", s, l "added"]
-		\args -> do
-			augend <- run $ asOp $ args ! "Augend"
-			addend <- run $ asOp $ args ! "Addend"
-			return $ augend + addend
+		[a "Augend" intType, s, l "and", s, a "Addend" intType, s, l "added"]
+		intType
+		(\args -> do
+			augend <- asInt =<< (run $ asOp $ args ! "Augend")
+			addend <- asInt =<< (run $ asOp $ args ! "Addend")
+			return $ intValue $ augend + addend)
+		location
 	Add -> define (At $ declarationOf AddWords)
-		[arg "Augend", l "+", arg "Addend"]
-		\args -> do
-			augend <- run $ asOp $ args ! "Augend"
-			addend <- run $ asOp $ args ! "Addend"
-			return $ augend + addend
+		[a "Augend" intType, l "+", a "Addend" intType]
+		intType
+		(\args -> do
+			augend <- asInt =<< (run $ asOp $ args ! "Augend")
+			addend <- asInt =<< (run $ asOp $ args ! "Addend")
+			return $ intValue $ augend + addend)
+		location
 	Not -> define (Above $ declarationOf Divide)
-		[l "!", arg "Value"]  -- I couldn't come up with a cool name for this one.
-		\args -> do
-			value <- run $ asOp $ args ! "Value"
-			return (-value)
+		[l "!", a "Value" intType]  -- I couldn't come up with a cool name for this one.
+		intType
+		(\args -> do
+			value <- asInt =<< (run $ asOp $ args ! "Value")
+			return $ intValue (-value))
+		location
 	Negate -> define (Above $ declarationOf Not)
-		[l "~", arg "Negend"]  -- That's probably not a word. Too bad! It is now!
-		\args -> do
-			negend <- run $ asOp $ args ! "Negend"
-			return $ complement negend
-	C -> defineStaticNameValue "C"
-	D -> defineStaticNameValue "D"
+		[l "~", a "Negend" intType]  -- That's probably not a word. Too bad! It is now!
+		intType
+		(\args -> do
+			negend <- asInt =<< (run $ asOp $ args ! "Negend")
+			return $ intValue $ complement negend)
+		location
+	C -> defineStaticNameValue "C" location
+	D -> defineStaticNameValue "D" location
+	where
+		a name argType = do
+			let (Builtin parentIndex) = location  -- All these ops use Builtin location types.
+			Argument { decLoc = BuiltinArg { name, parentIndex }, name, argType }
+
 
 hangingABDivDefinitionOf :: ABDiv -> (Location -> Definition)
 {- This is a painful assumption, but this actually works for abDiv as well since the enums
@@ -164,6 +195,11 @@ hangingABDivDefinitionOf :: ABDiv -> (Location -> Definition)
    But, if I don't make this assuption, then aOp and the other Op mocks will need a hanging
    definition maker passed as an argument, which will add tons of boilerplate. -}
 hangingABDivDefinitionOf e = hangingDefinitionOf $ toEnum $ fromEnum e
+
+argOf :: ABCD -> String -> Type -> Pattern
+argOf abcd name argType = do
+	let (Builtin locationIndex) = locationOf abcd
+	argAt (BuiltinArg name locationIndex) name argType
 
 definitionOf :: (ABCD -> Definition)
 definitionOf = Builder.definitionOf hangingDefinitionOf
@@ -180,19 +216,19 @@ locationOf = Builtin . fromEnum
 opOf :: ABCD -> (Match -> Op)
 opOf a = Op (cardOf a) (locationOf a)
 
-prefixedUnaryOpMatch :: Text -> String -> Op -> Match
-prefixedUnaryOpMatch prefix argName op =
-	Match.And $ dualton (Match.Literal prefix) (Match.Argument argName op)
+prefixedUnaryOpMatch :: ABCD -> Text -> String -> Type -> Op -> Match
+prefixedUnaryOpMatch abcd prefix argName argType op =
+	Match.And $ dualton (Match.Literal prefix) (Match.Argument (locationOf abcd) argName argType $ OpValue op)
 
-infixOpMatch :: String -> Text -> String -> Op -> Op -> Match
-infixOpMatch leftName literal rightName leftOp rightOp = Match.And $ P2.Populace2
-	(Match.Argument leftName leftOp)
+infixOpMatch :: ABCD -> String -> Type -> Text -> String -> Type -> Op -> Op -> Match
+infixOpMatch abcd leftName leftType literal rightName rightType leftOp rightOp = Match.And $ P2.Populace2
+	(Match.Argument (locationOf abcd) leftName leftType $ OpValue leftOp)
 	(Match.Literal literal)
-	[Match.Argument rightName rightOp]
+	[Match.Argument (locationOf abcd) rightName rightType $ OpValue rightOp]
 
-type AssertOneArg = (Capture -> Fallible ()) -> Op -> Fallible ()
+type AssertOneArg = (Value -> Fallible ()) -> Op -> Fallible ()
 
-type AssertTwoArgs = (Capture -> Fallible ()) -> AssertOneArg
+type AssertTwoArgs = (Value -> Fallible ()) -> AssertOneArg
 
 -- exported
 ---- contexts
@@ -234,22 +270,22 @@ bMatch :: Match
 bMatch = Match.Literal "b"
 
 appMatch :: (Op -> Op -> Match)
-appMatch = infixOpMatch "Left" "$" "Right"
+appMatch = infixOpMatch App "Left" intType "$" "Right" intType
 
 expMatch :: (Op -> Op -> Match)
-expMatch = infixOpMatch "Base" "^" "Exponent"
+expMatch = infixOpMatch Exp "Base" intType "^" "Exponent" intType
 
 divMatch :: (Op -> Op -> Match)
-divMatch = infixOpMatch "Dividend" "/" "Divisor"
+divMatch = infixOpMatch Divide "Dividend" intType "/" "Divisor" intType
 
 addMatch :: (Op -> Op -> Match)
-addMatch = infixOpMatch "Augend" "+" "Addend"
+addMatch = infixOpMatch Add "Augend" intType "+" "Addend" intType
 
 notMatch :: (Op -> Match)
-notMatch = prefixedUnaryOpMatch "!" "Value"
+notMatch = prefixedUnaryOpMatch Not "!" "Value" intType
 
 negateMatch :: (Op -> Match)
-negateMatch = prefixedUnaryOpMatch "~" "Negend"
+negateMatch = prefixedUnaryOpMatch Negate "~" "Negend" intType
 
 ---- ops
 

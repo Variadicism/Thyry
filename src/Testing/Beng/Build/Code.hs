@@ -10,7 +10,7 @@ import Testing.Beng.Utils.Mocks (a, b, assertDiv, mockABDivision)
 import Testing.Beng.Utils.Ops ()
 
 import Beng.Build (buildCodeUsing)
-import Beng.Types.Ops (Op)
+import Beng.Ops.Types (Op)
 
 import Data.Text.Lazy (Text, unpack)
 

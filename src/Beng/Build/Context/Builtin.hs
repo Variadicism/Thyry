@@ -7,23 +7,19 @@ import Prelude hiding (subtract)
 import qualified Utils.Populace.Populace2 as P2
 
 import Beng.Build.Context (Context(..), PrecedenceBound(..))
-import Beng.Build.Context.Builders (c, cr, e, s, l, multi, argAt, asOp, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf, textAt)
+import Beng.Build.Context.Builders (c, cr, e, s, l, multi, argAt, asInt, asNativeString, asOp, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf, intType, intValue, textAt)
 import Beng.Build.Types.Cards (Card(DefCard))
 import Beng.Parse.Types.Matches (value)
 import Beng.Parse.Types.Patterns (Pattern(..))
 import Beng.Run (run)
 import Beng.Ops.Types.Declarations (Associativity(..), Declaration)
 import Beng.Ops.Types.Definitions (Definition(..))
-import Beng.Types.Errors (Fallible)
 import Beng.Types.Locations (Location(..))
-import Beng.Values.Types (Type(..), Value(..))
+import Beng.Values.Types (Type(..))
 
-import Data.Bits ((.&.), (.|.), shiftL, shiftR)
-import qualified Data.ByteString as BS
 import Data.Int (Int32)
 import Data.Map ((!))
-import qualified Data.Map as Map
-import Data.Text.Lazy (Text, unpack)
+import Data.Text.Lazy (unpack)
 import GHC.Records (HasField, getField)
 
 -- constants
@@ -36,35 +32,6 @@ valueName = do
 	Delimited { delimiter = Space, delimitend = capitalizedWord }
 
 -- types
-
--- TODO: replace with an "integer" type operator that returns the type.
-intType = BitsType 32
-
--- private
-
-assertValue :: (Value -> Fallible a) -> Value -> Fallible a
-assertValue get = \case
-	OpValue op -> run op >>= get
-	other -> error $ "An int was expected, but instead, it's a(n) " ++ show other ++ "!"
-
-asNativeString :: Value -> Fallible Text
-asNativeString = \case
-	NativeStringValue text -> return text
-	other -> assertValue asNativeString other
-
-asInt :: Value -> Fallible Int32
-asInt = \case  -- TODO TEMPORARY
-	BitsValue bytes -> do
-		let (b1:(b2:(b3:(b4:_)))) = BS.unpack bytes
-		return $ (shiftL (fromIntegral b1) 24) .|.
-			(shiftL (fromIntegral b2) 16) .|.
-			(shiftL (fromIntegral b3) 8) .|.
-			(fromIntegral b4)
-	other -> assertValue asInt other
-
-intValue :: Int32 -> Value
-intValue int = BitsValue $ BS.pack $
-	map (fromInteger . toInteger . (.&. 0xFF) . shiftR int) [24, 16, 8, 0]
 
 -- builtin enumeration
 
@@ -128,15 +95,15 @@ hangingDefinitionOf opEnum location = case opEnum of
 			_ -> return [])
 		(\args -> run $ asOp $ args ! "Scope")
 		location
-	If -> do
-		let branchType = OpType { args = Map.empty, returnType = intType }
-		define (Below $ dec DefineValue)
-			[l "if", s, a "Condition" intType, l ",", s, a "Y" branchType, s, l "else", s, a "N" branchType]
-			intType
-			(\args -> do
-				condition <- asInt $ args ! "Condition"
-				return $ args ! (if condition > 0 then "Y" else "N"))
-			location
+	If -> define (Below $ dec DefineValue)
+		[
+			l "if", s, a "Condition" intType, l ",", s, a "Y" intType, s,
+			l "else", s, a "N" intType]
+		intType
+		(\args -> do
+			condition <- asInt $ args ! "Condition"
+			return $ args ! (if condition > 0 then "Y" else "N"))
+		location
 	where
 		a name = do
 			-- Since we're building the builtin ops, it must be a Builtin location.

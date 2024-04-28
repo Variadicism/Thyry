@@ -1,6 +1,6 @@
 module Testing.Beng.Utils.Mocks where
 
-import Beng.Types.Ops.Declarations (Declaration)
+import Beng.Ops.Types.Declarations (Declaration)
 
 data ABCD
 
