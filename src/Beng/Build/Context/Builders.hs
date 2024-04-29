@@ -120,12 +120,14 @@ asNativeString = \case
 
 asInt :: Value -> Fallible Int32
 asInt = \case  -- TODO TEMPORARY
-	BitsValue bytes -> do
-		let (b1:(b2:(b3:(b4:_)))) = BS.unpack bytes
-		return $ (shiftL (fromIntegral b1) 24) .|.
+	bitsValue@(BitsValue bytestring) -> case BS.unpack bytestring of
+		[b1, b2, b3, b4] -> return $
+			(shiftL (fromIntegral b1) 24) .|.
 			(shiftL (fromIntegral b2) 16) .|.
 			(shiftL (fromIntegral b3) 8) .|.
 			(fromIntegral b4)
+		bytes -> error $ "A 32-bit integer (4B) was expected, but " ++
+			show (length bytes) ++ "B were found instead: " ++ show bitsValue
 	other -> asOpOf "int" asInt other
 
 intValue :: Int32 -> Value

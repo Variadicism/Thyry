@@ -10,7 +10,7 @@ module Beng.Parse.Matches (
 	hasSuffix
 ) where
 
-import Prelude hiding (map)
+import Prelude hiding (map, undefined)
 
 import Utils.Collective (map)
 import Utils.Fallible (FallibleI(..))
@@ -117,7 +117,7 @@ getArgs = \case
 			value = NativeOptionalValue value }
 		let missEntry = \p -> (p.name,
 			matchFalParam p.decLoc p.name p.paramType $
-				undefined $ declareLiteral (pack p.name) p.paramType p.decLoc)
+				Value.undefined $ declareLiteral (pack p.name) p.paramType p.decLoc)
 		let falValue = \p -> matchFalParam p.decLoc p.name p.paramType $ Falue p.value
 
 		OMap.fromList (map missEntry misses) <>|

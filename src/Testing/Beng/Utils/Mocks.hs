@@ -111,7 +111,7 @@ defineStaticNameValue name location = do
 
 defineLiteralInt :: Text -> Int -> (Location -> Definition)
 defineLiteralInt text value =
-	defineLiteral text intType $ BitsValue $ BS.pack [fromIntegral value]
+	defineLiteral text intType $ BitsValue $ BS.pack [0, 0, 0, fromIntegral value]
 
 hangingDefinitionOf :: ABCD -> Location -> Definition
 hangingDefinitionOf enum location = case enum of
