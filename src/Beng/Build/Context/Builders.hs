@@ -16,6 +16,8 @@ module Beng.Build.Context.Builders (
 	asOp,
 	asOpOf,
 	asNativeString,
+	asBits,
+	bitsValue,
 	asInt,
 	intValue,
 	declare,
@@ -48,6 +50,7 @@ import Beng.Values.Types (Type(BitsType), Value(..))
 
 import Control.Composition ((.*))
 import Data.Bits ((.&.), (.|.), shiftL, shiftR)
+import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.Int (Int32)
 import Data.Text.Lazy (Text)
@@ -118,21 +121,33 @@ asNativeString = \case
 	NativeStringValue text -> return text
 	other -> asOpOf "native string" asNativeString other
 
+asBits :: Int -> (Value -> Fallible ByteString)
+asBits size = \case
+	bitsValue@(BitsValue bytestring) ->
+		if BS.length bytestring == ceiling (fromIntegral size / 8.0) then
+			return bytestring
+		-- TODO: replace `error` with `TypeError`
+		else error $ show size ++ "b was expected, but " ++
+			show (BS.length bytestring) ++ "B (" ++ show (BS.length bytestring * 8) ++
+			"b) were found instead: " ++ show bitsValue
+	other -> asOpOf (show size ++ "b") (asBits size) other
+
+bitsValue :: [Int] -> Value
+bitsValue = BitsValue . BS.pack . map (fromInteger . toInteger)
+
 asInt :: Value -> Fallible Int32
-asInt = \case  -- TODO TEMPORARY
-	bitsValue@(BitsValue bytestring) -> case BS.unpack bytestring of
-		[b1, b2, b3, b4] -> return $
-			(shiftL (fromIntegral b1) 24) .|.
-			(shiftL (fromIntegral b2) 16) .|.
-			(shiftL (fromIntegral b3) 8) .|.
-			(fromIntegral b4)
-		bytes -> error $ "A 32-bit integer (4B) was expected, but " ++
-			show (length bytes) ++ "B were found instead: " ++ show bitsValue
-	other -> asOpOf "int" asInt other
+asInt value = do  -- TODO TEMPORARY
+	bytestring <- asBits 32 value
+	let [b1, b2, b3, b4] = BS.unpack bytestring
+	return $
+		(shiftL (fromIntegral b1) 24) .|.
+		(shiftL (fromIntegral b2) 16) .|.
+		(shiftL (fromIntegral b3) 8) .|.
+		(fromIntegral b4)
 
 intValue :: Int32 -> Value
-intValue int = BitsValue $ BS.pack $
-	map (fromInteger . toInteger . (.&. 0xFF) . shiftR int) [24, 16, 8, 0]
+intValue int = bitsValue $
+	map ((.&. 0xFF) . shiftR (fromInteger $ toInteger int)) [24, 16, 8, 0]
 
 declare :: PrecedenceBound -> [Pattern] -> Type -> Location -> Declaration
 declare precedence subpatterns returnType location =

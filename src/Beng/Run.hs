@@ -1,5 +1,6 @@
 module Beng.Run (
-	run
+	run,
+	runWhileOp
 ) where
 
 import Utils.Fallible hiding (Fallible)
@@ -9,7 +10,7 @@ import Beng.Ops (Op(..), getArgs)
 import Beng.Errors (Error(..), Fallible)
 import Beng.Ops.Types.Definitions (Definition(..))
 import Beng.Parse.Types.Matches (value)
-import Beng.Values.Types (Value)
+import Beng.Values.Types (Value(OpValue))
 
 import qualified Data.Map.Ordered as OMap
 
@@ -18,3 +19,8 @@ run op = case op.card.definition of
 	Nothing -> Error $ UndefinedError {
 		context = "", declaration = op.card.declaration, caller = op, callLocation = op.location }
 	Just definition -> definition.runWith $ OMap.toMap $ OMap.map value $ getArgs op
+
+runWhileOp :: Value -> Fallible Value
+runWhileOp = \case
+	OpValue op -> run op >>= runWhileOp
+	value -> return value

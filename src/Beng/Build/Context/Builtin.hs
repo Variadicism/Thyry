@@ -4,19 +4,21 @@ module Beng.Build.Context.Builtin (
 
 import Prelude hiding (subtract)
 
+import qualified Utils.Populace as P
 import qualified Utils.Populace.Populace2 as P2
 
 import Beng.Build.Context (Context(..), PrecedenceBound(..))
-import Beng.Build.Context.Builders (c, cr, e, s, l, multi, argAt, asInt, asNativeString, asOp, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf, intType, intValue, textAt)
+import Beng.Build.Context.Builders (c, cr, e, s, l, multi, argAt, asBits, asInt, asNativeString, asOp, bitsValue, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf, intType, intValue, textAt)
 import Beng.Build.Types.Cards (Card(DefCard))
 import Beng.Parse.Types.Matches (value)
 import Beng.Parse.Types.Patterns (Pattern(..))
-import Beng.Run (run)
+import Beng.Run (run, runWhileOp)
 import Beng.Ops.Types.Declarations (Associativity(..), Declaration)
 import Beng.Ops.Types.Definitions (Definition(..))
 import Beng.Types.Locations (Location(..))
-import Beng.Values.Types (Type(..))
+import Beng.Values.Types (Type(..), Value(..))
 
+import qualified Data.ByteString as BS
 import Data.Int (Int32)
 import Data.Map ((!))
 import Data.Text.Lazy (unpack)
@@ -45,7 +47,8 @@ valueName = do
    Java or Beng, this wouldn't be such a pain. -}
 
 data BuiltinOp =
-	Integers |
+	IntType | Ints |
+	BitType | Yes | No |
 	Add | Subtract |
 	DefineValue | If
 	deriving (Show, Eq, Enum, Ord)
@@ -60,13 +63,33 @@ hangingDefinitionOf :: BuiltinOp -> Location -> Definition
 hangingDefinitionOf opEnum location = case opEnum of
 	-- Types of the arguments and the values in these definitions are disjointed,
 	-- losing all type guarantees. This will not be an issue in Beng! :)
-	Integers -> define None
+	IntType -> define None
+		[l "an int"]
+		TypeType
+		(\_ -> return $ TypeValue (P.singleton intType) [])
+		location
+	Ints -> define None
 		[t "Integer" $ multi $ c [cr '0' '9']]
 		intType
 		(\args -> do
 			text <- asNativeString $ args ! "Integer"
 			-- `read :: Int` is safe because we only match '0'-'9'.
 			return $ intValue (read $ unpack text :: Int32))
+		location
+	BitType -> define None
+		[l "a bit"]
+		TypeType
+		(\_ -> return $ TypeValue (P.singleton $ BitsType 1) [])
+		location
+	Yes -> define None
+		[l "yes"]
+		(BitsType 1)
+		(\_ -> return $ bitsValue [1])
+		location
+	No -> define None
+		[l "no"]
+		(BitsType 1)
+		(\_ -> return $ bitsValue [0])
 		location
 	Add -> define Default
 		[a "Augend" intType, s, l "+", s, a "Addend" intType]
@@ -96,13 +119,15 @@ hangingDefinitionOf opEnum location = case opEnum of
 		(\args -> run $ asOp $ args ! "Scope")
 		location
 	If -> define (Below $ dec DefineValue)
-		[
-			l "if", s, a "Condition" intType, l ",", s, a "Y" intType, s,
+		[l "if", s, a "Condition" (BitsType 1), l ",",
+			s, a "Y" intType, s,
 			l "else", s, a "N" intType]
 		intType
 		(\args -> do
-			condition <- asInt $ args ! "Condition"
-			return $ args ! (if condition > 0 then "Y" else "N"))
+			conditionValue <- runWhileOp $ args ! "Condition"
+			bytestring <- asBits 1 conditionValue
+			let [bit] = BS.unpack bytestring
+			return $ args ! (if bit > 0 then "Y" else "N"))
 		location
 	where
 		a name = do
@@ -118,4 +143,4 @@ hangingDefinitionOf opEnum location = case opEnum of
 -- exported
 
 context :: Context
-context = buildContextFrom hangingDefinitionOf Integers
+context = buildContextFrom hangingDefinitionOf IntType
