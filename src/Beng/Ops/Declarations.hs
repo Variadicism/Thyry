@@ -13,11 +13,11 @@ module Beng.Ops.Declarations (
 
 import Utils.Messaging (Messagable, msg)
 
-import Beng.Build.Types.Context (PrecedenceBound(..))
+import Beng.Types.Build.Context (PrecedenceBound(..))
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
-import Beng.Parse.Types.Patterns (Pattern(Literal))
+import Beng.Types.Parse.Patterns (Pattern(Literal))
 import Beng.Locations ()
-import Beng.Ops.Types.Declarations (ArgContextBuilder, Associativity(..), Declaration(..))
+import Beng.Types.Ops.Declarations (ArgContextBuilder, Associativity(..), Declaration(..))
 import {-# SOURCE #-} Beng.Values ()
 
 import Control.Exception.Extra (Partial)

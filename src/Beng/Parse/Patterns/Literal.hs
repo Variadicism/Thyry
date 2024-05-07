@@ -6,7 +6,7 @@ import Utils.Fallible hiding (Fallible)
 
 import Beng.Errors (parseError)
 import Beng.Parse.Matches (Match)
-import qualified Beng.Parse.Types.Matches as Match
+import qualified Beng.Types.Parse.Matches as Match
 import Beng.Parse.Parsers ((@>), Parser, PrefixState(..), State(..), takeAs)
 
 import Data.Text.Lazy (Text)

@@ -13,8 +13,8 @@ import Testing.Beng.Utils.Parsers ((!>>>), assertState)
 import Beng.Build.Context.Builders (cr, cr2)
 import Beng.Parse.Parsers ((>\>), Parse(..), SpaceState(..))
 import qualified Beng.Parse.Patterns.CharClass as CharClass
-import qualified Beng.Parse.Types.Matches as Match
-import Beng.Parse.Types.Patterns (CharRange)
+import qualified Beng.Types.Parse.Matches as Match
+import Beng.Types.Parse.Patterns (CharRange)
 
 import Data.Text.Lazy (Text)
 

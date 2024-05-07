@@ -24,7 +24,7 @@ import qualified Beng.Parse.Matches as M
 import Beng.Parse.Patterns (Parameter(..), Pattern(..))
 import Beng.Run (run)
 import Beng.Types.Locations (FileLocation(..), Location(..))
-import Beng.Values.Types (Type, Value(NativeOptionalValue, NativeSomeValue, OpValue))
+import Beng.Types.Values (Type, Value(NativeOptionalValue, NativeSomeValue, OpValue))
 
 import Data.Map ((!))
 

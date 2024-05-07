@@ -13,7 +13,7 @@ module Beng.Build.Context (
 import Utils.Lists (insertAt, updateAt)
 
 import Beng.Build.Cards (Card(..))
-import Beng.Build.Types.Context (Context(..), PrecedenceBound(..))
+import Beng.Types.Build.Context (Context(..), PrecedenceBound(..))
 import Beng.Ops.Declarations (Declaration(..))
 import Beng.Ops.Definitions (Definition(..))
 

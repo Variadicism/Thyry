@@ -15,8 +15,8 @@ import Utils.Tuples (mapFst2, toList2)
 import Beng.Build.Cards ()
 import Beng.Ops ()
 import qualified Beng.Ops as Op
-import Beng.Ops.Types.Declarations (Declaration)
-import Beng.Values.Types (Type(..), Undefined(..), Value(..))
+import Beng.Types.Ops.Declarations (Declaration)
+import Beng.Types.Values (Type(..), Undefined(..), Value(..))
 
 import qualified Data.ByteString as BS
 import Data.List (intercalate)

@@ -28,11 +28,11 @@ import qualified Beng.Parse.Patterns.Literal as Literal
 import qualified Beng.Parse.Patterns.NamedText as NamedText
 import qualified Beng.Parse.Patterns.Or as Or
 import qualified Beng.Parse.Patterns.Space as Space
-import Beng.Parse.Types.Patterns (CharRange(..), Parameter(..), Pattern(..))
+import Beng.Types.Parse.Patterns (CharRange(..), Parameter(..), Pattern(..))
 import Beng.Parse.Matches (Match)
 import Beng.Parse.Parsers (Parser)
 import Beng.Types.Locations (Location)
-import Beng.Values.Types (Type(..))
+import Beng.Types.Values (Type(..))
 
 import Data.List (intercalate)
 import Data.Map.Ordered ((<>|), OMap)

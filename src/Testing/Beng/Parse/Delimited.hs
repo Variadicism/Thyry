@@ -12,8 +12,8 @@ import Testing.Beng.Utils.Parsers ((!>>>), MockParser, assertState)
 import Beng.Build.Context.Builders (l)
 import Beng.Parse.Parsers ((>\>), Parse(..), SpaceState(..))
 import qualified Beng.Parse.Patterns.Delimited as Delimited
-import Beng.Parse.Types.Matches (DelimitedTail(..), Match)
-import qualified Beng.Parse.Types.Matches as Match
+import Beng.Types.Parse.Matches (DelimitedTail(..), Match)
+import qualified Beng.Types.Parse.Matches as Match
 
 -- private
 

@@ -1,4 +1,4 @@
-module Beng.Parse.Types.Patterns (
+module Beng.Types.Parse.Patterns (
 	CharRange(..),
 	Parameter(..),
 	Pattern(..)
@@ -8,7 +8,7 @@ import Utils.Populace (Populace)
 import Utils.Populace.Populace2 (Populace2)
 
 import Beng.Types.Locations (Location)
-import {-# SOURCE #-} Beng.Values.Types (Type)
+import {-# SOURCE #-} Beng.Types.Values (Type)
 
 import Data.Text.Lazy (Text)
 

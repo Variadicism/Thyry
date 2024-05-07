@@ -9,8 +9,8 @@ module Beng.Build.Cards (
 
 import Utils.Messaging (Messagable, msg)
 
-import Beng.Build.Types.Cards (Card(..))
-import Beng.Build.Types.Context (Context(..))
+import Beng.Types.Build.Cards (Card(..))
+import Beng.Types.Build.Context (Context(..))
 import Beng.Ops.Declarations (Declaration)
 import Beng.Ops.Definitions (Definition(..))
 

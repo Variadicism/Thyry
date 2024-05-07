@@ -19,11 +19,11 @@ import Utils.Strings (parenthesize)
 
 import qualified Beng.Build.Context.Builtin as Builtin
 import qualified Beng.Build.Ops as Op
-import Beng.Build.Types.Context (Context)
+import Beng.Types.Build.Context (Context)
 import Beng.Errors (printError)
 import Beng.Parse.Parsers ((@+>), (<<<), (>:>), (>\>), Parse(..), Parses(..), State(..), fileStartState, parseWhile)
 import qualified Beng.Parse.Patterns.Space as Space
-import Beng.Ops.Types (Op)
+import Beng.Types.Ops (Op)
 
 import Control.Monad (when)
 import Data.Char (isSpace)

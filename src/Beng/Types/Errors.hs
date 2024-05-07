@@ -9,8 +9,8 @@ import Utils.Fallible (FallibleI)
 import Utils.Fallible.Trans (IOFallibleI)
 import Utils.Populace (Populace)
 
-import Beng.Ops.Types (Op)
-import {-# SOURCE #-} Beng.Ops.Types.Declarations (Declaration)
+import Beng.Types.Ops (Op)
+import {-# SOURCE #-} Beng.Types.Ops.Declarations (Declaration)
 import Beng.Types.Locations (FileLocation, Location)
 
 data Error =

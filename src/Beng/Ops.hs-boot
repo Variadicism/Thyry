@@ -2,8 +2,8 @@ module Beng.Ops where
 
 import Utils.Messaging (Messagable)
 
-import Beng.Ops.Types (Op)
-import Beng.Parse.Types.Matches (Parameter)
+import Beng.Types.Ops (Op)
+import Beng.Types.Parse.Matches (Parameter)
 
 import Data.Map.Ordered (OMap)
 import Data.Text.Lazy (Text)

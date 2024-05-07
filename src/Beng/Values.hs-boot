@@ -3,8 +3,8 @@ module Beng.Values where
 import Utils.Fallible (FallibleI)
 import Utils.Messaging (Messagable)
 
-import Beng.Ops.Types.Declarations (Declaration)
-import Beng.Values.Types (Type, Undefined, Value)
+import Beng.Types.Ops.Declarations (Declaration)
+import Beng.Types.Values (Type, Undefined, Value)
 
 import Data.Text.Lazy (Text)
 

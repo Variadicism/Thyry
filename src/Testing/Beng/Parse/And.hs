@@ -16,7 +16,7 @@ import Beng.Parse.Matches (Match)
 import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Parsers ((>\>), Parse(..), SpaceState(..))
 import qualified Beng.Parse.Patterns as Pattern
-import Beng.Parse.Types.Patterns (Pattern)
+import Beng.Types.Parse.Patterns (Pattern)
 
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text

@@ -1,4 +1,4 @@
-module Beng.Values.Types (
+module Beng.Types.Values (
 	Undefined(..),
 	Type(..),
 	Value(..)
@@ -7,12 +7,12 @@ module Beng.Values.Types (
 import Utils.Fallible (FallibleI)
 import Utils.Populace (Populace)
 
-import Beng.Build.Types.Cards (Card)
+import Beng.Types.Build.Cards (Card)
 import {-# SOURCE #-} Beng.Ops ()
-import {-# SOURCE #-} Beng.Ops.Types.Declarations (Declaration)
-import {-# SOURCE #-} Beng.Ops.Types.Definitions (Definition)
-import {-# SOURCE #-} Beng.Ops.Types (Op)
-import Beng.Parse.Types.Patterns (Pattern)
+import {-# SOURCE #-} Beng.Types.Ops.Declarations (Declaration)
+import {-# SOURCE #-} Beng.Types.Ops.Definitions (Definition)
+import {-# SOURCE #-} Beng.Types.Ops (Op)
+import Beng.Types.Parse.Patterns (Pattern)
 
 import Data.ByteString (ByteString)
 import Data.Map (Map)

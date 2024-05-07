@@ -38,15 +38,15 @@ import qualified Utils.Populace.Populace2 as P2
 
 import Beng.Build.Context (Context(..), pushDef)
 import qualified Beng.Build.Context as Context
-import Beng.Ops.Types (Op)
+import Beng.Types.Ops (Op)
 import Beng.Ops.Declarations (ArgContextBuilder, Associativity(..), Declaration(..), PrecedenceBound(..))
 import Beng.Ops.Definitions (Definition(..), Runner)
 import qualified Beng.Ops.Definitions as Definition
-import Beng.Parse.Types.Patterns (CharRange(..), Pattern(..))
+import Beng.Types.Parse.Patterns (CharRange(..), Pattern(..))
 import {-# SOURCE #-} Beng.Run (run)
 import Beng.Errors (Fallible)
 import Beng.Types.Locations (Location(..))
-import Beng.Values.Types (Type(BitsType), Value(..))
+import Beng.Types.Values (Type(BitsType), Value(..))
 
 import Control.Composition ((.*))
 import Data.Bits ((.&.), (.|.), shiftL, shiftR)

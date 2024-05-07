@@ -11,7 +11,7 @@ import Utils.Messaging (msg)
 import Utils.Populace
 import Utils.Testing
 
-import Beng.Build.Types.Context (Context)
+import Beng.Types.Build.Context (Context)
 import Beng.Parse.Parsers ((>>>), Parse(..), Parses(..), Parser, SpaceState, State(..), fileStartState)
 
 import Data.Bifunctor (bimap)

@@ -1,4 +1,4 @@
-module Beng.Parse.Types.Matches (
+module Beng.Types.Parse.Matches (
 	Parameter(..),
 	DelimitedTail(..),
 	Match(..)
@@ -7,9 +7,9 @@ module Beng.Parse.Types.Matches (
 import Utils.Populace (Populace)
 import Utils.Populace.Populace2 (Populace2)
 
-import qualified Beng.Parse.Types.Patterns as Pattern
+import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Types.Locations (Location)
-import {-# SOURCE #-} Beng.Values.Types (Type, Value)
+import {-# SOURCE #-} Beng.Types.Values (Type, Value)
 
 import Data.Text.Lazy (Text)
 

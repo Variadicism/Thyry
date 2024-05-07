@@ -1,16 +1,16 @@
-module Beng.Ops.Types.Declarations (
+module Beng.Types.Ops.Declarations (
 	ArgContextBuilder,
 	Associativity(..),
 	Declaration(..)
 ) where
 
-import Beng.Build.Types.Cards (Card)
-import Beng.Build.Types.Context (PrecedenceBound)
-import qualified Beng.Parse.Types.Matches as Match
-import Beng.Parse.Types.Patterns (Pattern)
+import Beng.Types.Build.Cards (Card)
+import Beng.Types.Build.Context (PrecedenceBound)
+import qualified Beng.Types.Parse.Matches as Match
+import Beng.Types.Parse.Patterns (Pattern)
 import Beng.Types.Errors (Fallible)
 import Beng.Types.Locations (Location)
-import {-# SOURCE #-} Beng.Values.Types (Type)
+import {-# SOURCE #-} Beng.Types.Values (Type)
 
 import Data.Map (Map)
 

@@ -58,16 +58,16 @@ import Beng.Build.Cards (Card(..))
 import qualified Beng.Build.Context as Context
 import Beng.Build.Context.Builders (l, s, asInt, argAt, asOp, buildContextFrom, define, defineRighty, defineLiteral, defineUsing, intType, intValue)
 import qualified Beng.Build.Context.Builders as Builder
-import Beng.Build.Types.Context (PrecedenceBound(..))
+import Beng.Types.Build.Context (PrecedenceBound(..))
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Types.Matches (Match, value)
-import Beng.Parse.Types.Patterns (Pattern(Argument, decLoc, name, argType))
-import Beng.Ops.Types (Op(..))
-import Beng.Ops.Types.Declarations (Associativity(..), Declaration)
-import Beng.Ops.Types.Definitions (Definition(..))
+import Beng.Types.Parse.Matches (Match, value)
+import Beng.Types.Parse.Patterns (Pattern(Argument, decLoc, name, argType))
+import Beng.Types.Ops (Op(..))
+import Beng.Types.Ops.Declarations (Associativity(..), Declaration)
+import Beng.Types.Ops.Definitions (Definition(..))
 import Beng.Types.Locations (Location(..))
 import Beng.Run (run)
-import Beng.Values.Types (Type(PreOpType), Value(..))
+import Beng.Types.Values (Type(PreOpType), Value(..))
 
 import Control.Composition ((.*))
 import Data.Bits (complement)

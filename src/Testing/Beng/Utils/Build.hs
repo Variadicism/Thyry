@@ -7,11 +7,11 @@ import qualified Utils.Populace as P
 import Testing.Beng.Utils.Parsers ((!>>>), MockParser)
 
 import qualified Beng.Build.Ops as Op
-import Beng.Build.Types.Context (Context)
+import Beng.Types.Build.Context (Context)
 import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Parsers (Parse(..))
-import Beng.Ops.Types (Op)
-import qualified Beng.Ops.Types as Op
+import Beng.Types.Ops (Op)
+import qualified Beng.Types.Ops as Op
 
 import Data.Text.Lazy (unpack)
 import qualified Data.Text.Lazy as Text

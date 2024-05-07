@@ -7,9 +7,9 @@ import qualified Utils.Populace.Populace2 as P2
 
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Parse.Matches (Match)
-import qualified Beng.Parse.Types.Matches as Match
+import qualified Beng.Types.Parse.Matches as Match
 import Beng.Parse.Parsers ((@+>), (>:>), (>\>), Parser)
-import Beng.Parse.Types.Patterns (Pattern)
+import Beng.Types.Parse.Patterns (Pattern)
 
 -- exported
 

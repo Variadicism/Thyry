@@ -15,8 +15,8 @@ import Beng.Parse.Matches (Match(Argument, decLoc, name, argType, argValue), Par
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/\>), Parser, PrefixState(..), State(..), takeAs)
 import Beng.Types.Locations (Location)
 import qualified Beng.Types.Locations as Location
-import Beng.Ops.Types.Declarations (Declaration(..))
-import Beng.Values.Types (Type, Value(OpValue))
+import Beng.Types.Ops.Declarations (Declaration(..))
+import Beng.Types.Values (Type, Value(OpValue))
 
 import Control.Monad (when)
 import qualified Data.Map as Map

@@ -8,9 +8,9 @@ import qualified Utils.Maps.Ordered as OMap
 
 import Beng.Ops (Op(..), getArgs)
 import Beng.Errors (Error(..), Fallible)
-import Beng.Ops.Types.Definitions (Definition(..))
-import Beng.Parse.Types.Matches (value)
-import Beng.Values.Types (Value(OpValue))
+import Beng.Types.Ops.Definitions (Definition(..))
+import Beng.Types.Parse.Matches (value)
+import Beng.Types.Values (Value(OpValue))
 
 import qualified Data.Map.Ordered as OMap
 

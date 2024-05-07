@@ -1,9 +1,9 @@
-module Beng.Ops.Types (
+module Beng.Types.Ops (
 	Op(..)
 ) where
 
-import Beng.Build.Types.Cards (Card)
-import Beng.Parse.Types.Matches (Match)
+import Beng.Types.Build.Cards (Card)
+import Beng.Types.Parse.Matches (Match)
 import Beng.Types.Locations (Location)
 
 data Op = Op {

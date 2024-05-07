@@ -42,8 +42,8 @@ import qualified Utils.Populace as P
 
 import Beng.Build.Context (Context)
 import Beng.Ops ()
-import Beng.Parse.Types.Parsers (Parse(..), Parses(..), Parser(..), ParseRunner, PrefixState(..), SpaceState(..), State(..))
-import qualified Beng.Parse.Types.Parsers as Parser
+import Beng.Types.Parse.Parsers (Parse(..), Parses(..), Parser(..), ParseRunner, PrefixState(..), SpaceState(..), State(..))
+import qualified Beng.Types.Parse.Parsers as Parser
 import Beng.Errors (Error, Fallible)
 import Beng.Types.Locations (FileLocation(..))
 

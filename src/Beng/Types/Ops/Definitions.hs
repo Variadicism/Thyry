@@ -1,12 +1,12 @@
-module Beng.Ops.Types.Definitions (
+module Beng.Types.Ops.Definitions (
 	Definition(..),
 	Runner
 ) where
 
-import Beng.Ops.Types.Declarations (Declaration)
+import Beng.Types.Ops.Declarations (Declaration)
 import Beng.Types.Errors (Fallible)
 import Beng.Types.Locations (Location)
-import Beng.Values.Types (Value)
+import Beng.Types.Values (Value)
 
 import Data.Map (Map)
 

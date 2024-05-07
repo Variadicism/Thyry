@@ -13,7 +13,7 @@ import Utils.Tuples (mapSnd2)
 import Testing.Beng.Utils.Mocks (ABCD(Divide), argOf, divide, locationOf, mockABCD)
 import Testing.Beng.Utils.Parsers (MockParser, assertRest)
 
-import Beng.Build.Types.Cards (Card(..))
+import Beng.Types.Build.Cards (Card(..))
 import Beng.Build.Context.Builders (cr2, intType, l, s)
 import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Parsers ((>>>), (>\>), Parse(..), Parses(..), PrefixState(..), State(..), fileStartState)

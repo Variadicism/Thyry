@@ -1,4 +1,4 @@
-module Beng.Parse.Types.Parsers where
+module Beng.Types.Parse.Parsers where
 
 data Parser t
 

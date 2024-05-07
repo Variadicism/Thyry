@@ -1,4 +1,4 @@
-module Beng.Parse.Types.Parsers (
+module Beng.Types.Parse.Parsers (
 	Parses(..),
 	ParseRunner,
 	Parser(..),
@@ -10,11 +10,11 @@ module Beng.Parse.Types.Parsers (
 
 import Utils.Populace (Populace)
 
-import Beng.Build.Types.Cards (Card)
-import Beng.Build.Types.Context (Context)
+import Beng.Types.Build.Cards (Card)
+import Beng.Types.Build.Context (Context)
 import Beng.Types.Locations (FileLocation)
-import Beng.Ops.Types (Op)
-import qualified Beng.Parse.Types.Matches as Match
+import Beng.Types.Ops (Op)
+import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Errors (Error, Fallible)
 
 import Data.Map as Map

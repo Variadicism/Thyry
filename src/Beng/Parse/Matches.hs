@@ -23,10 +23,10 @@ import qualified Utils.Populace.Populace2 as P2
 import Utils.Tuples (toList2)
 
 import Beng.Build.Context.Builders (declareLiteral)
-import Beng.Parse.Types.Matches (DelimitedTail(..), Match(..), Parameter(..))
+import Beng.Types.Parse.Matches (DelimitedTail(..), Match(..), Parameter(..))
 import {-# SOURCE #-} Beng.Parse.Patterns ()
-import qualified Beng.Parse.Types.Patterns as Pattern
-import Beng.Values.Types (Type(..), Value(..))
+import qualified Beng.Types.Parse.Patterns as Pattern
+import Beng.Types.Values (Type(..), Value(..))
 import {-# SOURCE #-} qualified Beng.Values as Value
 
 import Data.Map.Ordered ((<|), (|<), (<>|), OMap)

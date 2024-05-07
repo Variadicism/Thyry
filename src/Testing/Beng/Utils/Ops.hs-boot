@@ -3,8 +3,8 @@ module Testing.Beng.Utils.Ops where
 import Utils.Fallible
 
 import Beng.Ops (Op)
-import Beng.Ops.Types.Definitions (Definition)
-import Beng.Values.Types (Value)
+import Beng.Types.Ops.Definitions (Definition)
+import Beng.Types.Values (Value)
 
 import GHC.Records (HasField)
 

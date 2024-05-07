@@ -12,7 +12,7 @@ module Beng.Ops.Definitions (
 import Utils.Messaging (Messagable, msg)
 
 import qualified Beng.Ops.Declarations as Declaration
-import Beng.Ops.Types.Definitions (Definition(..), Runner)
+import Beng.Types.Ops.Definitions (Definition(..), Runner)
 
 -- instances
 

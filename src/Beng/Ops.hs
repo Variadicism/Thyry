@@ -13,7 +13,7 @@ import Beng.Build.Cards ()
 import qualified Beng.Ops.Declarations as Declaration
 import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Matches (Parameter)
-import Beng.Ops.Types (Op(..))
+import Beng.Types.Ops (Op(..))
 
 import Data.Map.Ordered (OMap)
 import Data.Text.Lazy (Text)

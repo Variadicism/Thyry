@@ -9,9 +9,9 @@ import Utils.Testing
 import Utils.Tuples (map2)
 
 import Beng.Ops (Op(..), getArgs)
-import Beng.Ops.Types.Definitions (Definition(..))
-import Beng.Parse.Types.Matches (value)
-import Beng.Values.Types (Value(OpValue))
+import Beng.Types.Ops.Definitions (Definition(..))
+import Beng.Types.Parse.Matches (value)
+import Beng.Types.Values (Value(OpValue))
 
 import Data.List (sort)
 import qualified Data.Map as Map

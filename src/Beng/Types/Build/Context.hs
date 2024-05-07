@@ -1,10 +1,10 @@
-module Beng.Build.Types.Context (
+module Beng.Types.Build.Context (
 	Context(..),
 	PrecedenceBound(..)
 ) where
 
-import Beng.Build.Types.Cards (Card)
-import {-# SOURCE #-} Beng.Ops.Types.Declarations (Declaration)
+import Beng.Types.Build.Cards (Card)
+import {-# SOURCE #-} Beng.Types.Ops.Declarations (Declaration)
 
 import Data.Set (Set)
 

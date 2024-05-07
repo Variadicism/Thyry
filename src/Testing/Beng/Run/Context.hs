@@ -8,7 +8,7 @@ import qualified Testing.Beng.Utils.Build as Test
 import Testing.Beng.Utils.Mocks (aValue, bValue, mockABCD)
 import Testing.Beng.Utils.Run (assertEval)
 
-import Beng.Parse.Types.Parsers (Parse(..))
+import Beng.Types.Parse.Parsers (Parse(..))
 
 build = Test.build mockABCD
 

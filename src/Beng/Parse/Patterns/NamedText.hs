@@ -7,11 +7,11 @@ import Utils.Lists (wrap)
 
 import Beng.Parse.Parsers ((@+>), (>\>), (>/\>), Parser, State(..))
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Types.Matches (Match)
+import Beng.Types.Parse.Matches (Match)
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
-import Beng.Parse.Types.Patterns (Pattern(..))
+import Beng.Types.Parse.Patterns (Pattern(..))
 import Beng.Types.Locations (Location)
-import Beng.Values.Types (Type(NativeStringType), Value(NativeStringValue))
+import Beng.Types.Values (Type(NativeStringType), Value(NativeStringValue))
 
 import qualified Data.Map as Map
 import qualified Data.Text.Lazy as Text

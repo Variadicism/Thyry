@@ -9,9 +9,9 @@ import Utils.Messaging (msg)
 import Utils.Testing
 
 import Beng.Build.Context.Builders (asInt)
-import Beng.Ops.Types (Op)
+import Beng.Types.Ops (Op)
 import qualified Beng.Run as Beng
-import Beng.Values.Types (Value)
+import Beng.Types.Values (Value)
 
 -- exported
 

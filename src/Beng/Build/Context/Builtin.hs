@@ -9,14 +9,14 @@ import qualified Utils.Populace.Populace2 as P2
 
 import Beng.Build.Context (Context(..), PrecedenceBound(..))
 import Beng.Build.Context.Builders (c, cr, e, s, l, multi, argAt, asBits, asInt, asNativeString, asOp, bitsValue, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf, intType, intValue, textAt)
-import Beng.Build.Types.Cards (Card(DefCard))
-import Beng.Parse.Types.Matches (value)
-import Beng.Parse.Types.Patterns (Pattern(..))
+import Beng.Types.Build.Cards (Card(DefCard))
+import Beng.Types.Parse.Matches (value)
+import Beng.Types.Parse.Patterns (Pattern(..))
 import Beng.Run (run, runWhileOp)
-import Beng.Ops.Types.Declarations (Associativity(..), Declaration)
-import Beng.Ops.Types.Definitions (Definition(..))
+import Beng.Types.Ops.Declarations (Associativity(..), Declaration)
+import Beng.Types.Ops.Definitions (Definition(..))
 import Beng.Types.Locations (Location(..))
-import Beng.Values.Types (Type(..), Value(..))
+import Beng.Types.Values (Type(..), Value(..))
 
 import qualified Data.ByteString as BS
 import Data.Int (Int32)
