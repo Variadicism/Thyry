@@ -1,4 +1,4 @@
-module Testing.Beng.Parse.NamedText (
+module Testing.Beng.Parse.Code.NamedText (
 	testNamedText
 ) where
 
@@ -16,7 +16,7 @@ import Testing.Beng.Utils.Parsers (MockParser, assertRest)
 import Beng.Types.Build.Cards (Card(..))
 import Beng.Build.Context.Builders (cr2, intType, l, s)
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers ((>>>), (>\>), Parse(..), Parses(..), PrefixState(..), State(..), fileStartState)
+import Beng.Parse.Parsers.Code ((>>>), (>\>), Parse, PrefixState(..), State(..), fileStartState, parses, target)
 import qualified Beng.Parse.Patterns.NamedText as NamedText
 import Beng.Parse.Patterns (Pattern(..))
 import Beng.Types.Locations (Location(Builtin, BuiltinArg))

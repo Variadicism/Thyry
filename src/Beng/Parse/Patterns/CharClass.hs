@@ -8,11 +8,10 @@ import Utils.Fallible (FallibleI(Error))
 import Utils.Populace (Populace)
 
 import Beng.Errors (parseError)
-import Beng.Parse.Parsers ((@>), Parser, takeAs)
+import Beng.Parse.Parsers.Code ((@>), Parser, State(..), takeAs)
 import Beng.Types.Parse.Matches (Match)
 import qualified Beng.Types.Parse.Matches as Match
 import {-# SOURCE #-} Beng.Parse.Patterns ()
-import Beng.Types.Parse.Parsers (State(..))
 import Beng.Types.Parse.Patterns (CharRange(..))
 
 import Data.List (isPrefixOf)

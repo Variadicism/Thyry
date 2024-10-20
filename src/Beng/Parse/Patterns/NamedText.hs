@@ -5,7 +5,7 @@ module Beng.Parse.Patterns.NamedText (
 
 import Utils.Lists (wrap)
 
-import Beng.Parse.Parsers ((@+>), (>\>), (>/\>), Parser, State(..))
+import Beng.Parse.Parsers.Code ((@+>), (>\>), (>/\>), Parser, State(..))
 import qualified Beng.Parse.Matches as Match
 import Beng.Types.Parse.Matches (Match)
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern

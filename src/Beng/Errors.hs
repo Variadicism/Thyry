@@ -17,8 +17,7 @@ import Beng.Locations (FileLocation(..), Location)
 import qualified Beng.Locations as Location
 import {-# SOURCE #-} Beng.Ops ()
 import Beng.Ops.Declarations ()
-import {-# SOURCE #-} Beng.Parse.Parsers ()
-import Beng.Types.Parse.Parsers (State(..))
+import Beng.Types.Parse.Parsers.Code (State(..))
 import Beng.Types.Errors
 import qualified Beng.Types.Errors as Error
 

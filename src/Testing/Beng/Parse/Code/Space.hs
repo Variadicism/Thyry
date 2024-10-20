@@ -1,4 +1,4 @@
-module Testing.Beng.Parse.Space (
+module Testing.Beng.Parse.Code.Space (
 	testSpace
 ) where
 
@@ -11,7 +11,7 @@ import Testing.Beng.Utils.Parsers (MockParser, assertState)
 
 import Beng.Parse.Matches (Match(text))
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers ((>>>), (>\>), Parse(..), SpaceState(..), State(..), fileStartState, parses)
+import Beng.Parse.Parsers.Code ((>>>), (>\>), Parse, SpaceState(..), State(..), fileStartState, parsed, parses, target)
 import qualified Beng.Parse.Patterns.Space as Space
 
 import Data.Bifunctor (bimap)

@@ -1,4 +1,4 @@
-module Testing.Beng.Parse.Delimited (
+module Testing.Beng.Parse.Code.Delimited (
 	testDelimited
 ) where
 
@@ -10,7 +10,7 @@ import Testing.Beng.Utils.Mocks (mockNothing)
 import Testing.Beng.Utils.Parsers ((!>>>), MockParser, assertState)
 
 import Beng.Build.Context.Builders (l)
-import Beng.Parse.Parsers ((>\>), Parse(..), SpaceState(..))
+import Beng.Parse.Parsers.Code ((>\>), Parse, SpaceState(..), target)
 import qualified Beng.Parse.Patterns.Delimited as Delimited
 import Beng.Types.Parse.Matches (DelimitedTail(..), Match)
 import qualified Beng.Types.Parse.Matches as Match

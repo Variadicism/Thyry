@@ -1,11 +1,9 @@
 module Beng.Types.Parse.Parsers where
 
-data Parser t
+data Parse p s t
 
-data PrefixState
+data Parses p s t
 
-data SpaceState
+data Parser p s t
 
-data State
-
-data Parse t
+class State p s | s -> p

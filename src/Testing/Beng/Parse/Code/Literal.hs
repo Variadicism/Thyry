@@ -1,4 +1,4 @@
-module Testing.Beng.Parse.Literal (
+module Testing.Beng.Parse.Code.Literal (
 	testLiteral
 ) where
 
@@ -8,7 +8,7 @@ import Testing.Beng.Utils.Mocks (mockNothing)
 import Testing.Beng.Utils.Parsers ((!>>>), MockParser, assertState)
 
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers ((>\>), SpaceState(..))
+import Beng.Parse.Parsers.Code ((>\>), SpaceState(..))
 import qualified Beng.Parse.Patterns.Literal as Literal
 
 import Data.Text.Lazy (Text)

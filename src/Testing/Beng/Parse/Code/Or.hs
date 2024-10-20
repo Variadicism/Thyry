@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Testing.Beng.Parse.Or (
+module Testing.Beng.Parse.Code.Or (
 	testOr
 ) where
 
@@ -15,7 +15,7 @@ import Testing.Beng.Utils.Parsers ((!>>>), MockParser, assertState)
 import Beng.Build.Context.Builders (l)
 import Beng.Parse.Matches (Match, match, matchIndex)
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers ((>\>), Parse(..), SpaceState(..))
+import Beng.Parse.Parsers.Code ((>\>), Parse, SpaceState(..), target)
 import qualified Beng.Parse.Patterns.Or as Or
 
 import qualified Data.Text.Lazy as Text

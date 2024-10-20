@@ -3,19 +3,14 @@ module Beng.Parse.Parsers (
 	Parses(..),
 	Parser,  -- Do not export Parser internals.
 	ParseRunner,
-	PrefixState(..),
-	SpaceState(..),
 	State(..),
 	prependToBestError,
 	onParses,
-	fileStartState,
 	parse,
-	takeAs1,
-	takeAs,
-	parseAs,
+	takeAsUsing,
 	parseAny,
-	parseAll,
-	parseWhile,
+	parseAllUsing,
+	parseWhileUsing,
 	(<<<),
 	(>>>),
 	(@>),
@@ -35,24 +30,15 @@ module Beng.Parse.Parsers (
 ) where
 
 import Utils.Fallible hiding (Fallible)
-import Utils.Lists (ifNotNull)
-import Utils.Messaging (Messagable, debugM, msg)
+import Utils.Messaging (debugM)
 import Utils.Populace (Populace(..))
 import qualified Utils.Populace as P
 
-import Beng.Build.Context (Context)
 import Beng.Ops ()
-import Beng.Types.Parse.Parsers (Parse(..), Parses(..), Parser(..), ParseRunner, PrefixState(..), SpaceState(..), State(..))
-import qualified Beng.Types.Parse.Parsers as Parser
+import Beng.Types.Parse.Parsers (Parse(..), Parses(..), Parser(..), ParseRunner, State(..))
 import Beng.Errors (Error, Fallible)
-import Beng.Types.Locations (FileLocation(..))
 
 import Control.Monad (when)
-import Data.Char (isAlphaNum, isSpace, toLower)
-import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
-import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as Text
 
 {- HERE is a cheat sheet for the meaning of all the crazy symbols in here:
    - <<< runs a Parser with the given State (equivalent to `parse`)
@@ -62,7 +48,7 @@ import qualified Data.Text.Lazy as Text
    - > > is for piping the output of one parser into something else.
       - \ symbolizes a lambda; each one represents an expectation of an upcoming lambda variable
          - 1 \ passes the target parsed to the following function
-         - 2 \\ passes the target and Text parsed
+         - 2 \\ passes the target and parsed
       - : ("and") is for running parsers sequentially and getting both results
       - - ("filter") is for filtering unwanted results (and transforming them if desired)
       - | ("or") is for running parsers from the same starting point and gathering all the results
@@ -71,14 +57,14 @@ import qualified Data.Text.Lazy as Text
 
 -- private
 
-type ParserChain1 t u = t -> Parser u
+type ParserChain1 p s ti to = ti -> Parser p s to
 
-type ParserChain2 t u = t -> Text -> Parser u
+type ParserChain2 p s ti to = ti -> p -> Parser p s to
 
-mapParseTarget :: (t -> Text -> u) -> Parse t -> Parse u
+mapParseTarget :: (ti -> p -> to) -> Parse p s ti -> Parse p s to
 mapParseTarget f parse = parse{ target = f parse.target parse.parsed }
 
-mapParsesTargets :: (t -> Text -> u) -> Parses t -> Parses u
+mapParsesTargets :: (ti -> p -> to) -> Parses p s ti -> Parses p s to
 mapParsesTargets = onParses . P.map . mapParseTarget
 
 (<!?>) :: Maybe Error -> Maybe Error -> Maybe Error
@@ -88,31 +74,32 @@ mapParsesTargets = onParses . P.map . mapParseTarget
 		Nothing -> Just e2
 		Just e1 -> Just $ e1 <!> e2
 
-onMaybeBestError :: (Maybe Error -> Maybe Error) -> Parses t -> Parses t
+onMaybeBestError :: (Maybe Error -> Maybe Error) -> Parses p s t -> Parses p s t
 onMaybeBestError f parses = parses{ bestError = f parses.bestError }
 
-concatParses :: (Populace (Parses t) -> Parses t)
+concatParses :: (Populace (Parses p s t) -> Parses p s t)
 -- `fold1` is safe for Populaces.
 concatParses = foldl1 foldParses where
 	foldParses = \prev next -> prev{
 		parses = prev.parses <> next.parses,
 		bestError = prev.bestError <!?> next.bestError }
 
-prependParseUsing :: (t -> u -> v) -> Parse t -> Parses u -> Parses v
-prependParseUsing m t = onParses $ P.map (prependToParse t) where
-	prependToParse = \t u -> u{
+prependParseUsing :: Semigroup p => (t -> u -> v) -> Parse p s t -> Parses p s u -> Parses p s v
+prependParseUsing m t = onParses $ P.map (prependToParse t)
+	where prependToParse = \t u -> u{
 		parsed = t.parsed <> u.parsed,
 		target = m t.target u.target }
 
-getIndentation :: State -> String
-getIndentation State{..} = do
-	let numberString = show indentation
-	let numberOfSpaces = indentation - length numberString + 1
+getIndentation :: State p s => s -> String
+getIndentation state = do
+	let numberString = show $ indentation state
+	let numberOfSpaces = indentation state - length numberString + 1
 	numberString ++ "|" ++ replicate numberOfSpaces ' '
 
 debugIndented state = debugM . (getIndentation state++)
 
-andParseFrom :: (Show t, Show u) => String -> Parses t -> ParserChain2 t u -> ParseRunner (t, u)
+andParseFrom :: (Semigroup p, Show p, State p s, Show s, Show ti, Show to) =>
+	String -> Parses p s ti -> ParserChain2 p s ti to -> ParseRunner p s (ti, to)
 andParseFrom firstName firstParses secondChain = \state -> do
 	-- If you write this as `let runSecond firstResult =`, HasField complains. Wat? >:(
 	let runSecond = \firstParse -> do
@@ -131,12 +118,14 @@ andParseFrom firstName firstParses secondChain = \state -> do
 	let pairedParses = concatParses sequencedParses  -- Parses (t, u)
 	return $ onMaybeBestError (firstParses.bestError <!?>) pairedParses
 
-andParse :: (Show t, Show u) => Parser t -> ParserChain2 t u -> ParseRunner (t, u)
+andParse :: (Semigroup p, Show p, State p s, Show s, Show ti, Show to) =>
+	Parser p s ti -> ParserChain2 p s ti to -> ParseRunner p s (ti, to)
 andParse first secondChain = \state -> do
 	firstParses <- state >>> first
 	andParseFrom first.name firstParses secondChain state
 
-orParseBeside :: String -> Fallible (Parses t) -> String -> Fallible (Parses t) -> ParseRunner t
+orParseBeside :: State p s =>
+	String -> Fallible (Parses p s t) -> String -> Fallible (Parses p s t) -> ParseRunner p s t
 orParseBeside firstName firstParses secondName secondParses = \state -> do
 	debugIndented state $ "Alternating " ++ firstName ++ " with " ++ secondName ++ "..."
 	case (firstParses, secondParses) of
@@ -149,11 +138,13 @@ orParseBeside firstName firstParses secondName secondParses = \state -> do
 		(Falue firstParses, Falue secondParses) ->
 			Falue $ concatParses $ Populace firstParses [secondParses]
 
-orParse :: Show t => Parser t -> Parser t -> ParseRunner t
+orParse :: (Show p, State p s, Show s, Show t) =>
+	Parser p s t -> Parser p s t -> ParseRunner p s t
 orParse first second = \state ->
 	orParseBeside first.name (state >>> first) second.name (state >>> second) state
 
-teeParse :: Show t => Parser t -> ParserChain2 t t -> ParseRunner t
+teeParse :: (Semigroup p, Show p, Show s, State p s, Show t) =>
+	Parser p s t -> ParserChain2 p s t t -> ParseRunner p s t
 teeParse first secondChain = \state -> do
 	firstParses <- state >>> first
 	let teedParses = do
@@ -163,60 +154,32 @@ teeParse first secondChain = \state -> do
 
 -- instances
 
-instance Show PrefixState where
-	show = \case
-		Unneeded -> ""
-		Needed -> "prefix-seeking"
-		AvoidingFor op -> "prefix-evading for " ++ show op
+instance (Eq p, Eq s, State p s, Eq t) => Eq (Parse p s t) where
+	(==) r1 r2 = r1.parsed == r2.parsed && r1.target == r2.target && (rest r1.state) == (rest r2.state)
 
-instance Eq t => Eq (Parse t) where
-	(==) r1 r2 = r1.target == r2.target && r1.state.rest == r2.state.rest
-
-instance Show t => Show (Parse t) where
+instance (Show p, Show s, Show t) => Show (Parse p s t) where
 	show Parse{..} = show parsed ++ " as " ++ show target ++ " => " ++ show state
 
-instance (Eq t, Ord t) => Ord (Parse t) where
-	compare r1 r2 = compare r1.target r2.target <> compare r1.state.rest r2.state.rest
-
-instance Messagable State where
-	msg State{..} =
-		"post-" ++ map toLower (show spaceState) ++ " " ++
-		ifNotNull (++" ") (show prefixState) ++
-		show rest ++
-		" with " ++ show (map (\(name, capture) -> name ++ " := " ++ show capture) $ Map.assocs arguments)
-
-instance Show State where
-	show state@State{..} = msg state ++
-		" at depth " ++ show indentation ++
-		maybe "" ((" within "++) . show) parent ++
-		maybe "" ((" with precedence < "++) . show) maxPrecedence ++
-		" using " ++ show context
+instance (Ord p, State p s, Eq s, Eq t, Ord t) => Ord (Parse p s t) where
+	compare r1 r2 = compare r1.target r2.target <> compare (rest r1.state) (rest r2.state)
 
 -- exported
 
-prependToBestError :: String -> (Parses t -> Parses t)
+prependToBestError :: String -> (Parses p s t -> Parses p s t)
 prependToBestError prefix = onMaybeBestError (fmap $ prepend prefix)
 
-onParses :: (Populace (Parse t) -> Populace (Parse u)) -> Parses t -> Parses u
+onParses :: (Populace (Parse p s t) -> Populace (Parse p s u)) -> Parses p s t -> Parses p s u
 onParses f ts = ts{ parses = f ts.parses }
 
-fileStartState :: FilePath -> Context -> Text -> State
-fileStartState file context text = State {
-	context, maxPrecedence = Nothing, parent = Nothing,
-	arguments = Map.empty,
-	indentation = 0,
-	location = FileLocation { file, line = 1, column = 1 },
-	prefixState = Needed, spaceState = Space,
-	rest = text }
-
-parse :: Show t => Parser t -> ParseRunner t
+parse :: (Show p, State p s, Show s, Show t) =>
+	Parser p s t -> ParseRunner p s t
 parse parser = \state -> do
 	when (not $ null parser.name) $ debugM $
 		getIndentation state ++ "Parsing " ++ parser.name ++ " from " ++ show state ++ "..."
 
-	let indentedResults = parser.run state{ indentation = state.indentation + 1 }
-	let outdent = \parse -> parse{ Parser.state = parse.state{ indentation = parse.state.indentation - 1 }}
-	let parses = fmap (onParses (P.map outdent)) indentedResults
+	let indentedResults = parser.run $ indent state
+	let outdentParse = \parse -> parse{ state = outdent parse.state }
+	let parses = fmap (onParses (P.map outdentParse)) indentedResults
 
 	when (not $ null parser.name) case parses of
 		Error error -> do
@@ -231,116 +194,104 @@ parse parser = \state -> do
 			debugIndented state $ "Best error: " ++ maybe "[]" show bestError
 	parses
 
-takeAs1 :: Show t => Text -> t -> State -> Parse t
-takeAs1 parsed target state = do
-	let maybeRest = Text.stripPrefix parsed state.rest
-	let rest = flip Maybe.fromMaybe maybeRest $ error $
-		"A Parser requested that " ++ show parsed ++ " be parsed from " ++ show state.rest ++
-		", but the former is not a prefix of the latter!"
-	let spaceState = if Text.null parsed
-		then state.spaceState
-		else case Text.last parsed of
-			c | isSpace c -> Space
-			c | isAlphaNum c -> Word
-			_ -> Punctuation
+type TakeAsNull p s t = t -> ParseRunner p s t
+type TakeAs1 p s t = p -> t -> s -> Parse p s t
 
-	let ol = state.location
-	-- `lines` discards trailing empty lines, including "", but `split` does not.
-	let linesParsed = Text.split (=='\n') parsed
-	let location = ol{
-		line = ol.line + length linesParsed - 1,  -- The first Text is from the current line.
-		-- `last` is safe because `split` guarantees a non-empty result.
-		column = fromIntegral (Text.length $ last linesParsed) +
-			if length linesParsed == 1 then ol.column else 1 {- Column numbers start at 1. -} }
+takeAsUsing :: (State p s, Show s, Show t) =>
+	TakeAs1 p s t -> p -> t -> ParseRunner p s t
+takeAsUsing takeAs1 parsed target = \state -> return Parses {
+	parses = P.singleton $ takeAs1 parsed target state,
+	bestError = Nothing }
 
-	Parse { parsed, target, state = state{
-		rest, spaceState, location } }
-
-takeAs :: Show t => Text -> t -> ParseRunner t
-takeAs parsed target = \state -> return Parses {
-	parses = P.singleton $ takeAs1 parsed target state, bestError = Nothing }
-
-parseAs :: Show t => (Text -> t -> Parser t)
-parseAs text = ("" @>) . takeAs text 
-
-parseAny :: Show t => (Populace (Parser t) -> Parser t)
+parseAny :: (Show p, State p s, Show s, Show t) =>
+	(Populace (Parser p s t) -> Parser p s t)
 parseAny = foldr1 (>|>)
 
 {- Parse as many instances of the target as possible, "teeing off" each parse
    so that each possible parse result is listed. -}
-parseAll :: Show t => Parser t -> Parser [t]
-parseAll parser = "all " ++ parser.name @> \state -> state >>>
+parseAllUsing :: (Semigroup p, Show p, State p s, Show s, Show t) =>
+	TakeAsNull p s [t] -> Parser p s t -> Parser p s [t]
+parseAllUsing takeAsNull parser = "all " ++ parser.name @> \state -> state >>>
 	-- A tee's tail ignoring the output of the head is usually bad, but here,
 	-- we're just losing an empty list that would have been concatenated.
-	parseAs "" [] >^\> \_ ->
+	(("none of " ++ parser.name) @> takeAsNull []) >^\> \_ ->
 	parser >:>
-	parseAll parser >\>
+	parseAllUsing takeAsNull parser >\>
 	\(next, rest) -> next:rest
 
-parseWhile :: Show t => String -> (State -> Bool) -> Parser t -> Parser [t]
-parseWhile conditionDescription shouldContinue parser =
+parseWhileUsing :: (Semigroup p, Show p, State p s, Show s, Show t) =>
+	TakeAsNull p s [t] -> String -> (s -> Bool) -> Parser p s t -> Parser p s [t]
+parseWhileUsing takeAsNull conditionDescription shouldContinue parser =
 	parser.name ++ " while " ++ conditionDescription @> \state ->
 		if shouldContinue state then
 			state >>>
 			parser >:>
-			parseWhile conditionDescription shouldContinue parser >\>
+			parseWhileUsing takeAsNull conditionDescription shouldContinue parser >\>
 			\(next, rest) -> next:rest
-		else takeAs "" [] state
+		else takeAsNull [] state
 
 -- "Run": Run the parser with the given state and get the results.
-(<<<) :: Show t => (Parser t -> ParseRunner t)
+(<<<) :: (Show p, State p s, Show s, Show t) =>
+	(Parser p s t -> ParseRunner p s t)
 (<<<) = parse
 infix 0 <<<
 
-(>>>) :: Show t => (State -> Parser t -> Fallible (Parses t))
+(>>>) :: (Show p, State p s, Show s, Show t) =>
+	(s -> Parser p s t -> Fallible (Parses p s t))
 (>>>) = flip parse
 infix 0 >>>
 
 -- "Construct": make a parser form the name and how to run it.
-(@>) :: String -> ParseRunner t -> Parser t
+(@>) :: String -> ParseRunner p s t -> Parser p s t
 (@>) = Parser
 infix 4 @>
 
 -- "Contextualize": add contextual information to the parser's name for better debugging
-(@+>) :: String -> Parser t -> Parser t
+(@+>) :: String -> Parser p s t -> Parser p s t
 (@+>) context parser =
 	"for " ++ context ++ ", " ++ parser.name @>
 		parser.run
 infix 0 @+>
 
 -- "Update with Target": make an update to the state without affecting the target
-(>/\>) :: Show t => Parser t -> (State -> t -> State) -> Parser t
+(>/\>) :: (Show p, State p s, Show s, Show t) =>
+	Parser p s t -> (s -> t -> s) -> Parser p s t
 (>/\>) parser updater = parser.name @> \state -> do
 	parses <- state >>> parser
-	let update parse = parse{ Parser.state = updater parse.state parse.target }
+	let update parse = parse{ state = updater parse.state parse.target }
 	return $ onParses (P.map update) parses
 infixl 2 >/\>
 
 -- "Update": make an update to the state without affecting the target
-(>/>) :: Show t => Parser t -> (State -> State) -> Parser t
+(>/>) :: (Show p, State p s, Show s, Show t) =>
+	Parser p s t -> (s -> s) -> Parser p s t
 (>/>) parser updater = parser >/\> \s _ -> updater s
 infixl 2 >/>
 
 -- "And Chain 2": parse with the first, then chain to the second, and return the result targets as a pair.
-(>:\\>) :: (Show t, Show u) => Parser t -> ParserChain2 t u -> Parser (t, u)
+(>:\\>) :: (Semigroup p, Show p, State p s, Show s, Show t, Show u) =>
+	Parser p s t -> ParserChain2 p s t u -> Parser p s (t, u)
 (>:\\>) first secondChain =
 	first.name ++ " and ?" @>
 		andParse first secondChain
 infixl 3 >:\\>
 
 -- "And Chain 2": parse with the first, then chain to the second, and return the result targets as a pair.
-(>:\>) :: (Show t, Show u) => Parser t -> ParserChain1 t u -> Parser (t, u)
+(>:\>) :: (Semigroup p, Show p, State p s, Show s, Show t, Show u) =>
+	Parser p s t -> ParserChain1 p s t u -> Parser p s (t, u)
 (>:\>) first secondChain = first >:\\> \t _ -> secondChain t
 infixl 3 >:\>
 
 -- "And": parse with the first, then the second, and return the result targets as a pair.
-(>:>) :: (Show t, Show u) => Parser t -> Parser u -> Parser (t, u)
+(>:>) :: (Semigroup p, Show p, State p s, Show s, Show t, Show u) =>
+	Parser p s t -> Parser p s u -> Parser p s (t, u)
 (>:>) first second = first.name ++ " and " ++ second.name @>
 	andParse first \_ _ -> second
 infixl 3 >:>
 
 -- "Filter 2": filter out unwanted results by turning them to Nothing; transform successes if desired
-(>-\\>) :: Show t => Parser t -> (t -> Text -> Fallible u) -> Parser u
+(>-\\>) :: (Show p, State p s, Show s, Show t) =>
+	Parser p s t -> (t -> p -> Fallible u) -> Parser p s u
 (>-\\>) parser transform = parser.name ++ " filtered" @> \state -> do
 	parses <- parser <<< state
 	let applyFilter parse = do
@@ -352,25 +303,29 @@ infixl 3 >:>
 infixl 2 >-\\>
 
 -- "Filter 1": filter out unwanted results by turning them to Nothing; transform successes if desired
-(>-\>) :: Show t => Parser t -> (t -> Fallible u) -> Parser u
+(>-\>) :: (Show p, State p s, Show s, Show t) =>
+	Parser p s t -> (t -> Fallible u) -> Parser p s u
 (>-\>) parser transform = parser >-\\> \t _ -> transform t
 infixl 2 >-\>
 
 -- "Or": combine the results of two parsers, i.e., parse using either parser
-(>|>) :: Show t => Parser t -> Parser t -> Parser t
+(>|>) :: (Show p, State p s, Show s, Show t) =>
+	Parser p s t -> Parser p s t -> Parser p s t
 (>|>) parser1 parser2 = 
 	parser1.name ++ " or " ++ parser2.name @>
 		orParse parser1 parser2
 infixl 1 >|>
 
 -- "Tee 2": use the first parser, then chain to the next, BUT accept results from the first alone AND the chain.
-(>^\\>) :: Show t => Parser t -> ParserChain2 t t -> Parser t
+(>^\\>) :: (Semigroup p, Show p, State p s, Show s, Show t) => 
+	Parser p s t -> ParserChain2 p s t t -> Parser p s t
 (>^\\>) start continueChain = start.name ++ " teed to ?" @>
 	teeParse start continueChain
 infixl 2 >^\\>
 
 -- "Tee 1"
-(>^\>) :: Show t => Parser t -> ParserChain1 t t -> Parser t
+(>^\>) :: (Semigroup p, Show p, State p s, Show s, Show t) =>
+	Parser p s t -> ParserChain1 p s t t -> Parser p s t
 (>^\>) start continueChain = start >^\\> \t _ -> continueChain t
 infixl 2 >^\>
 
@@ -378,12 +333,12 @@ infixl 2 >^\>
 
 -- "Fmap 2": map the given function to each Parse using its target and parsed Text
 -- This is equivalent to (>\>) except that it passes the parsed Text in addition to the target
-(>\\>) :: Parser t -> (t -> Text -> u) -> Parser u
+(>\\>) :: Parser p s t -> (t -> p -> u) -> Parser p s u
 (>\\>) parser f = parser{ run = fmap (mapParsesTargets f) . parser.run }
 infixl 2 >\\>
 
 -- "Fmap 1": map the given function to each Parse using its target
 -- This is equivalent to (>\\>) excep that it does not pass the parsed Text
-(>\>) :: Parser t -> (t -> u) -> Parser u
+(>\>) :: Parser p s t -> (t -> u) -> Parser p s u
 (>\>) parser targetMapper = parser >\\> \target _ -> targetMapper target
 infixl 2 >\>

@@ -8,7 +8,7 @@ import Utils.Lists (wrap)
 import Beng.Errors (Fallible, parseError)
 import Beng.Parse.Matches (Match)
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers (Parser, ParseRunner, PrefixState(..), SpaceState(..), State(..), (@>), (@+>), (>|>), (>:>), (>\>), parseAll, takeAs)
+import Beng.Parse.Parsers.Code (Parser, ParseRunner, PrefixState(..), SpaceState(..), State(..), (@>), (@+>), (>|>), (>:>), (>\>), parseAll, takeAs)
 
 import Data.Char (isAlphaNum, isSpace)
 import Data.Text.Lazy (pack)

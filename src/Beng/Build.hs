@@ -21,7 +21,8 @@ import qualified Beng.Build.Context.Builtin as Builtin
 import qualified Beng.Build.Ops as Op
 import Beng.Types.Build.Context (Context)
 import Beng.Errors (printError)
-import Beng.Parse.Parsers ((@+>), (<<<), (>:>), (>\>), Parse(..), Parses(..), State(..), fileStartState, parseWhile)
+import qualified Beng.Parse.Parsers.Code as Parser
+import Beng.Parse.Parsers.Code ((@+>), (<<<), (>:>), (>\>), State(..), fileStartState, parseWhile, target)
 import qualified Beng.Parse.Patterns.Space as Space
 import Beng.Types.Ops (Op)
 
@@ -47,7 +48,7 @@ buildCodeUsing context filePath code = do
 	let parser = "build code in " ++ filePath @+>
 		parseWhile "text remains" hasText (Space.parse >:> Op.build filePath >\> snd)
 
-	Parses{parses} <- mapError printError (parser <<< initialState)
+	parses <- fmap Parser.parses $ mapError printError (parser <<< initialState)
 
 	let opsLists :: Populace [Op] = P.map target parses
 	let assertOpsPresent = flip P.assert "Is it just me or is there no code in here?"

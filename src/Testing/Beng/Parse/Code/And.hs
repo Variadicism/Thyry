@@ -1,4 +1,4 @@
-module Testing.Beng.Parse.And (
+module Testing.Beng.Parse.Code.And (
 	testAnd
 ) where
 
@@ -14,7 +14,7 @@ import Testing.Beng.Utils.Parsers ((!>>>), MockParser, assertState)
 import Beng.Build.Context.Builders (l, s, patConcat)
 import Beng.Parse.Matches (Match)
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers ((>\>), Parse(..), SpaceState(..))
+import Beng.Parse.Parsers.Code ((>\>), Parse, SpaceState(..), target)
 import qualified Beng.Parse.Patterns as Pattern
 import Beng.Types.Parse.Patterns (Pattern)
 

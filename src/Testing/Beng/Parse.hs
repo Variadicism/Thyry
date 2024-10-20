@@ -2,19 +2,7 @@ module Main where
 
 import Utils.Testing
 
-import Testing.Beng.Parse.And (testAnd)
-import Testing.Beng.Parse.CharClass (testCharClass)
-import Testing.Beng.Parse.Delimited (testDelimited)
-import Testing.Beng.Parse.Literal (testLiteral)
-import Testing.Beng.Parse.NamedText (testNamedText)
-import Testing.Beng.Parse.Or (testOr)
-import Testing.Beng.Parse.Space (testSpace)
+import Testing.Beng.Parse.Code (testCode)
 
-main = test $ TestCategories "parsing Patterns" [
-	testLiteral,
-	testCharClass,
-	testSpace,
-	testNamedText,
-	testOr,
-	testAnd,
-	testDelimited ]
+main = test $ TestCategories "parsing code" [
+	testCode ]

@@ -9,7 +9,7 @@ import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Parse.Matches (Match)
 import qualified Beng.Types.Parse.Matches as Match
 import qualified Beng.Types.Parse.Patterns as Pattern
-import Beng.Parse.Parsers ((>:>), (>\>), (@+>), Parser, parseAll)
+import Beng.Parse.Parsers.Code ((>:>), (>\>), (@+>), Parser, parseAll)
 import Beng.Types.Parse.Patterns (Pattern)
 
 -- exported

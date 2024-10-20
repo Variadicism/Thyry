@@ -10,7 +10,7 @@ import qualified Utils.Populace.Populace2 as P2
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Types.Parse.Matches (Match)
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers (Parser, (@+>), (>\>), parseAny)
+import Beng.Parse.Parsers.Code (Parser, (@+>), (>\>), parseAny)
 import Beng.Types.Parse.Patterns (Pattern)
 
 import qualified Data.Map.Ordered as OMap

@@ -12,7 +12,7 @@ import Beng.Build.Context (pushCard)
 import {-# SOURCE #-} qualified Beng.Build.Ops as Op
 import Beng.Errors (parseError)
 import Beng.Parse.Matches (Match(Argument, decLoc, name, argType, argValue), Parameter(..))
-import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/\>), Parser, PrefixState(..), State(..), takeAs)
+import Beng.Parse.Parsers.Code ((@>), (>>>), (>\>), (>/\>), Parser, PrefixState(..), State(..), takeAs)
 import Beng.Types.Locations (Location)
 import qualified Beng.Types.Locations as Location
 import Beng.Types.Ops.Declarations (Declaration(..))

@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name: BengI
-version: 0.15.1.1
+version: 0.15.1.2
 synopsis: This is the interpreter for the Beng programming language.
 -- description:
 license: Artistic-2.0
@@ -29,8 +29,10 @@ common options
     DuplicateRecordFields,
     ExistentialQuantification,
     FlexibleInstances,
+    FunctionalDependencies,
     LambdaCase,
     LiberalTypeSynonyms,
+    MultiParamTypeClasses,
     NamedFieldPuns,
     OverloadedRecordDot,
     -- OverloadedRecordUpdate,
@@ -73,6 +75,7 @@ common options
     Beng.Parse.Patterns.Space
     Beng.Parse.Matches
     Beng.Parse.Parsers
+    Beng.Parse.Parsers.Code
     Beng.Types.Build.Cards
     Beng.Types.Build.Context
     Beng.Types.Errors
@@ -82,6 +85,7 @@ common options
     Beng.Types.Ops.Definitions
     Beng.Types.Parse.Matches
     Beng.Types.Parse.Parsers
+    Beng.Types.Parse.Parsers.Code
     Beng.Types.Parse.Patterns
     Beng.Types.Values
     Beng.Run
@@ -96,13 +100,14 @@ test-suite parse-test
   type: exitcode-stdio-1.0
   main-is: Testing/Beng/Parse.hs
   other-modules:
-    Testing.Beng.Parse.And
-    Testing.Beng.Parse.CharClass
-    Testing.Beng.Parse.Delimited
-    Testing.Beng.Parse.Literal
-    Testing.Beng.Parse.NamedText
-    Testing.Beng.Parse.Or
-    Testing.Beng.Parse.Space
+    Testing.Beng.Parse.Code
+    Testing.Beng.Parse.Code.And
+    Testing.Beng.Parse.Code.CharClass
+    Testing.Beng.Parse.Code.Delimited
+    Testing.Beng.Parse.Code.Literal
+    Testing.Beng.Parse.Code.NamedText
+    Testing.Beng.Parse.Code.Or
+    Testing.Beng.Parse.Code.Space
     Testing.Beng.Utils.Mocks
     Testing.Beng.Utils.Ops
     Testing.Beng.Utils.Parsers

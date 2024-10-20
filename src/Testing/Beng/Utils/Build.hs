@@ -9,7 +9,7 @@ import Testing.Beng.Utils.Parsers ((!>>>), MockParser)
 import qualified Beng.Build.Ops as Op
 import Beng.Types.Build.Context (Context)
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers (Parse(..))
+import Beng.Parse.Parsers.Code (Parse, target)
 import Beng.Types.Ops (Op)
 import qualified Beng.Types.Ops as Op
 

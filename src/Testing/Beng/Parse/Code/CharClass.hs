@@ -1,4 +1,4 @@
-module Testing.Beng.Parse.CharClass (
+module Testing.Beng.Parse.Code.CharClass (
 	testCharClass
 ) where
 
@@ -11,7 +11,7 @@ import Testing.Beng.Utils.Mocks (mockNothing)
 import Testing.Beng.Utils.Parsers ((!>>>), assertState)
 
 import Beng.Build.Context.Builders (cr, cr2)
-import Beng.Parse.Parsers ((>\>), Parse(..), SpaceState(..))
+import Beng.Parse.Parsers.Code ((>\>), Parse, SpaceState(..))
 import qualified Beng.Parse.Patterns.CharClass as CharClass
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Parse.Patterns (CharRange)

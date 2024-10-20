@@ -3,7 +3,7 @@ module Beng.Parse.Patterns where
 import Utils.Messaging (Messagable)
 
 import Beng.Types.Parse.Matches (Match)
-import Beng.Types.Parse.Parsers (Parser)
+import Beng.Types.Parse.Parsers.Code (Parser)
 import Beng.Types.Parse.Patterns (CharRange, Parameter, Pattern)
 
 import Data.Map.Ordered (OMap)

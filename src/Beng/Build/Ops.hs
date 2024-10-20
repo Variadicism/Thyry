@@ -9,7 +9,7 @@ import Beng.Build.Context (Context(..), comparePrecedence)
 import Beng.Build.Cards (Card, declaration)
 import Beng.Errors (parseError)
 import Beng.Ops.Declarations (Associativity(..), canHavePrefix, mustHavePrefix)
-import Beng.Parse.Parsers ((>>>), (@>), (@+>), (>/>), (>/\>), (>^\>), (>\>), Parser, PrefixState(..), State(..), parseAny)
+import Beng.Parse.Parsers.Code ((>>>), (@>), (@+>), (>/>), (>/\>), (>^\>), (>\>), Parser, PrefixState(..), State(..), parseAny)
 import qualified Beng.Parse.Patterns as Pattern
 import Beng.Ops (Op(..), hasSuffix)
 import Beng.Ops.Declarations (Declaration(..))

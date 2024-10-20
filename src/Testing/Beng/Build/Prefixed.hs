@@ -13,7 +13,7 @@ import Testing.Beng.Utils.Ops ()
 import Testing.Beng.Utils.Parsers (assertRest)
 
 import Beng.Ops (Op)
-import Beng.Parse.Parsers (Parse(..))
+import Beng.Parse.Parsers.Code (Parse, target)
 
 import Data.Text.Lazy (Text)
 

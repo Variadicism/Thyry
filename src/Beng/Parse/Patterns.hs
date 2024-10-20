@@ -30,7 +30,7 @@ import qualified Beng.Parse.Patterns.Or as Or
 import qualified Beng.Parse.Patterns.Space as Space
 import Beng.Types.Parse.Patterns (CharRange(..), Parameter(..), Pattern(..))
 import Beng.Parse.Matches (Match)
-import Beng.Parse.Parsers (Parser)
+import Beng.Parse.Parsers.Code (Parser)
 import Beng.Types.Locations (Location)
 import Beng.Types.Values (Type(..))
 

@@ -1,63 +1,32 @@
 module Beng.Types.Parse.Parsers (
+	Parse(..),
 	Parses(..),
 	ParseRunner,
 	Parser(..),
-	PrefixState(..),
-	SpaceState(..),
-	State(..),
-	Parse(..),
+	State(..)
 ) where
 
 import Utils.Populace (Populace)
 
-import Beng.Types.Build.Cards (Card)
-import Beng.Types.Build.Context (Context)
-import Beng.Types.Locations (FileLocation)
-import Beng.Types.Ops (Op)
-import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Errors (Error, Fallible)
 
-import Data.Map as Map
-import Data.Text.Lazy (Text)
+data Parse p s t = Parse {
+	parsed :: p,
+	state :: s,
+	target :: t }
 
-data Parses t = Parses {
-	parses :: Populace (Parse t),
+data Parses p s t = Parses {
+	parses :: Populace (Parse p s t),
 	bestError :: Maybe Error }
 
-type ParseRunner t = State -> Fallible (Parses t)
+type ParseRunner p s t = s -> Fallible (Parses p s t)
 
-data Parser t = Parser {
+data Parser p s t = Parser {
 	name :: String,
-	run :: ParseRunner t }
+	run :: ParseRunner p s t }
 
-{- When parsing ops, prefixed ops need to be parsed first.
-   They can then be used as first arguments for non-prefixed ops.
-   The PrefixStates are used for, respectively...
-   - parsing a prefixed op's prefix
-   - parsing any op after the prefix or first argument is captured
-   - parsing a non-prefixed op's first argument -}
-data PrefixState = Needed | Unneeded | AvoidingFor { firstArg :: Op }
-
-{- The Space Pattern does more than parse whitespace; it can also accept word boundaries.
-   So, the parser needs to keep track of whether the last character parsed is, respectively,...
-   - a word character (requiring a non-word character next)
-   - a whitespace character (satisfying the parse already), or
-   - a non-word non-space character (requiring a word character next).  -}
-data SpaceState = Word | Space | Punctuation
-	deriving (Eq, Show)
-
-data State = State {
-	location :: FileLocation,
-	context :: Context,
-	parent :: Maybe Card,  -- TODO: turn into a stack of op arguments for debugging
-	maxPrecedence :: Maybe Card,
-	arguments :: Map String Match.Parameter,
-	indentation :: Int,
-	prefixState :: PrefixState,
-	spaceState :: SpaceState,
-	rest :: Text }
-
-data Parse t = Parse {
-	state :: State,
-	parsed :: Text,
-	target :: t }
+class State p s | s -> p where
+	rest :: s -> p
+	indentation :: s -> Int
+	indent :: s -> s
+	outdent :: s -> s
