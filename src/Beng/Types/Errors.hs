@@ -9,9 +9,9 @@ import Utils.Fallible (FallibleI)
 import Utils.Fallible.Trans (IOFallibleI)
 import Utils.Populace (Populace)
 
+import Beng.Types.Locations (FileLocation, Location)
 import Beng.Types.Ops (Op)
 import {-# SOURCE #-} Beng.Types.Ops.Declarations (Declaration)
-import Beng.Types.Locations (FileLocation, Location)
 
 data Error =
 	-- TODO: callStack :: [(String, Location, Op)]
@@ -23,7 +23,7 @@ data Error =
 	{- TypeError {
 		context :: String,
 		expected :: Type,
-		considerations :: Populace (Parse Op) } | -}
+		considerations :: PatternComparator.Parses } | -}
 	ParseError {
 		details :: Populace ParseErrorDetails,
 		fileLocation :: FileLocation }

@@ -1,15 +1,21 @@
 module Beng.Parse.Patterns.NamedText (
 	canBeEmpty,
-	parse
+	parse,
+	compareFrom
 ) where
 
+import Utils.Fallible
 import Utils.Lists (wrap)
+import qualified Utils.Populace as P
 
-import Beng.Parse.Parsers.Code ((@+>), (>\>), (>/\>), Parser, State(..))
+import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>\>), (>/\>))
+import qualified Beng.Parse.Parsers.Code as Code
+import qualified Beng.Parse.Parsers.PatternComparator as PC
+import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import qualified Beng.Parse.Matches as Match
 import Beng.Types.Parse.Matches (Match)
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
-import Beng.Types.Parse.Patterns (Pattern(..))
+import Beng.Types.Parse.Patterns (Mismatch(..), Pattern(..)) 
 import Beng.Types.Locations (Location)
 import Beng.Types.Values (Type(NativeStringType), Value(NativeStringValue))
 
@@ -27,11 +33,19 @@ canBeEmpty = \case
 	Delimited{delimitend} -> canBeEmpty delimitend
 	Argument{} -> False
 
-parse :: String -> Pattern -> Location -> Parser Match
+parse :: String -> Pattern -> Location -> Code.Parser Match
 parse name subpattern decLoc = "named text " ++ wrap "\"" name @+>
 	Pattern.parse subpattern >/\> (\s match -> do
 		let parameter = Match.Parameter {
 			decLoc, name, paramType = NativeStringType,
 			value = NativeStringValue $ Match.toCode match }
-		s{ arguments = Map.insert name parameter s.arguments }) >\> \match ->
+		s{ Code.arguments = Map.insert name parameter s.arguments }) >\> \match ->
 	Match.NamedText { decLoc, name, match }
+
+compareFrom :: String -> Pattern -> Location -> PatternComparator.Parser
+compareFrom name subpattern decLoc = "named text " ++ wrap "\"" name ++ " comparator" @> \state -> do
+	let self = NamedText { name, subpattern, decLoc }
+	case state.rest.super of
+		nt@NamedText{}:_ | nt.name == name -> state >>> PatternComparator.compareFrom nt.subpattern
+		[] -> Error $ LeftoverSub $ P.assume state.rest.sub -- Sub must begin with this NamedText.
+		next:rest -> Error $ Mismatch self $ P.Populace next rest

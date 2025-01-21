@@ -4,7 +4,6 @@ module Beng.Build.Context.Builtin (
 
 import Prelude hiding (subtract)
 
-import qualified Utils.Populace as P
 import qualified Utils.Populace.Populace2 as P2
 
 import Beng.Build.Context (Context(..), PrecedenceBound(..))
@@ -66,7 +65,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 	IntType -> define None
 		[l "an int"]
 		TypeType
-		(\_ -> return $ TypeValue (P.singleton intType) [])
+		(\_ -> return $ TypeValue intType)
 		location
 	Ints -> define None
 		[t "Integer" $ multi $ c [cr '0' '9']]
@@ -79,7 +78,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 	BitType -> define None
 		[l "a bit"]
 		TypeType
-		(\_ -> return $ TypeValue (P.singleton $ BitsType 1) [])
+		(\_ -> return $ TypeValue $ BitsType 1)
 		location
 	Yes -> define None
 		[l "yes"]

@@ -7,15 +7,18 @@ module Beng.Build.Context (
 	showPrecedence,
 	pushCard,
 	pushDec,
-	pushDef
+	pushDef,
+	has
 ) where
 
+import Utils.Fallible hiding (fromMaybe)
 import Utils.Lists (insertAt, updateAt)
 
 import Beng.Build.Cards (Card(..))
-import Beng.Types.Build.Context (Context(..), PrecedenceBound(..))
-import Beng.Ops.Declarations (Declaration(..))
+import Beng.Ops.Declarations (Declaration(..), satisfies)
 import Beng.Ops.Definitions (Definition(..))
+import Beng.Types.Build.Context (Context(..), PrecedenceBound(..))
+import qualified Beng.Types.Ops.Declarations as Declaration
 
 import Data.List (findIndex, intercalate)
 import Data.Maybe (fromMaybe, isJust)
@@ -44,6 +47,8 @@ findPrecedence :: Context -> Card -> Maybe Int
 findPrecedence context card = findPrecedenceWith (==card) context
 
 -- instances
+
+deriving instance Eq Context
 
 instance Show Context where
 	show context@Context{..} = intercalate ", " $ map showDec deck
@@ -121,3 +126,7 @@ pushDec declaration = pushCard (DecCard declaration)
 
 pushDef :: Definition -> (Context -> Context)
 pushDef definition = pushCard (DefCard definition)
+
+has :: Context -> Declaration -> FallibleI Declaration.Mismatch ()
+has context dec = fmap (const ()) $ sequenceAny $
+	map (\card -> (context, card.declaration) `satisfies` dec) context.deck

@@ -1,20 +1,31 @@
 module Beng.Types.Ops.Declarations (
+	Mismatch(..),
 	ArgContextBuilder,
 	Associativity(..),
 	Declaration(..)
 ) where
 
+import Utils.Populace (Populace)
+
+import {-# SOURCE #-} Beng.Parse.Patterns ()
 import Beng.Types.Build.Cards (Card)
 import Beng.Types.Build.Context (PrecedenceBound)
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Parse.Patterns (Pattern)
+import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Types.Errors (Fallible)
 import Beng.Types.Locations (Location)
 import {-# SOURCE #-} Beng.Types.Values (Type)
+import {-# SOURCE #-} qualified Beng.Types.Values as Type
 
 import Data.Map (Map)
 
 data Associativity = Lefty | Righty
+
+data Mismatch =
+	PatternMismatch { patternMismatch :: Pattern.Mismatch } |
+	ReturnTypeMismatch { typeMismatch :: Type.Mismatch } |
+	CompoundMismatch { context :: String, compound :: Populace Mismatch }
 
 type ArgContextBuilder =
 	String  -- ^ The name of the argument for which context is needed.

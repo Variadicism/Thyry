@@ -3,7 +3,9 @@ module Beng.Errors (
 	Fallible,
 	parseError,
 	getLocation,
-	printError
+	printError,
+	compoundErrorsUsing,
+	showCompoundErrorsUsing
 ) where
 
 import Utils.Collective (intercalate)
@@ -114,6 +116,9 @@ parseError state message = ParseError {
 	details = P.singleton $ ParseErrorMessage message,
 	fileLocation = state.location }
 
+{- typeError :: Type -> PatternComparator.Parses -> Error
+typeError expected parses = TypeError { context = "", expected, parses } -}
+
 getLocation :: Error -> Location
 getLocation = \case
 	ParseError{fileLocation} -> Location.Code fileLocation
@@ -124,3 +129,21 @@ printError error =
 	tColor [Reset, LightGray] (msg error.location ++ ",\n") ++
 	tColor [Red] (printErrorBody error)
 	-- TODO: add the line of code with the error column highlighted
+
+compoundErrorsUsing :: Ord e => (e -> Maybe (String, Populace e)) -> (String -> Populace e -> e) -> e -> e -> e
+compoundErrorsUsing getCompound makeCompound e1 e2 = case compare e1 e2 of
+	EQ -> case (getCompound e1, getCompound e2) of
+		(Just (context1, compound1), Just (context2, compound2)) -> 
+			makeCompound (context1 ++ " & " ++ context2) $
+				P.Populace compound1.head $ compound1.tail ++ compound2.l
+		_ -> -- Don't apply one compound's context to both; remember: it doesn't apply to the new error.
+			makeCompound "" $ P.Populace e1 [e2]
+	LT -> e1
+	GT -> e2
+
+showCompoundErrorsUsing :: (e -> String) -> String -> Populace e -> String
+showCompoundErrorsUsing showE context compound =
+	context ++ (case compound.tail of
+		[] -> showE compound.head
+		errors -> "there were " ++ show (length errors) ++ " equally relevant errors:\n" ++
+			intercalate "\n" (map showE errors))

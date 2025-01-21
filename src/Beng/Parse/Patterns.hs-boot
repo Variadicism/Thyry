@@ -1,12 +1,24 @@
 module Beng.Parse.Patterns where
 
+import Utils.Fallible (FallibleI, IsError)
 import Utils.Messaging (Messagable)
 
+import Beng.Types.Build.Context (Context)
 import Beng.Types.Parse.Matches (Match)
 import Beng.Types.Parse.Parsers.Code (Parser)
-import Beng.Types.Parse.Patterns (CharRange, Parameter, Pattern)
+import Beng.Types.Parse.Patterns (CharRange, Mismatch, Parameter, Pattern)
 
 import Data.Map.Ordered (OMap)
+
+instance Eq Mismatch
+
+instance Show Mismatch
+
+instance Messagable Mismatch
+
+instance Ord Mismatch
+
+instance IsError Mismatch
 
 instance Eq CharRange
 
@@ -30,6 +42,8 @@ parse :: Pattern -> Parser Match
 
 getArgs :: Pattern -> OMap String Parameter
 
+getRequiredArgs :: Pattern -> OMap String Parameter
+
 hasArgs :: Pattern -> Bool
 
 canHavePrefix :: Pattern -> Bool
@@ -39,3 +53,7 @@ canHaveSuffix :: Pattern -> Bool
 mustHavePrefix :: Pattern -> Bool
 
 mustHaveSuffix :: Pattern -> Bool
+
+isOptional :: Pattern -> Bool
+
+satisfies :: (Context, Pattern) -> Pattern -> FallibleI Mismatch ()

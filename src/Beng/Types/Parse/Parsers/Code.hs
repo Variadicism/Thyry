@@ -13,6 +13,7 @@ module Beng.Types.Parse.Parsers.Code (
 
 import Beng.Types.Build.Cards (Card)
 import Beng.Types.Build.Context (Context)
+import Beng.Types.Errors (Error)
 import Beng.Types.Locations (FileLocation)
 import Beng.Types.Ops (Op)
 import qualified Beng.Types.Parse.Matches as Match
@@ -51,8 +52,8 @@ data State = State {
 
 type Parse t = General.Parse Text State t
 
-type Parses t = General.Parses Text State t
+type Parses t = General.Parses Error Text State t
 
-type ParseRunner t = General.ParseRunner Text State t
+type ParseRunner t = General.ParseRunner Error Text State t
 
-type Parser t = General.Parser Text State t
+type Parser t = General.Parser Error Text State t

@@ -1,4 +1,5 @@
 module Beng.Types.Parse.Patterns (
+	Mismatch(..),
 	CharRange(..),
 	Parameter(..),
 	Pattern(..)
@@ -11,6 +12,14 @@ import Beng.Types.Locations (Location)
 import {-# SOURCE #-} Beng.Types.Values (Type)
 
 import Data.Text.Lazy (Text)
+
+data Mismatch =
+	-- \/ closest to success
+	LeftoverSuper { leftover :: Populace Pattern } |
+	LeftoverSub { leftover :: Populace Pattern } |
+	Mismatch { nextSub :: Pattern, remainingSuper :: Populace Pattern } |
+	-- /\ furthest from success
+	CompoundMismatch { context :: String, compound :: Populace Mismatch }
 
 -- I could implement this with Haskell ranges, but I want to Show them nicely.
 data CharRange = CharRange { start :: Char, end :: Char }

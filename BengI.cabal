@@ -76,6 +76,7 @@ common options
     Beng.Parse.Matches
     Beng.Parse.Parsers
     Beng.Parse.Parsers.Code
+    Beng.Parse.Parsers.PatternComparator
     Beng.Types.Build.Cards
     Beng.Types.Build.Context
     Beng.Types.Errors
@@ -87,6 +88,7 @@ common options
     Beng.Types.Parse.Parsers
     Beng.Types.Parse.Parsers.Code
     Beng.Types.Parse.Patterns
+    Beng.Types.Parse.Parsers.PatternComparator
     Beng.Types.Values
     Beng.Run
     Beng.Values

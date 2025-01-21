@@ -6,24 +6,23 @@ module Beng.Types.Parse.Parsers (
 	State(..)
 ) where
 
+import Utils.Fallible (FallibleI)
 import Utils.Populace (Populace)
-
-import Beng.Types.Errors (Error, Fallible)
 
 data Parse p s t = Parse {
 	parsed :: p,
 	state :: s,
 	target :: t }
 
-data Parses p s t = Parses {
+data Parses e p s t = Parses {
 	parses :: Populace (Parse p s t),
-	bestError :: Maybe Error }
+	bestError :: Maybe e }
 
-type ParseRunner p s t = s -> Fallible (Parses p s t)
+type ParseRunner e p s t = s -> FallibleI e (Parses e p s t)
 
-data Parser p s t = Parser {
+data Parser e p s t = Parser {
 	name :: String,
-	run :: ParseRunner p s t }
+	run :: ParseRunner e p s t }
 
 class State p s | s -> p where
 	rest :: s -> p
