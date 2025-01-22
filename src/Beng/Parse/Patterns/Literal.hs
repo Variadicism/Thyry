@@ -37,11 +37,16 @@ compareFrom literal = show literal ++ " comparator" @> \state -> case state.rest
 		let self = Literal literal
 		let superP = P.Populace next superLeft
 		case next of
-			Literal nextLiteral | nextLiteral `Text.isPrefixOf` literal ->
-				if literal == nextLiteral then
-					PC.accept [next] state
-				else do
-					let remainingText = T.dropPrefix nextLiteral literal
-					PC.accept [next] state{ PC.rest = state.rest{
-						PC.super = [self, Literal remainingText] ++ superLeft }}
+			Literal superLiteral | superLiteral == literal -> PC.accept [next] state
+			Literal superLiteral | literal `Text.isPrefixOf` superLiteral -> do
+				let remainingSuper = T.dropPrefix literal superLiteral 
+				let stateWithLiteralsSplit = state{ PC.rest = state.rest{
+					PC.super = Literal literal : Literal remainingSuper : superLeft }}
+				PC.accept [Literal literal] stateWithLiteralsSplit
+			Literal superLiteral | superLiteral `Text.isPrefixOf` literal -> do
+				let remainingSub = T.dropPrefix superLiteral literal
+				let stateWithLiteralsSplit = state{ PC.rest = state.rest{
+					-- `tail` is safe because sub must start with the pattern being parsed.
+					PC.sub = next : Literal remainingSub : tail state.rest.sub }}
+				PC.accept [next] stateWithLiteralsSplit
 			_ -> Error $ Mismatch self superP

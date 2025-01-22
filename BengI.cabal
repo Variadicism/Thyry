@@ -122,11 +122,12 @@ test-suite build-test
     Testing.Beng.Build.Code
     Testing.Beng.Build.NonPrefixed
     Testing.Beng.Build.Prefixed
-    -- Testing.Beng.Build.Scoped
     Testing.Beng.Utils.Build
     Testing.Beng.Utils.Mocks
     Testing.Beng.Utils.Ops
     Testing.Beng.Utils.Parsers
+    Testing.Beng.Build.Validate
+    Testing.Beng.Build.Validate.PatternComparator
 
 test-suite run-test
   import: options
