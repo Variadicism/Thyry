@@ -37,4 +37,5 @@ parse subpatterns =
 compareFrom :: Populace2 Pattern -> PatternComparator.Parser
 compareFrom subpatterns =
 	show (length subpatterns) ++ " pattern comparator" @> \state ->
+		-- We don't have to compare anything; And patterns should just be divided into their subpatterns.
 		state{ PC.rest = state.rest{ PC.sub = subpatterns.l ++ tail state.rest.sub }} >>> comparator
