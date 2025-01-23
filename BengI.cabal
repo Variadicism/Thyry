@@ -129,6 +129,7 @@ test-suite build-test
     Testing.Beng.Build.Validate
     Testing.Beng.Build.Validate.PatternComparator
     Testing.Beng.Build.Validate.PatternComparator.And
+    Testing.Beng.Build.Validate.PatternComparator.CharClass
     Testing.Beng.Build.Validate.PatternComparator.Literal
     Testing.Beng.Build.Validate.PatternComparator.Utils
 
