@@ -139,9 +139,7 @@ compareFrom pattern = do
 		Delimited delimiter delimitend -> Delimited.compareFrom delimiter delimitend
 		Argument{..} -> Argument.compareFrom name argType decLoc
 	let canSkip = maybe False isOptional . listToMaybe . sub . rest
-	let passOptionals :: Parser = parseWhile "is optional" canSkip ("skip optional" @>
-		-- We can assume super is not null if canSkip returned true.
-		\s -> accept [head s.rest.super] s)
+	let passOptionals :: Parser = parseWhile "is optional" canSkip ("skip optional" @> accept [])
 	comparatorByPattern >^\> \_ -> passOptionals >:> comparator >\> const ()
 
 comparator :: Parser
