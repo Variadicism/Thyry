@@ -5,6 +5,7 @@ module Testing.Beng.Build.Validate.PatternComparator (
 import Utils.Testing
 
 import Testing.Beng.Build.Validate.PatternComparator.And (testAnd)
+import Testing.Beng.Build.Validate.PatternComparator.Arg (testArg)
 import Testing.Beng.Build.Validate.PatternComparator.CharClass (testCharClass)
 import Testing.Beng.Build.Validate.PatternComparator.Literal (testLiteral)
 
@@ -13,5 +14,6 @@ import Testing.Beng.Build.Validate.PatternComparator.Literal (testLiteral)
 testPatternComparator :: TestCategory
 testPatternComparator = TestCategories "pattern comparator" [
 	testAnd,
+	testArg,
 	testCharClass,
 	testLiteral ]
