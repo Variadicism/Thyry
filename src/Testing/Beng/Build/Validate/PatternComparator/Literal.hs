@@ -9,8 +9,6 @@ import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, ass
 import Beng.Build.Context.Builders (c, cr, l, patConcat)
 import Beng.Types.Parse.Patterns (Pattern(Space))
 
--- private
-
 testLiteral :: TestCategory
 testLiteral = TestCategories "Literal sub" [
 	TestCategories "Literal super" [

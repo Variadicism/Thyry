@@ -9,6 +9,7 @@ import Testing.Beng.Build.Validate.PatternComparator.Arg (testArg)
 import Testing.Beng.Build.Validate.PatternComparator.CharClass (testCharClass)
 import Testing.Beng.Build.Validate.PatternComparator.Delimited (testDelimited)
 import Testing.Beng.Build.Validate.PatternComparator.Literal (testLiteral)
+import Testing.Beng.Build.Validate.PatternComparator.NamedText (testNamedText)
 
 -- private
 
@@ -18,4 +19,5 @@ testPatternComparator = TestCategories "pattern comparator" [
 	testArg,
 	testCharClass,
 	testDelimited,
-	testLiteral ]
+	testLiteral,
+	testNamedText ]

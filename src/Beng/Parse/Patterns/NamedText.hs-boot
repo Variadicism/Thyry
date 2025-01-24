@@ -8,4 +8,4 @@ import Beng.Types.Parse.Patterns (Pattern)
 
 parse :: String -> Pattern -> Location -> Code.Parser Match
 
-compareFrom :: String -> Pattern -> Location -> PatternComparator.Parser
+compareFrom :: String -> Pattern -> PatternComparator.Parser

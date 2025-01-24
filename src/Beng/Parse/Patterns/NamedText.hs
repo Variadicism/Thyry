@@ -42,10 +42,11 @@ parse name subpattern decLoc = "named text " ++ wrap "\"" name @+>
 		s{ Code.arguments = Map.insert name parameter s.arguments }) >\> \match ->
 	Match.NamedText { decLoc, name, match }
 
-compareFrom :: String -> Pattern -> Location -> PatternComparator.Parser
-compareFrom name subpattern decLoc = "named text " ++ wrap "\"" name ++ " comparator" @> \state -> do
-	let self = NamedText { name, subpattern, decLoc }
+compareFrom :: String -> Pattern -> PatternComparator.Parser
+compareFrom name subpattern = "named text " ++ wrap "\"" name ++ " comparator" @> \state ->
 	case state.rest.super of
-		nt@NamedText{}:_ | nt.name == name -> state >>> PatternComparator.compareFrom nt.subpattern
-		[] -> Error $ LeftoverSub $ P.assume state.rest.sub -- Sub must begin with this NamedText.
-		next:rest -> Error $ Mismatch self $ P.Populace next rest
+		nt@NamedText{}:superLeft -> if nt.name == name
+			then state{ PC.rest = state.rest{ PC.super = nt.subpattern:superLeft }} >>>
+				PatternComparator.compareFrom subpattern
+			else Error $ Mismatch nt $ P.Populace nt superLeft
+		_ -> state >>> PatternComparator.compareFrom subpattern

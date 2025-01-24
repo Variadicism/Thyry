@@ -133,21 +133,20 @@ compareFrom pattern = do
 		Space -> Space.compareFrom
 		Literal literal -> Literal.compareFrom literal
 		CharClass{..} -> CharClass.compareFrom ranges negate
-		NamedText{..} -> NamedText.compareFrom name subpattern decLoc
+		NamedText{..} -> NamedText.compareFrom name subpattern
 		And subpatterns -> And.compareFrom subpatterns
 		Or subpatterns -> Or.compareFrom subpatterns
 		Delimited delimiter delimitend -> Delimited.compareFrom delimiter delimitend
 		Argument{..} -> Argument.compareFrom name argType decLoc
 	let canSkip = maybe False isOptional . listToMaybe . sub . rest
 	let passOptionals :: Parser = parseWhile "is optional" canSkip ("skip optional" @> accept [])
-	comparatorByPattern >^\> \_ -> passOptionals >:> comparator >\> const ()
+	(comparatorByPattern >^\> \_ -> passOptionals) >:> comparator >\> const ()
 
 comparator :: Parser
 comparator = do
 	let comparator' ignoreOptional = "pattern comparator" @> \state -> do
 		let swapSuper s newSuper = s{ rest = s.rest{ super = newSuper }}
 		case (state.rest.super, state.rest.sub) of
-			-- TODO: break up And patterns into subpatterns
 			([], []) -> acceptRest state
 			(super@(nextSuper:superLeft), []) ->
 				if all isOptional super
@@ -155,7 +154,13 @@ comparator = do
 					-- `all` returns true for empty lists, so we can assume it's non-empty here.
 					else Error $ LeftoverSuper $ P.Populace nextSuper superLeft
 			(And{..}:superLeft, _) -> swapSuper state (subpatterns.l ++ superLeft) >>> comparator
-			(NamedText{..}:superLeft, _) -> swapSuper state (subpattern:superLeft) >>> comparator
+			-- Compare two NamedTexts normally, but NamedText super vs disparate subs differently
+			(NamedText{}:_, nextSub@NamedText{}:_) -> state >>> compareFrom nextSub
+			(nt@NamedText{..}:superLeft, _) -> do
+				-- Supers don't need to capture all the NamedTexts that the sub does.
+				let unnamingComparator = "unnaming \"" ++ nt.name ++ "\" comparator" @> \state ->
+					swapSuper state (nt.subpattern:superLeft) >>> comparator
+				state >>> (compareFrom nt >|> unnamingComparator)
 			(nextSuper:superLeft, _) | isOptional nextSuper && not ignoreOptional -> do
 				let skipThenCompare = "skipping optional " ++ show nextSuper @> \state ->
 					swapSuper state superLeft >>> comparator
