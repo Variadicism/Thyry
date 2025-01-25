@@ -5,7 +5,6 @@ module Beng.Parse.Parsers.PatternComparator (
 	accept,
 	parseAll,
 	parseWhile,
-	compareFrom,
 	comparator,
 	module Beng.Types.Parse.Parsers.PatternComparator
 ) where
@@ -95,6 +94,24 @@ takeAs = Parser.takeAsUsing takeAs1
 takeAsNull :: Show t => (t -> Parser.ParseRunner Mismatch Comparison State t)
 takeAsNull = takeAs Comparison { sub = [], super = [] }
 
+compareFrom :: Pattern -> Parser
+compareFrom pattern = do
+	let comparatorByPattern = case pattern of
+		-- I am so tired of these big fat case statements.
+		-- Everyone is eager to critique inheritance,
+		-- but at least this stuff comes free with it.
+		Space -> Space.compareFrom
+		Literal literal -> Literal.compareFrom literal
+		CharClass{..} -> CharClass.compareFrom ranges negate
+		NamedText{..} -> NamedText.compareFrom name subpattern
+		And subpatterns -> And.compareFrom subpatterns
+		Or subpatterns -> Or.compareFrom subpatterns
+		Delimited delimiter delimitend -> Delimited.compareFrom delimiter delimitend
+		Argument{..} -> Argument.compareFrom name argType decLoc
+	let canSkip = maybe False isOptional . listToMaybe . sub . rest
+	let passOptionals :: Parser = parseWhile "is optional" canSkip ("skip optional" @> accept [])
+	(comparatorByPattern >^\> \_ -> passOptionals) >:> comparator >\> const ()
+
 -- exported
 
 startState :: Context -> Pattern -> Pattern -> State
@@ -124,28 +141,17 @@ parseWhile :: String -> (State -> Bool) -> Parser -> Parser
 parseWhile desc checker pieceParser =
 	Parser.parseWhileUsing takeAsNull desc checker pieceParser >\> const ()
 
-compareFrom :: Pattern -> Parser
-compareFrom pattern = do
-	let comparatorByPattern = case pattern of
-		-- I am so tired of these big fat case statements.
-		-- Everyone is eager to critique inheritance,
-		-- but at least this stuff comes free with it.
-		Space -> Space.compareFrom
-		Literal literal -> Literal.compareFrom literal
-		CharClass{..} -> CharClass.compareFrom ranges negate
-		NamedText{..} -> NamedText.compareFrom name subpattern
-		And subpatterns -> And.compareFrom subpatterns
-		Or subpatterns -> Or.compareFrom subpatterns
-		Delimited delimiter delimitend -> Delimited.compareFrom delimiter delimitend
-		Argument{..} -> Argument.compareFrom name argType decLoc
-	let canSkip = maybe False isOptional . listToMaybe . sub . rest
-	let passOptionals :: Parser = parseWhile "is optional" canSkip ("skip optional" @> accept [])
-	(comparatorByPattern >^\> \_ -> passOptionals) >:> comparator >\> const ()
-
 comparator :: Parser
 comparator = do
 	let comparator' ignoreOptional = "pattern comparator" @> \state -> do
 		let swapSuper s newSuper = s{ rest = s.rest{ super = newSuper }}
+		let isNamedText = \case -- Seriously, is there no better way to do this?!
+			NamedText{} -> True
+			_ -> False
+		let isOr = \case
+			Or{} -> True
+			_ -> False
+
 		case (state.rest.super, state.rest.sub) of
 			([], []) -> acceptRest state
 			(super@(nextSuper:superLeft), []) ->
@@ -154,13 +160,22 @@ comparator = do
 					-- `all` returns true for empty lists, so we can assume it's non-empty here.
 					else Error $ LeftoverSuper $ P.Populace nextSuper superLeft
 			(And{..}:superLeft, _) -> swapSuper state (subpatterns.l ++ superLeft) >>> comparator
-			-- Compare two NamedTexts normally, but NamedText super vs disparate subs differently
-			(NamedText{}:_, nextSub@NamedText{}:_) -> state >>> compareFrom nextSub
-			(nt@NamedText{..}:superLeft, _) -> do
-				-- Supers don't need to capture all the NamedTexts that the sub does.
-				let unnamingComparator = "unnaming \"" ++ nt.name ++ "\" comparator" @> \state ->
-					swapSuper state (nt.subpattern:superLeft) >>> comparator
-				state >>> (compareFrom nt >|> unnamingComparator)
+			(nextSuper@Or{..}:superLeft, sub) | null sub || not (isOr $ head sub) -> do
+				{- Ors in the super position need to be handled as subpatterns, but if this happens before
+					Or.compareFrom, then Or.compareFrom tries to match each of the sub Or's subpatterns to
+					ALL of the super Or's subpatterns when in reality, only ONE of the super Or's subpatterns
+					needs to satisfy each of the sub Or's subpatterns. -}
+				{- TODO: Allow "partial" coverage so that multiple super Or subpatterns can work together to
+					cover the sub. Right now, one super Or subpattern must be able to satisfy the entire sub
+					(or one of the sub's subpatterns if sub is also an Or). -}
+				sequenceAny $ map (\option -> swapSuper state (option:superLeft) >>> comparator) subpatterns.l
+				accept [nextSuper] state
+			(nt@NamedText{..}:superLeft, sub) | null sub || not (isNamedText $ head sub) -> do
+				{- Supers don't need to capture all the NamedTexts that the sub does.
+					But, if both are NamedTexts, they must be compared without "unnaming" because
+					while the super doesn't have to capture the same things, if it does, they need
+					to have the same name. -}
+				swapSuper state (nt.subpattern:superLeft) >>> comparator
 			(nextSuper:superLeft, _) | isOptional nextSuper && not ignoreOptional -> do
 				let skipThenCompare = "skipping optional " ++ show nextSuper @> \state ->
 					swapSuper state superLeft >>> comparator

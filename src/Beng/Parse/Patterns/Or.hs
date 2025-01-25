@@ -3,18 +3,22 @@ module Beng.Parse.Patterns.Or (
 	compareFrom
 ) where
 
+import Utils.Fallible
 import Utils.Lists (removeAt)
 import qualified Utils.Maps.Ordered as OMap
+import qualified Utils.Populace as P
 import Utils.Populace.Populace2 (Populace2)
 import qualified Utils.Populace.Populace2 as P2
 
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Types.Parse.Matches (Match)
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers ((@+>), (>\>), parseAny)
+import Beng.Parse.Parsers ((@>), (@+>), (>\>), parseAny)
+import {-# SOURCE #-} Beng.Parse.Patterns (isOptional, satisfies)
 import qualified Beng.Parse.Parsers.Code as Code
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
-import Beng.Types.Parse.Patterns (Pattern)
+import qualified Beng.Parse.Parsers.PatternComparator as PC
+import Beng.Types.Parse.Patterns (Mismatch(..), Pattern(Or))
 
 import qualified Data.Map.Ordered as OMap
 
@@ -34,5 +38,11 @@ parse subpatterns = show (length subpatterns) ++ " possible patterns" @+>
 				Match.Or { match, matchIndex, misses }
 
 compareFrom :: Populace2 Pattern -> PatternComparator.Parser
-compareFrom subpatterns = show (length subpatterns) ++ " possible pattern comparator" @+>
-	(parseAny $ P2.toP1 $ P2.map PatternComparator.compareFrom subpatterns)
+compareFrom subpatterns = show (length subpatterns) ++ " possible pattern comparator" @> \state ->
+	case state.rest.super of
+		[] -> if any isOptional subpatterns
+			then PC.accept [] state
+			else Error $ LeftoverSub $ P.singleton $ Or subpatterns
+		nextSuper:_ -> do
+			sequence $ P2.map ((state.context, nextSuper) `satisfies`) subpatterns
+			PC.accept [nextSuper] state

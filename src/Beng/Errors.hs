@@ -145,5 +145,5 @@ showCompoundErrorsUsing :: (e -> String) -> String -> Populace e -> String
 showCompoundErrorsUsing showE context compound =
 	context ++ (case compound.tail of
 		[] -> showE compound.head
-		errors -> "there were " ++ show (length errors) ++ " equally relevant errors:\n" ++
-			intercalate "\n" (map showE errors))
+		errors -> "there were " ++ show (length errors + 1) ++ " equally relevant errors:\n" ++
+			intercalate "\n" (map showE compound.l))

@@ -12,9 +12,11 @@ import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>\>), (>/\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import qualified Beng.Parse.Parsers.PatternComparator as PC
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
+import Beng.Parse.Parsers.PatternComparator (comparator)
 import qualified Beng.Parse.Matches as Match
 import Beng.Types.Parse.Matches (Match)
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
+import {-# SOURCE #-} Beng.Parse.Patterns (satisfies)
 import Beng.Types.Parse.Patterns (Mismatch(..), Pattern(..)) 
 import Beng.Types.Locations (Location)
 import Beng.Types.Values (Type(NativeStringType), Value(NativeStringValue))
@@ -45,8 +47,10 @@ parse name subpattern decLoc = "named text " ++ wrap "\"" name @+>
 compareFrom :: String -> Pattern -> PatternComparator.Parser
 compareFrom name subpattern = "named text " ++ wrap "\"" name ++ " comparator" @> \state ->
 	case state.rest.super of
-		nt@NamedText{}:superLeft -> if nt.name == name
-			then state{ PC.rest = state.rest{ PC.super = nt.subpattern:superLeft }} >>>
-				PatternComparator.compareFrom subpattern
-			else Error $ Mismatch nt $ P.Populace nt superLeft
-		_ -> state >>> PatternComparator.compareFrom subpattern
+		nt@NamedText{}:superLeft ->
+			if nt.name == name then do
+				(state.context, nt.subpattern) `satisfies` subpattern
+				PC.accept [nt] state
+			else
+				Error $ Mismatch nt $ P.Populace nt superLeft
+		_ -> state{ PC.rest = state.rest{ PC.sub = subpattern:(tail state.rest.sub) }} >>> comparator
