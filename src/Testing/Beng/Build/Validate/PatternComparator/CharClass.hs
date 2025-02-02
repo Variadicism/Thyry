@@ -7,7 +7,7 @@ import Utils.Testing
 import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, assertDoesNotSatisfy)
 
 import Beng.Build.Context.Builders (c, cr, l)
-import Beng.Types.Parse.Patterns (Pattern(Space))
+import Beng.Types.Parse.Patterns (Pattern(..))
 
 testCharClass :: TestCategory
 testCharClass = TestCategories "CharClass sub" do
@@ -15,6 +15,7 @@ testCharClass = TestCategories "CharClass sub" do
 	let letters = c [cr 'a' 'z', cr 'A' 'Z']
 	let alphaNum = c [cr '0' '9', cr 'a' 'z', cr 'A' 'Z']
 	let splitInts = c [cr '0' '2', cr '3' '9']
+	let words = c [cr 'a' 'z', cr 'A' 'Z', cr ' ' ' ', cr '-' '-']
 	[
 		TestCategories "CharClass super" [
 			PureTests "satisfies" [
@@ -28,5 +29,8 @@ testCharClass = TestCategories "CharClass sub" do
 		PureTests "Literal super" [
 			("satisfies", ints `assertSatisfies` l "0"),
 			("err does not satisfy", ints `assertDoesNotSatisfy` l "f") ],
+		PureTests "Space super" [
+			("satisfies", Space `assertSatisfies` words),
+			("err does not satisfy", Space `assertDoesNotSatisfy` alphaNum) ],
 		PureTests "disparate" [
-			("Space", ints `assertDoesNotSatisfy` Space) ]]
+			("Delimited", ints `assertDoesNotSatisfy` Delimited (l "P") (l ",")) ]]

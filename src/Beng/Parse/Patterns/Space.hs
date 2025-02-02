@@ -6,7 +6,6 @@ module Beng.Parse.Patterns.Space (
 import Utils.Fallible hiding (Fallible)
 import Utils.Lists (wrap)
 import qualified Utils.Populace as P
-import qualified Utils.Text as Text
 
 import Beng.Errors (Fallible, parseError)
 import Beng.Parse.Matches (Match)
@@ -14,20 +13,20 @@ import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Parsers ((@>), (@+>), (>|>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
-import qualified Beng.Parse.Patterns.CharClass as CharClass
+import qualified Beng.Parse.Parsers.PatternComparator as PC
 import Beng.Types.Parse.Parsers.Code (PrefixState(..))
 import qualified Beng.Types.Parse.Parsers.Code as SpaceState (SpaceState(..))
 import Beng.Types.Parse.Patterns (Mismatch(..), Pattern(..))
 
 import Data.Char (isAlphaNum, isSpace)
 import Data.Text.Lazy (pack)
-import qualified Data.Text.Lazy as Text
+import qualified Data.Text.Lazy as T
 
 parse :: Code.Parser Match
 parse = "space pattern" @+> parseBoundary >|> parseSpaces where
 	parseBoundary :: Code.Parser Match
 	parseBoundary = "parse word boundary" @> \state ->
-		case Text.uncons state.rest of
+		case T.uncons state.rest of
 			Nothing -> takeBoundary state
 			Just (headChar, _) ->
 				if state.spaceState == SpaceState.Space then
@@ -51,13 +50,13 @@ parse = "space pattern" @+> parseBoundary >|> parseSpaces where
 		parseSpace >:>
 		Code.parseAll parseSpace >\>
 		\(firstSpace, moreSpaces) ->
-			Match.Space $ Text.cons firstSpace $ pack moreSpaces
+			Match.Space $ T.cons firstSpace $ pack moreSpaces
 
 	parseSpace :: Code.Parser Char
 	parseSpace = "parse whitespace" @> \state ->
-		case Text.uncons state.rest of
+		case T.uncons state.rest of
 			Just (headChar, _) | isSpace headChar ->
-				Code.takeAs (Text.singleton headChar) headChar state{ Code.prefixState = Unneeded }
+				Code.takeAs (T.singleton headChar) headChar state{ Code.prefixState = Unneeded }
 			Just (headChar, _) -> Error $ parseError state $
 				"Whitespace was expected where '" ++ [headChar] ++ "' was found!"
 			Nothing -> Error $ parseError state
@@ -66,17 +65,7 @@ parse = "space pattern" @+> parseBoundary >|> parseSpaces where
 compareFrom :: PatternComparator.Parser
 compareFrom = "space comparator" @> \state -> case state.rest.super of
 	[] -> case tail state.rest.sub of  -- If this is called, sub must start with a Space, so tail is safe.
-		[] -> PatternComparator.accept [] state
-		_ -> Error $ Mismatch Space $ P.assume state.rest.sub  -- length sub >= 2 here
-	nextSuper:restSuper -> do
-		let superP = P.Populace nextSuper restSuper
-		case nextSuper of
-			Literal{literal} -> case Text.maybeHead literal of
-				Just c | isSpace c -> PatternComparator.accept [nextSuper] state
-				_ -> Error $ Mismatch Space superP
-			Space -> PatternComparator.accept [Space] state
-			CharClass{..} ->
-				if CharClass.any isSpace ranges negate
-					then PatternComparator.accept [nextSuper] state
-					else Error $ Mismatch Space superP
-			_ -> Error $ Mismatch Space superP
+		[] -> PC.accept [] state
+		_ -> Error $ Mismatch Space $ P.assume state.rest.sub  -- P.assume is safe b/c length sub >= 2.
+	Space:_ -> PC.accept [Space] state
+	nextSuper:superLeft -> Error $ Mismatch Space $ P.Populace nextSuper superLeft

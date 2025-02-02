@@ -22,5 +22,8 @@ testLiteral = TestCategories "Literal sub" [
 	PureTests "CharClass super" [
 		("satisfies", c [cr 'a' 'b'] `assertSatisfies` l "a"),
 		("does not satisfy", c [cr '0' '9'] `assertDoesNotSatisfy` l "a") ],
+	PureTests "Space super" [
+		("satisfies", patConcat [Space, l "test"] `assertSatisfies` l " test"),
+		("err does not satisfy", patConcat [Space, l "test"] `assertDoesNotSatisfy` l "test") ],
 	PureTests "disparate" [
 		("Space", assertDoesNotSatisfy Space (l "if")) ]]]

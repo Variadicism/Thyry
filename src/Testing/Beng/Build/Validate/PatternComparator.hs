@@ -11,6 +11,7 @@ import Testing.Beng.Build.Validate.PatternComparator.Delimited (testDelimited)
 import Testing.Beng.Build.Validate.PatternComparator.Literal (testLiteral)
 import Testing.Beng.Build.Validate.PatternComparator.NamedText (testNamedText)
 import Testing.Beng.Build.Validate.PatternComparator.Or (testOr)
+import Testing.Beng.Build.Validate.PatternComparator.Space (testSpace)
 
 -- private
 
@@ -22,4 +23,5 @@ testPatternComparator = TestCategories "pattern comparator" [
 	testDelimited,
 	testLiteral,
 	testNamedText,
-	testOr ]
+	testOr,
+	testSpace ]

@@ -16,14 +16,15 @@ import qualified Beng.Parse.Parsers.Code as Code
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import qualified Beng.Parse.Parsers.PatternComparator as PC
 import qualified Beng.Parse.Patterns.CharClass as CC
-import Beng.Types.Parse.Patterns (Mismatch(..), Pattern(CharClass, Literal, negate, ranges))
+import Beng.Types.Parse.Patterns (Mismatch(..), Pattern(CharClass, Literal, Space, negate, ranges))
 
+import Data.Char (isSpace)
 import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as Text
+import qualified Data.Text.Lazy as T
 
 parse :: Text -> Code.Parser Match
 parse literal = "literal " ++ show literal @> \state ->
-	if not $ literal `Text.isPrefixOf` state.rest then
+	if not $ literal `T.isPrefixOf` state.rest then
 		Error $ parseError state $ show literal ++ " was expected next!"
 	else case state.prefixState of
 		AvoidingFor op -> Error $ parseError state $
@@ -33,7 +34,7 @@ parse literal = "literal " ++ show literal @> \state ->
 
 compareFrom :: Text -> PatternComparator.Parser
 compareFrom literal = show literal ++ " comparator" @> \state ->
-	if Text.null literal then
+	if T.null literal then
 		PC.accept [] state
 	else case state.rest.super of
 		[] -> Error $ LeftoverSub $ P.assume state.rest.sub  -- Sub must start with the pattern being parsed.
@@ -44,18 +45,23 @@ compareFrom literal = show literal ++ " comparator" @> \state ->
 			let swapSuper newSuper state = state{ PC.rest = state.rest{ PC.super = newSuper }}
 			case next of
 				Literal superLiteral | superLiteral == literal -> PC.accept [next] state
-				Literal superLiteral | literal `Text.isPrefixOf` superLiteral -> do
+				Literal superLiteral | literal `T.isPrefixOf` superLiteral -> do
 					let remainingSuper = T.dropPrefix literal superLiteral 
 					let splitSuper = Literal literal : Literal remainingSuper : superLeft
 					PC.accept [Literal literal] $ swapSuper splitSuper state
-				Literal superLiteral | superLiteral `Text.isPrefixOf` literal -> do
+				Literal superLiteral | superLiteral `T.isPrefixOf` literal -> do
 					let remainingSub = T.dropPrefix superLiteral literal
 					-- `tail` is safe because sub must start with the pattern being parsed.
 					let splitSub = next : Literal remainingSub : tail state.rest.sub
 					PC.accept [next] $ swapSub splitSub state
-				-- Text.head is safe because null literals are already accounted for at the top.
-				CharClass{..} | CC.has (Text.head literal) ranges negate -> do
+				-- T.head is safe because null literals are already accounted for at the top.
+				CharClass{..} | CC.has (T.head literal) ranges negate -> do
 					-- `tail` is safe because sub must start with the pattern being parsed.
-					let splitSub = next : Literal (Text.tail literal) : tail state.rest.sub
+					let splitSub = next : Literal (T.tail literal) : tail state.rest.sub
+					PC.accept [next] $ swapSub splitSub state
+				Space | maybe False isSpace (T.maybeHead literal) -> do
+					-- `tail` is safe because sub must start with the pattern being parsed.
+					-- TODO: allow the option to accept some but not all spaces prefixing literal.
+					let splitSub = next : Literal (T.dropWhile isSpace literal) : tail state.rest.sub
 					PC.accept [next] $ swapSub splitSub state
 				_ -> Error $ Mismatch self superP

@@ -26,6 +26,7 @@ import qualified Beng.Types.Parse.Matches as Match
 import {-# SOURCE #-} Beng.Parse.Patterns ()
 import Beng.Types.Parse.Patterns (CharRange(..), Mismatch(..), Pattern(..))
 
+import Data.Char (isSpace)
 import Data.List (isPrefixOf, uncons)
 import qualified Data.Text.Lazy as Text
 
@@ -86,4 +87,7 @@ compareFrom ranges negate = showClass ranges negate ++ " comparator" @> \state -
 					("skip empty literal for " ++ showClass ranges negate @> PC.accept [next]) >:>
 					compareFrom ranges negate >\> const ()
 				Literal lit | has (Text.head lit) ranges negate -> PC.accept [next] state
+				Space | any isSpace ranges negate ->
+					-- TODO: optionally accept succeeding patterns with the same Space.
+					PC.accept [next] state
 				_ -> Error $ Mismatch self superP
