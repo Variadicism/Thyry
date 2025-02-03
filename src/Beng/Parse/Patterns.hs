@@ -142,7 +142,7 @@ showPatternWith show = \case
 	NamedText{name,subpattern} -> wrap "\"" name ++ parenthesize (show subpattern)
 	And subpatterns -> concatMap show subpatterns
 	Or subpatterns -> parenthesize $ intercalate "|" $ map show subpatterns.l
-	Delimited delimiter delimitend ->
+	Delimited{..} ->
 		-- TODO: determine if parentheses are necessary based on precedence.
 		parenthesize (show delimitend) ++ "{" ++ show delimiter ++ "}"
 	Argument{name,argType,decLoc} -> showArg name argType decLoc

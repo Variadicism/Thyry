@@ -1,6 +1,8 @@
 module Beng.Values (
 	Type(..),
 	Value(..),
+	one,
+	thing,
 	toCode,
 	undefined,
 	oneIsA
@@ -41,6 +43,9 @@ import Numeric (showHex)
 
 one :: Type
 one = ThingType { name = Just "one", parents = [], properties = const [] }
+
+thing :: Type
+thing = ThingType { name = Just "thing", parents = [], properties = const [] }
 
 -- private
 

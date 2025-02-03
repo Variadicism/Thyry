@@ -12,8 +12,8 @@ import Beng.Parse.Matches (Match)
 import qualified Beng.Types.Parse.Matches as Match
 import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Parse.Parsers ((@>), (@+>), (>:>), (>\>))
-import {-# SOURCE #-} Beng.Parse.Patterns (satisfies)
 import qualified Beng.Parse.Parsers.Code as Code
+import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
 import qualified Beng.Parse.Parsers.PatternComparator as PC
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Types.Parse.Patterns (Mismatch(..), Pattern(..))
@@ -36,7 +36,8 @@ compareFrom delimiter delimitend = show delimitend ++ " by " ++ show delimiter +
 		-- Sub must start with the current pattern, so P.assume is safe.
 		[] -> Error $ LeftoverSub $ P.assume state.rest.sub
 		nextSuper@Delimited{}:_ -> do
-			(state.context, nextSuper.delimitend) `satisfies` delimitend
-			(state.context, nextSuper.delimiter) `satisfies` delimiter
+			sequence $ [
+				(state, nextSuper.delimitend) `internallySatisfies` delimitend,
+				(state, nextSuper.delimiter) `internallySatisfies` delimiter]
 			PC.accept [nextSuper] state
 		nextSuper:superLeft -> Error $ Mismatch self $ P.Populace nextSuper superLeft

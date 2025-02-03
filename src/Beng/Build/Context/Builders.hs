@@ -8,9 +8,11 @@ module Beng.Build.Context.Builders (
 	e,
 	s,
 	l,
+	by,
 	textAt,
 	noContext,
 	multi,
+	optional,
 	patConcat,
 	intType,
 	asOp,
@@ -85,6 +87,8 @@ s = Space
 l :: (Text -> Pattern)
 l = Literal
 
+by delimitend delimiter = Delimited { delimitend, delimiter }
+
 textAt :: Location -> String -> Pattern -> Pattern
 textAt decLoc name subpattern = NamedText { name, subpattern, decLoc }
 
@@ -93,6 +97,9 @@ noContext _ _ _ = Falue []
 
 multi :: (Pattern -> Pattern)
 multi = Delimited e
+
+optional :: Pattern -> Pattern
+optional = Or . P2.dualton e
 
 patConcat :: [Pattern] -> Pattern
 patConcat = \case

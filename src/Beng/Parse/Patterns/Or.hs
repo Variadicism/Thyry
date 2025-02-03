@@ -14,8 +14,8 @@ import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Types.Parse.Matches (Match)
 import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Parsers ((@>), (@+>), (>\>), parseAny)
-import {-# SOURCE #-} Beng.Parse.Patterns (isOptional, satisfies)
 import qualified Beng.Parse.Parsers.Code as Code
+import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import qualified Beng.Parse.Parsers.PatternComparator as PC
 import Beng.Types.Parse.Patterns (Mismatch(..), Pattern(Or))
@@ -40,9 +40,7 @@ parse subpatterns = show (length subpatterns) ++ " possible patterns" @+>
 compareFrom :: Populace2 Pattern -> PatternComparator.Parser
 compareFrom subpatterns = show (length subpatterns) ++ " possible pattern comparator" @> \state ->
 	case state.rest.super of
-		[] -> if any isOptional subpatterns
-			then PC.accept [] state
-			else Error $ LeftoverSub $ P.singleton $ Or subpatterns
+		[] -> Error $ LeftoverSub $ P.singleton $ Or subpatterns
 		nextSuper:_ -> do
-			sequence $ P2.map ((state.context, nextSuper) `satisfies`) subpatterns
+			sequence $ P2.map ((state, nextSuper) `internallySatisfies`) subpatterns
 			PC.accept [nextSuper] state

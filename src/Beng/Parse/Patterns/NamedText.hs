@@ -10,13 +10,13 @@ import qualified Utils.Populace as P
 
 import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>\>), (>/\>))
 import qualified Beng.Parse.Parsers.Code as Code
+import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
 import qualified Beng.Parse.Parsers.PatternComparator as PC
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Parse.Parsers.PatternComparator (comparator)
 import qualified Beng.Parse.Matches as Match
 import Beng.Types.Parse.Matches (Match)
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
-import {-# SOURCE #-} Beng.Parse.Patterns (satisfies)
 import Beng.Types.Parse.Patterns (Mismatch(..), Pattern(..)) 
 import Beng.Types.Locations (Location)
 import Beng.Types.Values (Type(NativeStringType), Value(NativeStringValue))
@@ -49,7 +49,7 @@ compareFrom name subpattern = "named text " ++ wrap "\"" name ++ " comparator" @
 	case state.rest.super of
 		nt@NamedText{}:superLeft ->
 			if nt.name == name then do
-				(state.context, nt.subpattern) `satisfies` subpattern
+				(state, nt.subpattern) `internallySatisfies` subpattern
 				PC.accept [nt] state
 			else
 				Error $ Mismatch nt $ P.Populace nt superLeft

@@ -1,10 +1,13 @@
 module Beng.Parse.Parsers.PatternComparator (
 	startState,
+	swapSub,
+	swapSuper,
 	acceptRest,
 	acceptUsing,
 	accept,
 	parseAll,
 	parseWhile,
+	internallySatisfies,
 	comparator,
 	module Beng.Types.Parse.Parsers.PatternComparator
 ) where
@@ -12,8 +15,9 @@ module Beng.Parse.Parsers.PatternComparator (
 import Utils.Fallible
 import Utils.Messaging (Messagable, msg, msgList)
 import qualified Utils.Populace as P
+import qualified Utils.Populace.Populace2 as P2
 
-import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>:>), (>^\>), (>|>))
+import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>:>), (>|>), parseAny)
 import {-# SOURCE #-} qualified Beng.Parse.Parsers as Parser
 import {-# SOURCE #-} qualified Beng.Parse.Patterns.And as And
 import {-# SOURCE #-} qualified Beng.Parse.Patterns.Arg as Argument
@@ -30,7 +34,6 @@ import qualified Beng.Types.Parse.Parsers.PatternComparator as PC
 import Beng.Types.Parse.Patterns (Mismatch(..), Pattern(..))
 
 import Data.List (isPrefixOf)
-import Data.Maybe (listToMaybe)
 
 -- instances
 
@@ -108,9 +111,7 @@ compareFrom pattern = do
 		Or subpatterns -> Or.compareFrom subpatterns
 		Delimited delimiter delimitend -> Delimited.compareFrom delimiter delimitend
 		Argument{..} -> Argument.compareFrom name argType decLoc
-	let canSkip = maybe False isOptional . listToMaybe . sub . rest
-	let passOptionals :: Parser = parseWhile "is optional" canSkip ("skip optional" @> accept [])
-	(comparatorByPattern >^\> \_ -> passOptionals) >:> comparator >\> const ()
+	comparatorByPattern >:> comparator >\> const ()
 
 -- exported
 
@@ -120,6 +121,12 @@ startState context super sub =
 		indentation = 0,
 		rest = Comparison { sub = flat sub, super = flat super },
 		context = context }
+
+swapSub :: [Pattern] -> State -> State
+swapSub newSub s = s{ rest = s.rest{ sub = newSub }}
+
+swapSuper :: [Pattern] -> State -> State
+swapSuper newSuper s = s{ rest = s.rest{ super = newSuper }}
 
 acceptRest :: ParseRunner
 acceptRest state = takeAs state.rest () state
@@ -141,10 +148,12 @@ parseWhile :: String -> (State -> Bool) -> Parser -> Parser
 parseWhile desc checker pieceParser =
 	Parser.parseWhileUsing takeAsNull desc checker pieceParser >\> const ()
 
+internallySatisfies :: (State, Pattern) -> Pattern -> FallibleI Mismatch Parses
+internallySatisfies (state, super) sub = swapSub [sub] (swapSuper [super] state) >>> comparator
+
 comparator :: Parser
 comparator = do
 	let comparator' ignoreOptional = "pattern comparator" @> \state -> do
-		let swapSuper s newSuper = s{ rest = s.rest{ super = newSuper }}
 		let isNamedText = \case -- Seriously, is there no better way to do this?!
 			NamedText{} -> True
 			_ -> False
@@ -159,8 +168,8 @@ comparator = do
 					then acceptRest state
 					-- `all` returns true for empty lists, so we can assume it's non-empty here.
 					else Error $ LeftoverSuper $ P.Populace nextSuper superLeft
-			(And{..}:superLeft, _) -> swapSuper state (subpatterns.l ++ superLeft) >>> comparator
-			(nextSuper@Or{..}:superLeft, sub) | null sub || not (isOr $ head sub) -> do
+			(And{..}:superLeft, _) -> swapSuper (subpatterns.l ++ superLeft) state >>> comparator
+			(Or{..}:superLeft, sub) | null sub || not (isOr $ head sub) -> do
 				{- Ors in the super position need to be handled as subpatterns, but if this happens before
 					Or.compareFrom, then Or.compareFrom tries to match each of the sub Or's subpatterns to
 					ALL of the super Or's subpatterns when in reality, only ONE of the super Or's subpatterns
@@ -168,17 +177,25 @@ comparator = do
 				{- TODO: Allow "partial" coverage so that multiple super Or subpatterns can work together to
 					cover the sub. Right now, one super Or subpattern must be able to satisfy the entire sub
 					(or one of the sub's subpatterns if sub is also an Or). -}
-				sequenceAny $ map (\option -> swapSuper state (option:superLeft) >>> comparator) subpatterns.l
-				accept [nextSuper] state
+				let parserFor i option =
+					"possible super pattern " ++ show (i + 1) ++ "/" ++ show (length subpatterns) ++
+							" " ++ show option @> \state ->
+						swapSuper (option:superLeft) state >>> comparator
+				state >>> (parseAny $ P2.toP1 $ P2.mapIndexed parserFor subpatterns)
 			(nt@NamedText{..}:superLeft, sub) | null sub || not (isNamedText $ head sub) -> do
 				{- Supers don't need to capture all the NamedTexts that the sub does.
 					But, if both are NamedTexts, they must be compared without "unnaming" because
 					while the super doesn't have to capture the same things, if it does, they need
 					to have the same name. -}
-				swapSuper state (nt.subpattern:superLeft) >>> comparator
+				swapSuper (nt.subpattern:superLeft) state >>> comparator
+			(Literal "":superLeft, _) ->
+				{- Ignore empties entirely. If not for this case, it would tee off the empty as an optional,
+				   trying to parse with and without accepting the empty, which is just
+				   pointless, inefficient, and log-muddying. -}
+				swapSuper superLeft state >>> comparator
 			(nextSuper:superLeft, _) | isOptional nextSuper && not ignoreOptional -> do
 				let skipThenCompare = "skipping optional " ++ show nextSuper @> \state ->
-					swapSuper state superLeft >>> comparator
+					swapSuper superLeft state >>> comparator
 				state >>> comparator' True >|> skipThenCompare
 			(_, nextSub:_) -> state >>> compareFrom nextSub
 	comparator' False
