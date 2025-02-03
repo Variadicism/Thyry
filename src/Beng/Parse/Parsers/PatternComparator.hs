@@ -174,9 +174,6 @@ comparator = do
 					Or.compareFrom, then Or.compareFrom tries to match each of the sub Or's subpatterns to
 					ALL of the super Or's subpatterns when in reality, only ONE of the super Or's subpatterns
 					needs to satisfy each of the sub Or's subpatterns. -}
-				{- TODO: Allow "partial" coverage so that multiple super Or subpatterns can work together to
-					cover the sub. Right now, one super Or subpattern must be able to satisfy the entire sub
-					(or one of the sub's subpatterns if sub is also an Or). -}
 				let parserFor i option =
 					"possible super pattern " ++ show (i + 1) ++ "/" ++ show (length subpatterns) ++
 							" " ++ show option @> \state ->

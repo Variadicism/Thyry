@@ -15,26 +15,36 @@ import Testing.Beng.Build.Validate.PatternComparator.Or (testOr)
 import Testing.Beng.Build.Validate.PatternComparator.Space (testSpace)
 import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, assertDoesNotSatisfy)
 
-import Beng.Build.Context.Builders (c, cr, l, multi, optional)
+import Beng.Build.Context.Builders (c, cr, l, multi, optional, s, textAt)
 import Beng.Parse.Patterns (Pattern(..))
 import Beng.Types.Locations (Location(Builtin))
 import Beng.Values (thing)
 
 -- private
 
-a name argType = Argument { name, argType, decLoc = Builtin 0 }
-
 testComparator :: TestCategory
 testComparator = PureTests "interpattern complexities" do
 	let capitalizedWords = And $ P2.dualton (c [cr 'A' 'Z']) (optional $ multi $ c [cr 'a' 'z'])
-	let varDef = And $ P2.Populace2 capitalizedWords Space
-		[l ":", l "=", Space, a "Value" thing]
-	let varDefOrUn = And $ P2.Populace2 capitalizedWords Space
-		[l ":", optional (l "/"), l "=", Space, a "Value" thing]
+	let valueArg = Argument { name = "Value", argType = thing, decLoc = Builtin 0 }
+
+	let varDef = And $ P2.Populace2 capitalizedWords s
+		[l ":", l "=", s, valueArg]
+	let varDefOrUn = And $ P2.Populace2 capitalizedWords s
+		[l ":", optional (l "/"), l "=", s, valueArg]
+	let varUndef = And $ P2.Populace2 capitalizedWords s
+		[l ":/=", s, valueArg]
+	let namedCapitalizedWords = textAt (Builtin 1) "Name" capitalizedWords
+	let varNamedDef = And $ P2.Populace2 namedCapitalizedWords s
+		[l ":", l "=", s, valueArg]
+	let varNamedDefOrUn = And $ P2.Populace2 namedCapitalizedWords s
+		[l ":", optional (l "/"), l "=", s, valueArg]
 	[
-		("complex equal", varDefOrUn `assertSatisfies` varDefOrUn),
-		("complex proper super pattern is super", varDefOrUn `assertSatisfies` varDef),
-		("complex proper super pattern is sub", varDef `assertDoesNotSatisfy` varDefOrUn) ]
+		("equal", varDefOrUn `assertSatisfies` varDefOrUn),
+		("proper super pattern is super", varDefOrUn `assertSatisfies` varDef),
+		("proper super pattern is sub", varDef `assertDoesNotSatisfy` varDefOrUn),
+		("NamedText ignored in super", varNamedDefOrUn `assertSatisfies` varDef),
+		("NamedText matched in super and sub", varNamedDefOrUn `assertSatisfies` varNamedDef),
+		("Or can match partially", varDefOrUn `assertSatisfies` varUndef) ]
 
 -- tests
 
