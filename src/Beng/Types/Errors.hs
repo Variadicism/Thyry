@@ -22,7 +22,7 @@ data Error =
 		callLocation :: Location } |
 	{- TypeError {
 		context :: String,
-		expected :: Type,
+		expected :: Thing,
 		considerations :: PatternComparator.Parses } | -}
 	ParseError {
 		details :: Populace ParseErrorDetails,

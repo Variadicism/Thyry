@@ -1,11 +1,10 @@
-module Beng.Values (
-	Type(..),
-	Value(..),
+module Beng.Things (
 	one,
 	thing,
 	toCode,
 	undefined,
-	oneIsA
+	oneIsA,
+	module Beng.Types.Things
 ) where
 
 import Prelude hiding (undefined)
@@ -25,7 +24,7 @@ import qualified Beng.Ops as Op
 import Beng.Types.Build.Cards (Card(..))
 import Beng.Types.Build.Context (Context)
 import Beng.Types.Ops.Declarations (Declaration)
-import Beng.Types.Values (Mismatch(..), Undefined(..), Type(..), Value(..))
+import Beng.Types.Things (Mismatch(..), Undefined(..), Thing(..), Thing(..))
 
 import Control.Monad (void)
 import qualified Data.ByteString as BS
@@ -41,18 +40,18 @@ import Numeric (showHex)
 
 -- constants
 
-one :: Type
-one = ThingType { name = Just "one", parents = [], properties = const [] }
+one :: Thing
+one = NativeType { name = Just "one", parents = [], properties = const [] }
 
-thing :: Type
-thing = ThingType { name = Just "thing", parents = [], properties = const [] }
+thing :: Thing
+thing = NativeType { name = Just "thing", parents = [], properties = const [] }
 
 -- private
 
 showArg :: String -> String -> String
 showArg name typeString = "'" ++ name ++ ", " ++ aOrAn typeString ++ "'"
 
-showArgsUsing :: (Type -> String) -> Map String Type -> String
+showArgsUsing :: (Thing -> String) -> Map String Thing -> String
 showArgsUsing showT = showWithAnd . map (\(key, argType) -> showArg key $ showT argType) . assocs
 
 showMismatchUsing :: Bool -> Mismatch -> String
@@ -116,16 +115,21 @@ instance IsError Undefined where
 	prepend context Undefined{decsByContext} = Undefined $ map (mapFst2 (context++)) decsByContext
 	(<!>) u1 u2 = Undefined $ u1.decsByContext ++ u2.decsByContext
 
-instance Eq Type where
-	(==) t1@ThingType{} t2@ThingType{} = t1.parents == t2.parents && t1.properties one == t2.properties one
+instance Eq Thing where
+	(==) t1@NativeType{} t2@NativeType{} = t1.parents == t2.parents && t1.properties one == t2.properties one
 	-- /\ This one needed custom implementation since properties is a function and can't `==`.
 	-- \/ These COULD HAVE BEEN derived, but I can't "partailly derive", so... :|
-	(==) (BitsType b1) (BitsType b2) = b1 == b2
+	(==) (ThingValue t1ds) (ThingValue t2ds) = t1ds == t2ds
+	(==) (OpValue o1) (OpValue o2) = o1 == o2
+	(==) (DefinitionValue d1) (DefinitionValue d2) = d1 == d2
+	(==) (DeclarationValue d1) (DeclarationValue d2) = d1 == d2
+	(==) (PatternValue p1) (PatternValue p2) = p1 == p2
 	(==) op1@OpType{} op2@OpType{} = op1.returnType == op2.returnType && op1.args == op2.args
 	(==) DefinitionType DefinitionType = True
 	(==) DeclarationType DeclarationType = True
 	(==) PatternType PatternType = True
 	(==) PreOpType PreOpType = True
+	(==) (NativeBitsType b1) (NativeBitsType b2) = b1 == b2
 	(==) NativeCharType NativeCharType = True
 	(==) NativeStringType NativeStringType = True
 	(==) (NativeListType e1) (NativeListType e2) = e1 == e2
@@ -134,14 +138,13 @@ instance Eq Type where
 	(==) (NativeOrType o1) (NativeOrType o2) = o1 == o2
 	(==) _ _ = False
 
-instance Show Type where
+instance Show Thing where
 	show = \case
-		ThingType{..} -> do
-			let base = if null parents then "thing" else intercalate " + " (map show parents)
-			let props = intercalate "\n" $ map show $ properties one
-			base ++ ifNotNull (" where\n"++) props
-		TypeType -> "type"
-		BitsType{size} -> show size ++ " bits"
+		ThingValue{definitions} -> show definitions
+		OpValue op -> show op
+		DefinitionValue def -> show def
+		DeclarationValue dec -> show dec
+		PatternValue pattern -> show pattern
 		OpType{args,returnType} ->
 			if null args then
 				show returnType ++ " op"
@@ -152,7 +155,19 @@ instance Show Type where
 		DefinitionType -> "op definition"
 		DeclarationType -> "op declaration"
 		PatternType -> "op pattern"
-		PreOpType -> "preop"
+		PreOpType -> "preop"		
+		NativeBitsType{size} -> show size ++ " bits"
+		NativeCharValue{char} -> wrap "'" [char]
+		NativeStringValue{text} -> show text
+		NativeListValue{values} -> show values
+		NativeSomeValue{valuesP} -> show valuesP
+		NativeOptionalValue{fal} -> show fal
+		NativeType{..} -> do
+			let base = if null parents then "thing" else intercalate " + " (map show parents)
+			let props = intercalate "\n" $ map show $ properties one
+			base ++ ifNotNull (" where\n"++) props
+		NativeBitsValue{bytes} ->
+			"0x" ++ concatMap (\b -> takeEnd 2 $ '0':showHex b "") (BS.unpack bytes)
 		NativeCharType -> "native char"
 		NativeStringType -> "native string"
 		NativeListType{elementType} -> "native list of " ++ show elementType  -- TODO: pluralize elementType
@@ -160,28 +175,7 @@ instance Show Type where
 		NativeOptionalType{falueType} -> "native " ++ show falueType ++ "?"
 		NativeOrType{options} -> "native " ++ showWithOr options.l
 
-instance Messagable Type where
-	msg = show
-
-deriving instance Eq Value
-
-instance Show Value where
-	show = \case
-		ThingValue{definitions} -> show definitions
-		TypeValue t -> show t
-		BitsValue{bytes} ->
-			"0x" ++ concatMap (\b -> takeEnd 2 $ '0':showHex b "") (BS.unpack bytes)
-		OpValue op -> show op
-		DefinitionValue def -> show def
-		DeclarationValue dec -> show dec
-		PatternValue pattern -> show pattern
-		NativeCharValue{char} -> wrap "'" [char]
-		NativeStringValue{text} -> show text
-		NativeListValue{values} -> show values
-		NativeSomeValue{valuesP} -> show valuesP
-		NativeOptionalValue{fal} -> show fal
-
-instance Messagable Value where
+instance Messagable Thing where
 	msg = \case
 		ThingValue{definitions} -> msg definitions
 		OpValue op -> msg op
@@ -197,16 +191,15 @@ instance Messagable Value where
 
 -- exported
 
-toCode :: Value -> Text
+toCode :: Thing -> Text
 toCode = \case
 	-- TODO: replace most "pack $ show"s with their own toCodes (and probably a class).
 	ThingValue{definitions} -> Text.concat ["a thing where ", pack (msg definitions)]
-	tv@TypeValue{} -> pack $ show tv
-	BitsValue{bytes} -> pack $ show bytes  -- TODO: probably replace with hex digits
 	OpValue op -> Op.toCode op
 	DefinitionValue def -> pack $ show def
 	DeclarationValue dec -> pack $ show dec
 	PatternValue pat -> pack $ show pat
+	NativeBitsValue{bytes} -> pack $ show bytes  -- TODO: probably replace with hex digits
 	NativeCharValue{char} -> pack ['\'', char, '\'']
 	NativeStringValue{text} -> Text.concat ["\"", text, "\""]  -- TODO: encode as Beng string
 	NativeListValue{values} -> case values of
@@ -220,11 +213,12 @@ toCode = \case
 	NativeOptionalValue{fal} -> case fal of
 		Falue falue -> toCode falue
 		Error error -> Text.concat ["\"", pack $ msg error, "\"!"]
+	thing -> pack $ show thing
 
-undefined :: Declaration -> FallibleI Undefined Value
+undefined :: Declaration -> FallibleI Undefined Thing
 undefined declaration = Error $ Undefined [("", declaration)]
 
-oneIsA :: (Context, Type) -> Type -> FallibleI Mismatch ()
+oneIsA :: (Context, Thing) -> Thing -> FallibleI Mismatch ()
 oneIsA (context, super) sub = do
 	let oneIsAThingWith super context parents propsWith = do
 		let getUndefined = \case
@@ -243,10 +237,10 @@ oneIsA (context, super) sub = do
 	case (super, sub) of
 		-- congruent types
 		(super, sub) | super == sub -> Falue ()
-		(super@ThingType{}, sub@ThingType{}) -> do
+		(super@NativeType{}, sub@NativeType{}) -> do
 			let contextWithSuperProps = foldl (flip Context.pushCard) context $ super.properties super
 			oneIsAThingWith super contextWithSuperProps sub.parents super.properties
-		(super@BitsType{}, sub@BitsType{}) -> ifElseError (super.size <= sub.size) () $
+		(super@NativeBitsType{}, sub@NativeBitsType{}) -> ifElseError (super.size <= sub.size) () $
 			PrimitiveMismatch super sub
 		(super@OpType{}, sub@OpType{}) -> do
 			(context, super.returnType) `oneIsA` sub.returnType
@@ -269,8 +263,8 @@ oneIsA (context, super) sub = do
 			(context, super.falueType) `oneIsA` sub.falueType
 		-- NativeOrType's implementation is the same regardless of the super type.
 		-- disparate types
-		(super, sub@ThingType{}) -> oneIsAThingWith super context sub.parents sub.properties
-		(super@ThingType{}, sub) ->
+		(super, sub@NativeType{}) -> oneIsAThingWith super context sub.parents sub.properties
+		(super@NativeType{}, sub) ->
 			void $ sequenceAny $ map ((context, sub) `oneIsA`) super.parents
 		(super@NativeSomeType{}, sub@NativeListType{}) ->
 			(context, super.elementType) `oneIsA` sub.elementType

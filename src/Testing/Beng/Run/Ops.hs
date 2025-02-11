@@ -24,13 +24,13 @@ import qualified Beng.Parse.Matches as M
 import Beng.Parse.Patterns (Parameter(..), Pattern(..))
 import Beng.Run (run)
 import Beng.Types.Locations (FileLocation(..), Location(..))
-import Beng.Types.Values (Type, Value(NativeOptionalValue, NativeSomeValue, OpValue))
+import Beng.Types.Things (Thing, Thing(NativeOptionalValue, NativeSomeValue, OpValue))
 
 import Data.Map ((!))
 
 -- constants
 
-argMatchOf :: Int -> String -> Type -> Value -> Match
+argMatchOf :: Int -> String -> Thing -> Thing -> Match
 argMatchOf parentIndex name argType argValue = M.Argument {
 	argType, name, argValue,
 	decLoc = BuiltinArg name parentIndex }

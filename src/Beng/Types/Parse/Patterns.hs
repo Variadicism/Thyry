@@ -9,7 +9,7 @@ import Utils.Populace (Populace)
 import Utils.Populace.Populace2 (Populace2)
 
 import Beng.Types.Locations (Location)
-import {-# SOURCE #-} Beng.Types.Values (Type)
+import {-# SOURCE #-} Beng.Types.Things (Thing)
 
 import Data.Text.Lazy (Text)
 
@@ -24,7 +24,7 @@ data Mismatch =
 -- I could implement this with Haskell ranges, but I want to Show them nicely.
 data CharRange = CharRange { start :: Char, end :: Char }
 
-data Parameter = Parameter { name :: String, paramType :: Type, decLoc :: Location }
+data Parameter = Parameter { name :: String, paramType :: Thing, decLoc :: Location }
 
 data Pattern =
 	Space |
@@ -35,4 +35,4 @@ data Pattern =
 	And { subpatterns :: Populace2 Pattern } |
 	-- Yeah, I made up "delimitend" akin to "dividend" and "subtrahend". So?! Come at me! :P
 	Delimited { delimiter :: Pattern, delimitend :: Pattern } |
-	Argument { name :: String, argType :: Type, decLoc :: Location }
+	Argument { name :: String, argType :: Thing, decLoc :: Location }

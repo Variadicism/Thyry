@@ -19,7 +19,7 @@ import Beng.Types.Parse.Matches (Match)
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Types.Parse.Patterns (Mismatch(..), Pattern(..)) 
 import Beng.Types.Locations (Location)
-import Beng.Types.Values (Type(NativeStringType), Value(NativeStringValue))
+import Beng.Types.Things (Thing(NativeStringType), Thing(NativeStringValue))
 
 import qualified Data.Map as Map
 import qualified Data.Text.Lazy as Text

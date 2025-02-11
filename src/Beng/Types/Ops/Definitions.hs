@@ -6,11 +6,11 @@ module Beng.Types.Ops.Definitions (
 import Beng.Types.Ops.Declarations (Declaration)
 import Beng.Types.Errors (Fallible)
 import Beng.Types.Locations (Location)
-import Beng.Types.Values (Value)
+import Beng.Types.Things (Thing)
 
 import Data.Map (Map)
 
-type Runner = Map String Value -> Fallible Value
+type Runner = Map String Thing -> Fallible Thing
 
 data Definition = Definition {
 	location :: Location,  -- Forward declarations may make this different from declaration's.

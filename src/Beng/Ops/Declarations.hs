@@ -22,7 +22,7 @@ import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Types.Parse.Patterns (Pattern(Literal))
 import Beng.Locations ()
 import Beng.Types.Ops.Declarations (ArgContextBuilder, Associativity(..), Declaration(..), Mismatch(..))
-import {-# SOURCE #-} Beng.Values (oneIsA)
+import {-# SOURCE #-} Beng.Things (oneIsA)
 
 import Control.Exception.Extra (Partial)
 import Data.Text.Lazy (unpack)

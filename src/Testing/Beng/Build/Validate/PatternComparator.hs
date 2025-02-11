@@ -18,14 +18,14 @@ import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, ass
 import Beng.Build.Context.Builders (c, cr, l, multi, optional, s, textAt)
 import Beng.Parse.Patterns (Pattern(..))
 import Beng.Types.Locations (Location(Builtin))
-import Beng.Values (thing)
+import Beng.Things (thing)
 
 -- private
 
 testComparator :: TestCategory
 testComparator = PureTests "interpattern complexities" do
 	let capitalizedWords = And $ P2.dualton (c [cr 'A' 'Z']) (optional $ multi $ c [cr 'a' 'z'])
-	let valueArg = Argument { name = "Value", argType = thing, decLoc = Builtin 0 }
+	let valueArg = Argument { name = "Thing", argType = thing, decLoc = Builtin 0 }
 
 	let varDef = And $ P2.Populace2 capitalizedWords s
 		[l ":", l "=", s, valueArg]

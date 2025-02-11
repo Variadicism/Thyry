@@ -7,7 +7,7 @@ import Prelude hiding (subtract)
 import qualified Utils.Populace.Populace2 as P2
 
 import Beng.Build.Context (Context(..), PrecedenceBound(..))
-import Beng.Build.Context.Builders (c, cr, e, s, l, multi, argAt, asBits, asInt, asNativeString, asOp, bitsValue, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf, intType, intValue, textAt)
+import Beng.Build.Context.Builders (c, cr, e, s, l, multi, argAt, asBits, asInt, asNativeString, asOp, bitType, bitsValue, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf, intType, intValue, textAt)
 import Beng.Types.Build.Cards (Card(DefCard))
 import Beng.Types.Parse.Matches (value)
 import Beng.Types.Parse.Patterns (Pattern(..))
@@ -15,7 +15,7 @@ import Beng.Run (run, runWhileOp)
 import Beng.Types.Ops.Declarations (Associativity(..), Declaration)
 import Beng.Types.Ops.Definitions (Definition(..))
 import Beng.Types.Locations (Location(..))
-import Beng.Types.Values (Type(..), Value(..))
+import Beng.Types.Things (Thing(..), Thing(..))
 
 import qualified Data.ByteString as BS
 import Data.Int (Int32)
@@ -31,8 +31,6 @@ valueName = do
 	let letter = c [cr 'A' 'Z', cr 'a' 'z']
 	let capitalizedWord = And $ P2.dualton uppercaseLetter (Or $ P2.dualton e $ multi letter)
 	Delimited { delimiter = Space, delimitend = capitalizedWord }
-
--- types
 
 -- builtin enumeration
 
@@ -64,8 +62,8 @@ hangingDefinitionOf opEnum location = case opEnum of
 	-- losing all type guarantees. This will not be an issue in Beng! :)
 	IntType -> define None
 		[l "an int"]
-		TypeType
-		(\_ -> return $ TypeValue intType)
+		intType
+		(\_ -> return intType)
 		location
 	Ints -> define None
 		[t "Integer" $ multi $ c [cr '0' '9']]
@@ -77,17 +75,17 @@ hangingDefinitionOf opEnum location = case opEnum of
 		location
 	BitType -> define None
 		[l "a bit"]
-		TypeType
-		(\_ -> return $ TypeValue $ BitsType 1)
+		bitType
+		(\_ -> return bitType)
 		location
 	Yes -> define None
 		[l "yes"]
-		(BitsType 1)
+		(NativeBitsType 1)
 		(\_ -> return $ bitsValue [1])
 		location
 	No -> define None
 		[l "no"]
-		(BitsType 1)
+		(NativeBitsType 1)
 		(\_ -> return $ bitsValue [0])
 		location
 	Add -> define Default
@@ -107,18 +105,18 @@ hangingDefinitionOf opEnum location = case opEnum of
 			return $ intValue $ minuend - subtrahend)
 		location
 	DefineValue -> defineUsing (Below $ dec Add) Righty
-		[t "Name" valueName, s, l ":=", s, a "Value" intType, s, a "Scope" PreOpType]
+		[t "Name" valueName, s, l ":=", s, a "Thing" intType, s, a "Scope" PreOpType]
 		intType
 		(\name args location -> case name of
 			"Scope" -> do
 				name <- asNativeString $ value $ args ! "Name"
-				let value = (args ! "Value").value
+				let value = (args ! "Thing").value
 				return [DefCard $ defineLiteral name intType value location]
 			_ -> return [])
 		(\args -> run $ asOp $ args ! "Scope")
 		location
 	If -> define (Below $ dec DefineValue)
-		[l "if", s, a "Condition" (BitsType 1), l ",",
+		[l "if", s, a "Condition" (NativeBitsType 1), l ",",
 			s, a "Y" intType, s,
 			l "else", s, a "N" intType]
 		intType

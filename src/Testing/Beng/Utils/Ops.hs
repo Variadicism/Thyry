@@ -11,7 +11,7 @@ import Utils.Tuples (map2)
 import Beng.Ops (Op(..), getArgs)
 import Beng.Types.Ops.Definitions (Definition(..))
 import Beng.Types.Parse.Matches (value)
-import Beng.Types.Values (Value(OpValue))
+import Beng.Types.Things (Thing(OpValue))
 
 import Data.List (sort)
 import qualified Data.Map as Map
@@ -21,24 +21,24 @@ import GHC.Records (HasField(..))
 
 -- instances
 
-instance HasField "op" (Op -> Fallible a) (Value -> Fallible a) where
+instance HasField "op" (Op -> Fallible a) (Thing -> Fallible a) where
 	getField assertion = \case
 		OpValue op -> assertion op
 		capture -> Error $ "A single OpValue was expected, but I found a(n) " ++ show capture ++ "!"
 
-instance HasField "op" (i -> Op -> Fallible a) (i -> Value -> Fallible a) where
+instance HasField "op" (i -> Op -> Fallible a) (i -> Thing -> Fallible a) where
 	getField assertion = \i -> (assertion i).op
 
-instance HasField "op" (i -> j -> Op -> Fallible a) (i -> j -> Value -> Fallible a) where
+instance HasField "op" (i -> j -> Op -> Fallible a) (i -> j -> Thing -> Fallible a) where
 	getField assertion = \i j -> (assertion i j).op
 
-instance HasField "args" Definition ([(String, Value -> Fallible ())] -> Op -> Fallible ()) where
+instance HasField "args" Definition ([(String, Thing -> Fallible ())] -> Op -> Fallible ()) where
 	getField = argAssertionsOf
 
 instance HasField "null" Definition (Op -> Fallible ()) where
 	getField definition = definition.args []
 
-argAssertionsOf :: Definition -> [(String, Value -> Fallible ())] -> Op -> Fallible ()
+argAssertionsOf :: Definition -> [(String, Thing -> Fallible ())] -> Op -> Fallible ()
 argAssertionsOf definition argAssertions op =
 	prependToError ("In op " ++ wrap "`" (show op) ++ ", ") do
 		debugM $ "Asserting correct structure of " ++ show op ++ "..."

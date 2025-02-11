@@ -113,7 +113,7 @@ andParseFrom firstName firstParses secondChain = \state -> do
 				-- Successes combine the first Parses's best error at the end to avoid redundancy.
 				Falue $ prependParseUsing (,) firstParse secondParses
 
-	-- Type variables prohibit type signatures here. >:(
+	-- Thing variables prohibit type signatures here. >:(
 	let mergedSubparses = P.map runSecond firstParses.parses  -- Populace (FallibleI e (Parses (t, u)))
 	sequencedParses <- P.sequenceAny mergedSubparses  -- FallibleI e (Populace (Parses (t, u)))
 	let pairedParses = concatParses sequencedParses  -- Parses (t, u)

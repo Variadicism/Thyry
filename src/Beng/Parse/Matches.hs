@@ -26,8 +26,8 @@ import Beng.Build.Context.Builders (declareLiteral)
 import Beng.Types.Parse.Matches (DelimitedTail(..), Match(..), Parameter(..))
 import {-# SOURCE #-} Beng.Parse.Patterns ()
 import qualified Beng.Types.Parse.Patterns as Pattern
-import Beng.Types.Values (Type(..), Value(..))
-import {-# SOURCE #-} qualified Beng.Values as Value
+import Beng.Types.Things (Thing(..), Thing(..))
+import {-# SOURCE #-} qualified Beng.Things as Thing
 
 import Data.Map.Ordered ((<|), (|<), (<>|), OMap)
 import qualified Data.Map.Ordered as OMap
@@ -96,7 +96,7 @@ toCode = \case
 	Or{match} -> toCode match
 	And{matches} -> Text.concat $ map toCode matches.l
 	match@Delimited{} -> Text.concat $ map toCode $ P.toList $ getSubmatches match
-	Argument{argValue} -> Value.toCode argValue
+	Argument{argValue} -> Thing.toCode argValue
 
 getArgs :: (Match -> OMap String Parameter)
 getArgs = \case
@@ -117,7 +117,7 @@ getArgs = \case
 			value = NativeOptionalValue value }
 		let missEntry = \p -> (p.name,
 			matchFalParam p.decLoc p.name p.paramType $
-				Value.undefined $ declareLiteral (pack p.name) p.paramType p.decLoc)
+				Thing.undefined $ declareLiteral (pack p.name) p.paramType p.decLoc)
 		let falValue = \p -> matchFalParam p.decLoc p.name p.paramType $ Falue p.value
 
 		OMap.fromList (map missEntry misses) <>|
@@ -125,12 +125,12 @@ getArgs = \case
 	And{matches} -> OMap.concat $ P2.map getArgs matches
 	delimited@Delimited{head=headMatch,tail=tailMatch} -> case tailMatch of
 		DelimitedTailMatch _ -> do
-			let revalueParam :: Parameter -> Populace Value -> Parameter = \p@Parameter{..} values -> p{
+			let revalueParam :: Parameter -> Populace Thing -> Parameter = \p@Parameter{..} values -> p{
 				paramType = NativeSomeType p.paramType,
 				value = NativeSomeValue values }
 			let combineValuesByName
-					:: Parameter -> OMap String (Parameter, Populace Value) ->
-						OMap String (Parameter, Populace Value) =
+					:: Parameter -> OMap String (Parameter, Populace Thing) ->
+						OMap String (Parameter, Populace Thing) =
 					\p@Parameter{..} prevs -> do
 				let oldValues = case OMap.lookup name prevs of
 					Nothing -> []

@@ -67,11 +67,10 @@ import Beng.Types.Ops.Declarations (Associativity(..), Declaration)
 import Beng.Types.Ops.Definitions (Definition(..))
 import Beng.Types.Locations (Location(..))
 import Beng.Run (run)
-import Beng.Types.Values (Type(PreOpType), Value(..))
+import Beng.Types.Things (Thing(PreOpType), Thing(..))
 
 import Control.Composition ((.*))
 import Data.Bits (complement)
-import qualified Data.ByteString as BS
 import Data.Map ((!))
 import Data.Text.Lazy (Text)
 
@@ -99,11 +98,11 @@ defineStaticNameValue name location = do
 	let (Builtin parentIndex) = location  -- All locations in mocks are Builtin-type.
 	let a name argType = Argument { decLoc = BuiltinArg { name, parentIndex }, name, argType }
 	defineUsing (Below $ declarationOf App) Righty
-		[l name, s, l ":=", s, a "Value" intType, s, a "Scope" PreOpType]
+		[l name, s, l ":=", s, a "Thing" intType, s, a "Scope" PreOpType]
 		intType
 		(\argName args location -> return case argName of
 			"Scope" -> do
-				let value = (args ! "Value").value
+				let value = (args ! "Thing").value
 				[DefCard $ defineLiteral name intType value location]
 			_ -> [])
 		(\args -> run $ asOp $ args ! "Scope")
@@ -111,7 +110,7 @@ defineStaticNameValue name location = do
 
 defineLiteralInt :: Text -> Int -> (Location -> Definition)
 defineLiteralInt text value =
-	defineLiteral text intType $ BitsValue $ BS.pack [0, 0, 0, fromIntegral value]
+	defineLiteral text intType $ intValue $ fromIntegral value
 
 hangingDefinitionOf :: ABCD -> Location -> Definition
 hangingDefinitionOf enum location = case enum of
@@ -168,10 +167,10 @@ hangingDefinitionOf enum location = case enum of
 			return $ intValue $ augend + addend)
 		location
 	Not -> define (Above $ declarationOf Divide)
-		[l "!", a "Value" intType]  -- I couldn't come up with a cool name for this one.
+		[l "!", a "Thing" intType]  -- I couldn't come up with a cool name for this one.
 		intType
 		(\args -> do
-			value <- asInt =<< (run $ asOp $ args ! "Value")
+			value <- asInt =<< (run $ asOp $ args ! "Thing")
 			return $ intValue (-value))
 		location
 	Negate -> define (Above $ declarationOf Not)
@@ -196,7 +195,7 @@ hangingABDivDefinitionOf :: ABDiv -> (Location -> Definition)
    definition maker passed as an argument, which will add tons of boilerplate. -}
 hangingABDivDefinitionOf e = hangingDefinitionOf $ toEnum $ fromEnum e
 
-argOf :: ABCD -> String -> Type -> Pattern
+argOf :: ABCD -> String -> Thing -> Pattern
 argOf abcd name argType = do
 	let (Builtin locationIndex) = locationOf abcd
 	argAt (BuiltinArg name locationIndex) name argType
@@ -216,19 +215,19 @@ locationOf = Builtin . fromEnum
 opOf :: ABCD -> (Match -> Op)
 opOf a = Op (cardOf a) (locationOf a)
 
-prefixedUnaryOpMatch :: ABCD -> Text -> String -> Type -> Op -> Match
+prefixedUnaryOpMatch :: ABCD -> Text -> String -> Thing -> Op -> Match
 prefixedUnaryOpMatch abcd prefix argName argType op =
 	Match.And $ dualton (Match.Literal prefix) (Match.Argument (locationOf abcd) argName argType $ OpValue op)
 
-infixOpMatch :: ABCD -> String -> Type -> Text -> String -> Type -> Op -> Op -> Match
+infixOpMatch :: ABCD -> String -> Thing -> Text -> String -> Thing -> Op -> Op -> Match
 infixOpMatch abcd leftName leftType literal rightName rightType leftOp rightOp = Match.And $ P2.Populace2
 	(Match.Argument (locationOf abcd) leftName leftType $ OpValue leftOp)
 	(Match.Literal literal)
 	[Match.Argument (locationOf abcd) rightName rightType $ OpValue rightOp]
 
-type AssertOneArg = (Value -> Fallible ()) -> Op -> Fallible ()
+type AssertOneArg = (Thing -> Fallible ()) -> Op -> Fallible ()
 
-type AssertTwoArgs = (Value -> Fallible ()) -> AssertOneArg
+type AssertTwoArgs = (Thing -> Fallible ()) -> AssertOneArg
 
 -- exported
 ---- contexts
@@ -282,7 +281,7 @@ addMatch :: (Op -> Op -> Match)
 addMatch = infixOpMatch Add "Augend" intType "+" "Addend" intType
 
 notMatch :: (Op -> Match)
-notMatch = prefixedUnaryOpMatch Not "!" "Value" intType
+notMatch = prefixedUnaryOpMatch Not "!" "Thing" intType
 
 negateMatch :: (Op -> Match)
 negateMatch = prefixedUnaryOpMatch Negate "~" "Negend" intType
@@ -340,7 +339,7 @@ assertDivWords assertDividend assertDivisor = divideWords.args
 	[("Dividend", assertDividend), ("Divisor", assertDivisor)]
 
 assertNot :: AssertOneArg
-assertNot assertValue = not.args [("Value", assertValue)]
+assertNot assertValue = not.args [("Thing", assertValue)]
 
 assertNegate :: AssertOneArg
 assertNegate assertNegend = negate.args [("Negend", assertNegend)]

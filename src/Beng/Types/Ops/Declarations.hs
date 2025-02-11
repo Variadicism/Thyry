@@ -15,8 +15,8 @@ import Beng.Types.Parse.Patterns (Pattern)
 import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Types.Errors (Fallible)
 import Beng.Types.Locations (Location)
-import {-# SOURCE #-} Beng.Types.Values (Type)
-import {-# SOURCE #-} qualified Beng.Types.Values as Type
+import {-# SOURCE #-} Beng.Types.Things (Thing)
+import {-# SOURCE #-} qualified Beng.Types.Things as Thing
 
 import Data.Map (Map)
 
@@ -24,7 +24,7 @@ data Associativity = Lefty | Righty
 
 data Mismatch =
 	PatternMismatch { patternMismatch :: Pattern.Mismatch } |
-	ReturnTypeMismatch { typeMismatch :: Type.Mismatch } |
+	ReturnTypeMismatch { typeMismatch :: Thing.Mismatch } |
 	CompoundMismatch { context :: String, compound :: Populace Mismatch }
 
 type ArgContextBuilder =
@@ -51,7 +51,7 @@ type ArgContextBuilder =
 data Declaration = Declaration {
 	location :: Location,
 	pattern :: Pattern,
-	returnType :: Type,  -- TODO: use types from args to formulate the return type
+	returnType :: Thing,  -- TODO: use types from args to formulate the return type
 	associativity :: Associativity,
 	precedence :: PrecedenceBound,
 	contextualize :: ArgContextBuilder }

@@ -116,7 +116,7 @@ parseError state message = ParseError {
 	details = P.singleton $ ParseErrorMessage message,
 	fileLocation = state.location }
 
-{- typeError :: Type -> PatternComparator.Parses -> Error
+{- typeError :: Thing -> PatternComparator.Parses -> Error
 typeError expected parses = TypeError { context = "", expected, parses } -}
 
 getLocation :: Error -> Location

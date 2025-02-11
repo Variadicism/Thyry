@@ -27,21 +27,21 @@ import qualified Beng.Types.Locations as Location
 import Beng.Types.Ops.Declarations (Declaration(..))
 import Beng.Types.Parse.Patterns (Mismatch(..))
 import qualified Beng.Types.Parse.Patterns as Pattern
-import Beng.Types.Values (Type, Value(OpValue))
-import Beng.Values (oneIsA)
+import Beng.Types.Things (Thing, Thing(OpValue))
+import Beng.Things (oneIsA)
 
 import Control.Monad (when)
 import qualified Data.Map as Map
 
 -- exported
 
-showArg :: String -> Type -> Location -> String
+showArg :: String -> Thing -> Location -> String
 showArg name paramType decLoc = show decLoc ++ ":" ++ msgArg name paramType
 
-msgArg :: String -> Type -> String
+msgArg :: String -> Thing -> String
 msgArg name paramType = wrap "'" $ name ++ ", " ++ msg paramType
 
-parse :: String -> Type -> Location -> Code.Parser Match
+parse :: String -> Thing -> Location -> Code.Parser Match
 parse name argType decLoc = msgArg name argType @> \state -> do
 	let argOf op = Argument { decLoc, name, argType, argValue = OpValue op }
 	let putArg op state = do
@@ -70,7 +70,7 @@ parse name argType decLoc = msgArg name argType @> \state -> do
 						\s op -> putArg op s{ Code.context = state.context }) >\>
 					\op -> Argument { decLoc, name, argType, argValue = OpValue op }
 
-compareFrom :: String -> Type -> Location -> PatternComparator.Parser
+compareFrom :: String -> Thing -> Location -> PatternComparator.Parser
 compareFrom name argType decLoc = msgArg name argType ++ " comparator" @> \state -> do
 	let self = Pattern.Argument { name, argType, decLoc }
 	case state.rest.super of

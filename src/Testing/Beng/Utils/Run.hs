@@ -11,11 +11,11 @@ import Utils.Testing
 import Beng.Build.Context.Builders (asInt)
 import Beng.Types.Ops (Op)
 import qualified Beng.Run as Beng
-import Beng.Types.Values (Value)
+import Beng.Types.Things (Thing)
 
 -- exported
 
-run :: Op -> Fallible Value
+run :: Op -> Fallible Thing
 run = mapError msg . Beng.run
 
 assertEval :: Int -> Op -> Fallible ()

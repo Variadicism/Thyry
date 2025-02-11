@@ -40,7 +40,7 @@ import qualified Beng.Parse.Parsers.Code as Code
 import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Types.Build.Context (Context)
 import Beng.Types.Parse.Patterns
-import Beng.Types.Values (Type(..))
+import Beng.Types.Things (Thing(..))
 
 import Data.List (intercalate)
 import Data.Map.Ordered ((<>|), OMap)
@@ -218,9 +218,9 @@ getArgs = \case
 		Parameter { decLoc, name, paramType = argType })
 	_ -> OMap.empty
 	where
-		wrapType :: (Type -> Type) -> Parameter -> Parameter
+		wrapType :: (Thing -> Thing) -> Parameter -> Parameter
 		wrapType wrapper p = p{ paramType = wrapper p.paramType }
-		wrapTypes :: (Type -> Type) -> OMap String Parameter -> OMap String Parameter
+		wrapTypes :: (Thing -> Thing) -> OMap String Parameter -> OMap String Parameter
 		wrapTypes wrapper = OMap.map (wrapType wrapper)
 
 getRequiredArgs :: Pattern -> OMap String Parameter

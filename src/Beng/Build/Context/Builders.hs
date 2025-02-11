@@ -14,6 +14,7 @@ module Beng.Build.Context.Builders (
 	multi,
 	optional,
 	patConcat,
+	bitType,
 	intType,
 	asOp,
 	asOpOf,
@@ -48,7 +49,7 @@ import Beng.Types.Parse.Patterns (CharRange(..), Pattern(..))
 import {-# SOURCE #-} Beng.Run (run)
 import Beng.Errors (Fallible)
 import Beng.Types.Locations (Location(..))
-import Beng.Types.Values (Type(BitsType), Value(..))
+import Beng.Types.Things (Thing(..))
 
 import Control.Composition ((.*))
 import Data.Bits ((.&.), (.|.), shiftL, shiftR)
@@ -59,10 +60,10 @@ import Data.Text.Lazy (Text)
 
 -- exported
 
-argAt :: Location -> String -> Type -> Pattern
+argAt :: Location -> String -> Thing -> Pattern
 argAt decLoc name argType = Argument { name, argType, decLoc }
 
-argOfBuiltin :: Int -> String -> Type -> Pattern
+argOfBuiltin :: Int -> String -> Thing -> Pattern
 argOfBuiltin builtinIndex name argType =
 	Argument { name, argType, decLoc = BuiltinArg name builtinIndex }
 
@@ -107,30 +108,32 @@ patConcat = \case
 	[solo] -> solo
 	(first:(second:rest)) -> And $ P2.Populace2 first second rest
 
--- TODO: replace with an "integer" type operator that returns the type.
-intType = BitsType 32
+bitType = NativeBitsType 1
 
-asOp :: (Value -> Op)
+-- TODO: replace with an "integer" type operator that returns the type.
+intType = NativeBitsType 32
+
+asOp :: (Thing -> Op)
 asOp = \case
 	OpValue op -> op
 	value -> error $
 		"A builtin op assumed that an arg was returning a OpValue, " ++
 		"but it actually captured a(n) " ++ show value ++ "!"
 
-asOpOf :: String -> (Value -> Fallible a) -> Value -> Fallible a
+asOpOf :: String -> (Thing -> Fallible a) -> Thing -> Fallible a
 asOpOf expectedDesc get = \case
 	OpValue op -> run op >>= get
 	other -> error $ "A(n) " ++ expectedDesc ++
 		" or op of such was expected, but instead, it's a(n) " ++ show other ++ "!"
 
-asNativeString :: Value -> Fallible Text
+asNativeString :: Thing -> Fallible Text
 asNativeString = \case
 	NativeStringValue text -> return text
 	other -> asOpOf "native string" asNativeString other
 
-asBits :: Int -> (Value -> Fallible ByteString)
+asBits :: Int -> (Thing -> Fallible ByteString)
 asBits size = \case
-	bitsValue@(BitsValue bytestring) ->
+	bitsValue@(NativeBitsValue bytestring) ->
 		if BS.length bytestring == ceiling (fromIntegral size / 8.0) then
 			return bytestring
 		-- TODO: replace `error` with `TypeError`
@@ -139,10 +142,10 @@ asBits size = \case
 			"b) were found instead: " ++ show bitsValue
 	other -> asOpOf (show size ++ "b") (asBits size) other
 
-bitsValue :: [Int] -> Value
-bitsValue = BitsValue . BS.pack . map (fromInteger . toInteger)
+bitsValue :: [Int] -> Thing
+bitsValue = NativeBitsValue . BS.pack . map (fromInteger . toInteger)
 
-asInt :: Value -> Fallible Int32
+asInt :: Thing -> Fallible Int32
 asInt value = do  -- TODO TEMPORARY
 	bytestring <- asBits 32 value
 	let [b1, b2, b3, b4] = BS.unpack bytestring
@@ -152,17 +155,17 @@ asInt value = do  -- TODO TEMPORARY
 		(shiftL (fromIntegral b3) 8) .|.
 		(fromIntegral b4)
 
-intValue :: Int32 -> Value
+intValue :: Int32 -> Thing
 intValue int = bitsValue $
 	map ((.&. 0xFF) . shiftR (fromInteger $ toInteger int)) [24, 16, 8, 0]
 
-declare :: PrecedenceBound -> [Pattern] -> Type -> Location -> Declaration
+declare :: PrecedenceBound -> [Pattern] -> Thing -> Location -> Declaration
 declare precedence subpatterns returnType location =
 	Declaration { precedence, location, returnType,
 		pattern = patConcat subpatterns,
 		associativity = Lefty, contextualize = noContext }
 
-declareLiteral :: Text -> Type -> Location -> Declaration
+declareLiteral :: Text -> Thing -> Location -> Declaration
 declareLiteral literal returnType location = Declaration {
 	location,
 	pattern = Literal literal,
@@ -173,21 +176,21 @@ declareLiteral literal returnType location = Declaration {
 
 defineUsing ::
 	PrecedenceBound -> Associativity ->
-	[Pattern] -> Type -> ArgContextBuilder -> Runner -> Location -> Definition
+	[Pattern] -> Thing -> ArgContextBuilder -> Runner -> Location -> Definition
 defineUsing precedence associativity subpatterns returnType contextualize runWith location =
 	Definition { location, runWith,
 		declaration = Declaration {
 			precedence, location, contextualize, associativity, returnType,
 			pattern = patConcat subpatterns }}
 
-define :: PrecedenceBound -> [Pattern] -> Type -> (Runner -> Location -> Definition)
+define :: PrecedenceBound -> [Pattern] -> Thing -> (Runner -> Location -> Definition)
 define precedence subpatterns returnType =
 	defineUsing precedence Lefty subpatterns returnType noContext
 
-defineRighty :: PrecedenceBound -> [Pattern] -> Type -> (Runner -> Location -> Definition)
+defineRighty :: PrecedenceBound -> [Pattern] -> Thing -> (Runner -> Location -> Definition)
 defineRighty precedence subpatterns returnType = defineUsing precedence Righty subpatterns returnType noContext
 
-defineLiteral :: Text -> Type -> Value -> Location -> Definition
+defineLiteral :: Text -> Thing -> Thing -> Location -> Definition
 defineLiteral literal valueType value location = Definition {
 	runWith = const $ Falue value,
 	location,

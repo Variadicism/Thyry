@@ -89,9 +89,9 @@ common options
     Beng.Types.Parse.Parsers.Code
     Beng.Types.Parse.Patterns
     Beng.Types.Parse.Parsers.PatternComparator
-    Beng.Types.Values
+    Beng.Types.Things
     Beng.Run
-    Beng.Values
+    Beng.Things
 
 executable BengI
   import: options
