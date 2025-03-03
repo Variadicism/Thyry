@@ -129,28 +129,30 @@ instance Messagable Parameter where
 deriving instance Eq Pattern
 
 instance Show Pattern where
-	show p = '\\' : showPatternWith show p
+	show p = '\\' : showPatternWith False p
 
 instance Messagable Pattern where
 	-- In the future, I might show simplified versions of some patterns or a simple subset of the pattern here.
 	msg p = '\\' : case p of
 		Argument{name,argType} -> msgArg name argType
-		p -> showPatternWith msg p
+		p -> showPatternWith True p
 
 -- private
 
-showPatternWith :: (Pattern -> String) -> Pattern -> String
-showPatternWith show = \case
+showPatternWith :: Bool -> Pattern -> String
+showPatternWith useMsg = \case
 	Space -> " "
 	Literal literal -> unpack literal
 	CharClass{ranges,negate} -> CharClass.showClass ranges negate
-	NamedText{name,subpattern} -> wrap "\"" name ++ parenthesize (showPatternWith show subpattern)
-	And subpatterns -> concatMap (showPatternWith show) subpatterns
-	Or subpatterns -> parenthesize $ intercalate "|" $ map (showPatternWith show) subpatterns.l
+	NamedText{name,subpattern} -> wrap "\"" name ++ parenthesize (showPatternWith useMsg subpattern)
+	And subpatterns -> concatMap (showPatternWith useMsg) subpatterns
+	Or subpatterns -> parenthesize $ intercalate "|" $ map (showPatternWith useMsg) subpatterns.l
 	Delimited{..} ->
 		-- TODO: determine if parentheses are necessary based on precedence.
-		parenthesize (showPatternWith show delimitend) ++ "{" ++ showPatternWith show delimiter ++ "}"
-	Argument{name,argType,decLoc} -> showArg name argType decLoc
+		parenthesize (showPatternWith useMsg delimitend) ++ "{" ++ showPatternWith useMsg delimiter ++ "}"
+	Argument{name,argType,decLoc} -> if useMsg
+		then msgArg name argType
+		else showArg name argType decLoc
 
 getOrArgs :: Populace2 Pattern -> OMap String (Parameter, Bool)
 getOrArgs subpatterns = do

@@ -66,13 +66,23 @@ showContestUsing useMsg Contest{..} = do
 	nameOrPlain superName super ++ " satisfies? " ++ nameOrPlain subName sub
 	where show' = if useMsg then msg else show
 
-showTestUsing ::
-	(Contest -> String) -> (Context -> String) -> SatisfactionTest -> String
-showTestUsing sCst sCxt SatisfactionTest{..} = do
-	let ongoingTestDesc i test = "\n\tOngoing " ++ show (i+1) ++ ") " ++ sCst test
-	"satisfaction test using " ++ sCxt context ++ ":\n" ++
-		"\tCurrent test) " ++ sCst current ++
+showContestMultilineUsing :: Bool -> Contest -> String
+showContestMultilineUsing useMsg Contest{..} = do
+	let nameOrPlain maybeName value = case maybeName of
+		Nothing -> show' value
+		Just name -> name ++ " := " ++ show' value
+	"Super: " ++ nameOrPlain superName super ++ "\n\t\tSub: " ++ nameOrPlain subName sub
+	where show' = if useMsg then msg else show
+
+showTestUsing :: Bool -> SatisfactionTest -> String
+showTestUsing useMsg SatisfactionTest{..} = do
+	let showContest contest = "\n\t\t" ++ showContestMultilineUsing useMsg contest
+	let ongoingTestDesc i contest =
+		"\n\tOngoing " ++ show (i+1) ++ ") " ++ showContest contest
+	"satisfaction test using " ++ show' context ++ ":\n" ++
+		"\tCurrent test) " ++ showContest current ++
 		concat (mapIndexed ongoingTestDesc ongoing)
+	where show' = if useMsg then msg else show
 
 -- instances
 
@@ -88,10 +98,10 @@ instance Messagable Contest where
 deriving instance Eq SatisfactionTest
 
 instance Show SatisfactionTest where
-	show = showTestUsing show show
+	show = showTestUsing False
 
 instance Messagable SatisfactionTest where
-	msg = showTestUsing msg msg
+	msg = showTestUsing True
 
 -- exported
 
@@ -105,11 +115,10 @@ satisfiesDuring :: (SatisfactionTest, Thing) -> Thing -> SatisfactionTestResult
 satisfiesDuring (test, super) sub = do
 	let contest = Contest { super, sub, superName = Nothing, subName = Nothing }
 	if contest == test.current || contest `elem` test.ongoing then do
-		debugM $ "Unsatisfied " ++ show contest ++ " due to tautology!"
+		debugM $ "UNSATISFIED " ++ show contest ++ " due to tautology!"
 		Error $ Tautology super sub
 	else do
-		debugM $ show contest ++ " is not tautological; pushing " ++
-			show test.current ++ " into 'ongoing'..."
+		debugM $ "Pushing new contest:\n" ++ msg contest
 		runTest SatisfactionTest {
 			context = test.context,
 			ongoing = test.current : test.ongoing,
@@ -122,18 +131,18 @@ runTest test = do
 	let testEqualValues super sub = ifElseError (super == sub) () $ PrimitiveMismatch super sub
 	let testBits superSize subSize super sub =
 		if superSize <= subSize then do
-			debugM $ "Satisfied because " ++ show superSize ++
+			debugM $ "SATISFIED because " ++ show superSize ++
 				" bits can be padded to " ++ show subSize ++ " bits"
 			Falue ()
 		else do
-			debugM $ "Unsatisfied because " ++ show superSize ++
+			debugM $ "UNSATISFIED because " ++ show superSize ++
 				" has too few bits (needed " ++ show subSize ++ ")"
 			Error $ PrimitiveMismatch super sub
 	-- runTest' avoids excess test info debug spam.
 	let runTest' test = case (test.current.super, test.current.sub) of
 		-- congruent types
 		(super, sub) | super == sub -> do
-			debugM $ "Satisfied due to equality: " ++ show super ++ " = " ++
+			debugM $ "SATISFIED due to equality: " ++ show super ++ " = " ++
 				(if show super == show sub then "(identical)" else show sub)
 			Falue ()
 		(super@NativeBitsType{}, sub@NativeBitsType{}) ->
@@ -153,7 +162,7 @@ runTest test = do
 					mapError (MismatchedArgument key superArgType subArgType) $
 						(test, subArgType) `satisfiesDuring` superArgType
 			void $ sequence $ map checkArgs $ Set.elems argKeys
-			debugM "Satisfied op type"
+			debugM "SATISFIED op type"
 		(super@NativeListType{}, sub@NativeListType{}) ->
 			(test, super.elementType) `satisfiesDuring` sub.elementType
 		(super@NativeSomeType{}, sub@NativeSomeType{}) ->
@@ -173,31 +182,28 @@ runTest test = do
 		(super, sub@NativeType{}) ->
 			(test, super) `satisfiesProps` sub.properties
 		(super@CombinedThings{}, sub) -> do
-			debugM $ "Testing if " ++ intercalate " OR " (map show super.things.l) ++
-				" satisfies " ++ show sub ++ "..."
+			debugM $ "Deconstructing compound super value: " ++ intercalate " AND " (map msg super.things.l)
 			void $ sequenceAny $ map (\v -> (test, v) `satisfiesDuring` sub) super.things.l
 		(super, sub@CombinedThings{}) -> do
-			debugM $ "Testing if " ++ show super ++ " satisfies " ++
-				intercalate " AND " (map show sub.things.l) ++ "..."
+			debugM $ "Deconstructing compound sub value: " ++ intercalate " AND " (map show sub.things.l)
 			void $ sequence $ map ((test, super) `satisfiesDuring`) sub.things.l
 		(super@NamedThing{..}, _) -> do
-			debugM $ "Deconstructing named super value \"" ++ name ++ "\"..."
+			debugM $ "Deconstructing named super value: \"" ++ name ++ "\""
 			runTest' test{ ST.current = test.current{ super = super.value, superName = Just name }}
 		(_, sub@NamedThing{..}) -> do
-			debugM $ "Deconstructing named sub value \"" ++ name ++ "\"..."
+			debugM $ "Deconstructing named sub value: \"" ++ name ++ "\""
 			runTest' test{ ST.current = test.current{ sub = sub.value, subName = Just name }}
 		-- TODO: when native types satisfy language-level types: (super@NativeType{}, sub)
 		(super@NativeSomeType{}, sub@NativeListType{}) ->
 			(test, super.elementType) `satisfiesDuring` sub.elementType
 		(super@NativeOptionalType{}, sub) -> do
-			debugM $ "Testing if optional inner " ++ show super.falueType ++
-				" satisfies " ++ show sub ++ "..."
+			debugM $ "Deconstructing optional super value: " ++ show super.falueType
 			(test, super.falueType) `satisfiesDuring` sub
 		(super, sub@NativeOrType{}) -> void $
 			sequence $ map (\subOption -> (test, subOption) `satisfiesDuring` super) sub.options.l
 		(super@NativeOrType{}, sub) ->
 			void $ sequenceAny $ map ((test, sub) `satisfiesDuring`) super.options.l
 		(super, sub) -> do
-			debugM $ "Unsatisfied " ++ show sub ++ " by " ++ show super ++ " via incongruence"
+			debugM $ "UNSATISFIED " ++ show sub ++ " by " ++ show super ++ " via incongruence"
 			Error $ PrimitiveMismatch super sub
 	runTest' test

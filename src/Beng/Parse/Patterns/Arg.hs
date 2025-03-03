@@ -31,6 +31,8 @@ import Beng.Types.Things (Thing, Thing(OpValue))
 import Beng.SatisfactionTest (satisfiesDuring)
 
 import Control.Monad (when)
+import Data.Char (toLower)
+import Data.List.Extra (dropPrefix)
 import qualified Data.Map as Map
 
 -- exported
@@ -39,7 +41,12 @@ showArg :: String -> Thing -> Location -> String
 showArg name paramType decLoc = show decLoc ++ ":" ++ msgArg name paramType
 
 msgArg :: String -> Thing -> String
-msgArg name paramType = wrap "'" $ name ++ ", " ++ msg paramType
+msgArg name paramType = do
+	let paramTypeName = dropPrefix "a " $ dropPrefix "an " $ map toLower $ msg paramType
+	let contents = if paramTypeName == map toLower name
+		then name
+		else name ++ ", " ++ msg paramType
+	wrap "'" contents
 
 parse :: String -> Thing -> Location -> Code.Parser Match
 parse name argType decLoc = msgArg name argType @> \state -> do
