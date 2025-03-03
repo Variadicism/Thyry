@@ -29,6 +29,9 @@ instance Show Definition where
 instance Messagable Definition where
 	msg Definition{declaration} = msg declaration
 
+instance Ord Definition where
+	compare d1 d2 = compare d1.location d2.location
+
 -- exported
 
 isNullary :: (Definition -> Bool)

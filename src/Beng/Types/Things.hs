@@ -8,8 +8,8 @@ import Utils.Fallible (FallibleI)
 import Utils.Populace (Populace)
 import Utils.Populace.Populace2 (Populace2)
 
-import Beng.Types.Build.Cards (Card)
 import {-# SOURCE #-} Beng.Ops ()
+import Beng.Types.Build.Cards (Card)
 import {-# SOURCE #-} Beng.Types.Ops.Declarations (Declaration)
 import {-# SOURCE #-} qualified Beng.Types.Ops.Declarations as Declaration
 import {-# SOURCE #-} Beng.Types.Ops.Definitions (Definition)
@@ -25,9 +25,11 @@ data Mismatch =
 	MismatchedArgument { name :: String, super :: Thing, sub :: Thing, cause :: Mismatch } |
 	MissingArgument { name :: String, sub :: Thing, superArgs :: Map String Thing } |
 	ExtraArgument { name :: String, super :: Thing, subArgs :: Map String Thing } |
-	UnsatisfiedProperty { property :: Declaration, decMismatch :: Declaration.Mismatch } |
+	UnsatisfiedProperty { declaration :: Declaration, decMismatch :: Declaration.Mismatch } |
+	ObscuredProperty { property :: Card, decMismatch :: Declaration.Mismatch } |
 	UnsatisfiedParent { parent :: Thing, super :: Thing, cause :: Mismatch } |
 	PrimitiveMismatch { super :: Thing, sub :: Thing } |
+	Tautology { super :: Thing, sub :: Thing } |
 	-- /\ furthest from success
 	CompoundMismatch { context :: String, compound :: Populace Mismatch }
 
@@ -35,7 +37,6 @@ data Undefined = Undefined { decsByContext :: [(String, Declaration)] }
 
 data Thing =
 	-- primitive values: basic building blocks of the language
-	ThingValue { definitions :: Populace Definition } |
 	OpValue Op |
 	DefinitionValue Definition |
 	DeclarationValue Declaration |
@@ -49,21 +50,22 @@ data Thing =
 	PatternType |
 	PreOpType |
 	-- native values: values necessary for runtime with language-level equivalents
-	NativeBitsValue { bytes :: ByteString } |
+	NativeBitsValue { bytes :: ByteString, size :: Int {- in BITS, not bytes -} } |
 	NativeCharValue { char :: Char } |
 	NativeStringValue { text :: Text } |
 	NativeListValue { values :: [Thing] } |
 	NativeSomeValue { valuesP :: Populace Thing } |
 	NativeOptionalValue { fal :: FallibleI Undefined Thing } |
 	-- native types: types representing the native values
-	NativeType {
-		name :: Maybe String,
-		parents :: [Thing],
-		properties :: Thing -> [Card] } |
+	NativeType { properties :: Thing -> [Card] } |
 	NativeBitsType { size :: Int } |
 	NativeCharType |
 	NativeStringType |
 	NativeListType { elementType :: Thing } |
 	NativeSomeType { elementType :: Thing } |
 	NativeOptionalType { falueType :: Thing } |
-	NativeOrType { options :: Populace2 Thing }
+	NativeOrType { options :: Populace2 Thing } |
+	-- meta values: values representing value configurations
+	One |  -- used as a placeholder in defining properties at the language level
+	CombinedThings { things :: Populace2 Thing } |
+	NamedThing { name :: String, value :: Thing }

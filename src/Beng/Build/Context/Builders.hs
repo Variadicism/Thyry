@@ -22,6 +22,7 @@ module Beng.Build.Context.Builders (
 	asBits,
 	bitsValue,
 	asInt,
+	bitValue,
 	intValue,
 	declare,
 	declareLiteral,
@@ -133,7 +134,7 @@ asNativeString = \case
 
 asBits :: Int -> (Thing -> Fallible ByteString)
 asBits size = \case
-	bitsValue@(NativeBitsValue bytestring) ->
+	bitsValue@(NativeBitsValue{bytes=bytestring}) ->
 		if BS.length bytestring == ceiling (fromIntegral size / 8.0) then
 			return bytestring
 		-- TODO: replace `error` with `TypeError`
@@ -142,8 +143,9 @@ asBits size = \case
 			"b) were found instead: " ++ show bitsValue
 	other -> asOpOf (show size ++ "b") (asBits size) other
 
-bitsValue :: [Int] -> Thing
-bitsValue = NativeBitsValue . BS.pack . map (fromInteger . toInteger)
+bitsValue :: Int -> [Int] -> Thing
+bitsValue size byteValues =
+	NativeBitsValue { size, bytes = BS.pack $ map (fromInteger . toInteger) byteValues }
 
 asInt :: Thing -> Fallible Int32
 asInt value = do  -- TODO TEMPORARY
@@ -155,8 +157,11 @@ asInt value = do  -- TODO TEMPORARY
 		(shiftL (fromIntegral b3) 8) .|.
 		(fromIntegral b4)
 
+bitValue :: Bool -> Thing
+bitValue true = bitsValue 1 [if true then 1 else 0]
+
 intValue :: Int32 -> Thing
-intValue int = bitsValue $
+intValue int = bitsValue 32 $
 	map ((.&. 0xFF) . shiftR (fromInteger $ toInteger int)) [24, 16, 8, 0]
 
 declare :: PrecedenceBound -> [Pattern] -> Thing -> Location -> Declaration

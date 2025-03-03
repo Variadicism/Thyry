@@ -24,6 +24,7 @@ import Utils.Populace.Populace2 (Populace2)
 import qualified Utils.Populace.Populace2 as P2
 import Utils.Strings (escape, parenthesize)
 
+import Beng.Build.Context.Builders (patConcat)
 import Beng.Errors (compoundErrorsUsing, showCompoundErrorsUsing)
 import qualified Beng.Parse.Patterns.And as And
 import Beng.Parse.Patterns.Arg (msgArg, showArg)
@@ -38,8 +39,8 @@ import Beng.Parse.Matches (Match)
 import Beng.Parse.Parsers ((>>>))
 import qualified Beng.Parse.Parsers.Code as Code
 import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
-import Beng.Types.Build.Context (Context)
 import Beng.Types.Parse.Patterns
+import Beng.Types.SatisfactionTest (SatisfactionTest)
 import Beng.Types.Things (Thing(..))
 
 import Data.List (intercalate)
@@ -58,10 +59,14 @@ specials = ".{}[] "
 
 showMismatchUsing :: Bool -> Mismatch -> String
 showMismatchUsing useMsg = \case
-	LeftoverSub{..} -> "sub patterns could not be matched: " ++ show' leftover
-	LeftoverSuper{..} -> "required super patterns could not be matched: " ++ show' leftover
-	Mismatch{..} -> show' nextSub ++ " cannot prefix " ++ show' remainingSuper
-	CompoundMismatch{..} -> showCompoundErrorsUsing show' context compound
+	LeftoverSub{..} ->
+		"sub patterns could not be matched: " ++ show' (patConcat leftover.l)
+	LeftoverSuper{..} ->
+		"required super patterns could not be matched: " ++ show' (patConcat leftover.l)
+	Mismatch{..} ->
+		show' nextSub ++ " cannot prefix " ++ show' (patConcat remainingSuper.l)
+	CompoundMismatch{..} ->
+		showCompoundErrorsUsing show' context compound
 	where
 		show' :: (Show a, Messagable a) => (a -> String)
 		show' = if useMsg then show else msg
@@ -124,11 +129,11 @@ instance Messagable Parameter where
 deriving instance Eq Pattern
 
 instance Show Pattern where
-	show = showPatternWith show
+	show p = '\\' : showPatternWith show p
 
 instance Messagable Pattern where
 	-- In the future, I might show simplified versions of some patterns or a simple subset of the pattern here.
-	msg = \case
+	msg p = '\\' : case p of
 		Argument{name,argType} -> msgArg name argType
 		p -> showPatternWith msg p
 
@@ -139,12 +144,12 @@ showPatternWith show = \case
 	Space -> " "
 	Literal literal -> unpack literal
 	CharClass{ranges,negate} -> CharClass.showClass ranges negate
-	NamedText{name,subpattern} -> wrap "\"" name ++ parenthesize (show subpattern)
-	And subpatterns -> concatMap show subpatterns
-	Or subpatterns -> parenthesize $ intercalate "|" $ map show subpatterns.l
+	NamedText{name,subpattern} -> wrap "\"" name ++ parenthesize (showPatternWith show subpattern)
+	And subpatterns -> concatMap (showPatternWith show) subpatterns
+	Or subpatterns -> parenthesize $ intercalate "|" $ map (showPatternWith show) subpatterns.l
 	Delimited{..} ->
 		-- TODO: determine if parentheses are necessary based on precedence.
-		parenthesize (show delimitend) ++ "{" ++ show delimiter ++ "}"
+		parenthesize (showPatternWith show delimitend) ++ "{" ++ showPatternWith show delimiter ++ "}"
 	Argument{name,argType,decLoc} -> showArg name argType decLoc
 
 getOrArgs :: Populace2 Pattern -> OMap String (Parameter, Bool)
@@ -286,9 +291,9 @@ isOptional = \case
 	Delimited _ delimitend -> isOptional delimitend
 	_ -> False
 
-satisfies :: (Context, Pattern) -> Pattern -> FallibleI Mismatch ()
-(context, super) `satisfies` sub = do
-	let startState = PatternComparator.startState context super sub
+satisfies :: (SatisfactionTest, Pattern) -> Pattern -> FallibleI Mismatch ()
+(test, super) `satisfies` sub = do
+	let startState = PatternComparator.startState test super sub
 	parses <- startState >>> PatternComparator.comparator
 	-- Writing this as `let isComplete parse =` causes errors with HasField. >:(
 	let isComplete = \parse -> case (parse.state.rest.sub, parse.state.rest.super) of

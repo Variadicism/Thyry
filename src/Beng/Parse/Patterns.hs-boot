@@ -2,11 +2,12 @@ module Beng.Parse.Patterns where
 
 import Utils.Fallible (FallibleI, IsError)
 import Utils.Messaging (Messagable)
+import Utils.Populace (Populace)
 
-import Beng.Types.Build.Context (Context)
 import Beng.Types.Parse.Matches (Match)
 import Beng.Types.Parse.Parsers.Code (Parser)
 import Beng.Types.Parse.Patterns (CharRange, Mismatch, Parameter, Pattern)
+import Beng.Types.SatisfactionTest (SatisfactionTest)
 
 import Data.Map.Ordered (OMap)
 
@@ -40,6 +41,8 @@ instance Messagable Pattern
 
 parse :: Pattern -> Parser Match
 
+getSubpatterns :: Pattern -> Populace Pattern
+
 getArgs :: Pattern -> OMap String Parameter
 
 getRequiredArgs :: Pattern -> OMap String Parameter
@@ -56,4 +59,4 @@ mustHaveSuffix :: Pattern -> Bool
 
 isOptional :: Pattern -> Bool
 
-satisfies :: (Context, Pattern) -> Pattern -> FallibleI Mismatch ()
+satisfies :: (SatisfactionTest, Pattern) -> Pattern -> FallibleI Mismatch ()

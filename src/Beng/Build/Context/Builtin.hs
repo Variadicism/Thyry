@@ -15,7 +15,7 @@ import Beng.Run (run, runWhileOp)
 import Beng.Types.Ops.Declarations (Associativity(..), Declaration)
 import Beng.Types.Ops.Definitions (Definition(..))
 import Beng.Types.Locations (Location(..))
-import Beng.Types.Things (Thing(..), Thing(..))
+import Beng.Types.Things (Thing(..))
 
 import qualified Data.ByteString as BS
 import Data.Int (Int32)
@@ -81,12 +81,12 @@ hangingDefinitionOf opEnum location = case opEnum of
 	Yes -> define None
 		[l "yes"]
 		(NativeBitsType 1)
-		(\_ -> return $ bitsValue [1])
+		(\_ -> return $ bitsValue 1 [1])
 		location
 	No -> define None
 		[l "no"]
 		(NativeBitsType 1)
-		(\_ -> return $ bitsValue [0])
+		(\_ -> return $ bitsValue 1 [0])
 		location
 	Add -> define Default
 		[a "Augend" intType, s, l "+", s, a "Addend" intType]
@@ -109,7 +109,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 		intType
 		(\name args location -> case name of
 			"Scope" -> do
-				name <- asNativeString $ value $ args ! "Name"
+				name <- asNativeString $ (args ! "Name").value
 				let value = (args ! "Thing").value
 				return [DefCard $ defineLiteral name intType value location]
 			_ -> return [])

@@ -28,7 +28,7 @@ import Beng.Types.Ops.Declarations (Declaration(..))
 import Beng.Types.Parse.Patterns (Mismatch(..))
 import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Types.Things (Thing, Thing(OpValue))
-import Beng.Things (oneIsA)
+import Beng.SatisfactionTest (satisfiesDuring)
 
 import Control.Monad (when)
 import qualified Data.Map as Map
@@ -76,8 +76,8 @@ compareFrom name argType decLoc = msgArg name argType ++ " comparator" @> \state
 	case state.rest.super of
 		-- Sub must start with the current pattern, so P.assume is safe.
 		[] -> Error $ LeftoverSub $ P.assume state.rest.sub
-		next@Pattern.Argument{}:_ | next.name == name
+		next@Pattern.Argument{}:_ | next.name == name  -- TODO: eliminate the name match requirement?
 				-- TODO: pass details of the type error to the comparator.
-				&& not (hasError ((state.context, argType) `oneIsA` next.argType)) ->
+				&& not (hasError ((state.test, argType) `satisfiesDuring` next.argType)) ->
 			PC.accept [next] state
 		nextSuper:superLeft -> Error $ Mismatch self $ P.Populace nextSuper superLeft

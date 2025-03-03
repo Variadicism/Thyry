@@ -23,8 +23,8 @@ import Data.Map (Map)
 data Associativity = Lefty | Righty
 
 data Mismatch =
-	PatternMismatch { patternMismatch :: Pattern.Mismatch } |
 	ReturnTypeMismatch { typeMismatch :: Thing.Mismatch } |
+	PatternMismatch { patternMismatch :: Pattern.Mismatch } |
 	CompoundMismatch { context :: String, compound :: Populace Mismatch }
 
 type ArgContextBuilder =

@@ -27,7 +27,7 @@ import {-# SOURCE #-} qualified Beng.Parse.Patterns.Literal as Literal
 import {-# SOURCE #-} qualified Beng.Parse.Patterns.NamedText as NamedText
 import {-# SOURCE #-} qualified Beng.Parse.Patterns.Or as Or
 import {-# SOURCE #-} qualified Beng.Parse.Patterns.Space as Space
-import Beng.Types.Build.Context (Context)
+import Beng.SatisfactionTest (SatisfactionTest)
 import {-# SOURCE #-} Beng.Parse.Patterns (isOptional)
 import Beng.Types.Parse.Parsers.PatternComparator (Comparison(..), Parse, ParseRunner, Parser, Parses, State(..))
 import qualified Beng.Types.Parse.Parsers.PatternComparator as PC
@@ -63,9 +63,10 @@ instance Messagable State where
 	msg State{..} = msg rest
 
 instance Show State where
-	show State{..} = show rest ++
-		" at depth " ++ show indentation ++
-		" using " ++ show context
+	show State{..} =
+		{- Don't print the test; this state prints at every single parser step and the test prints
+		   lots of info, so the logs get INCREDIBLY spammy. -}
+		show rest ++ " at depth " ++ show indentation
 
 -- private
 
@@ -115,12 +116,12 @@ compareFrom pattern = do
 
 -- exported
 
-startState :: Context -> Pattern -> Pattern -> State
-startState context super sub =
+startState :: SatisfactionTest -> Pattern -> Pattern -> State
+startState test super sub =
 	State {
 		indentation = 0,
 		rest = Comparison { sub = flat sub, super = flat super },
-		context = context }
+		test }
 
 swapSub :: [Pattern] -> State -> State
 swapSub newSub s = s{ rest = s.rest{ sub = newSub }}
@@ -131,15 +132,15 @@ swapSuper newSuper s = s{ rest = s.rest{ super = newSuper }}
 acceptRest :: ParseRunner
 acceptRest state = takeAs state.rest () state
 
-acceptUsing :: [Pattern] -> Context -> ParseRunner
-acceptUsing fromSuper context = \state -> case state.rest.sub of
-	(next:_) -> takeAs Comparison { sub = [next], super = fromSuper } () state{ PC.context = context }
+acceptUsing :: [Pattern] -> SatisfactionTest -> ParseRunner
+acceptUsing fromSuper test = \state -> case state.rest.sub of
+	(next:_) -> takeAs Comparison { sub = [next], super = fromSuper } () state{ PC.test = test }
 	[] -> error $ "A pattern comparator attempted to accept " ++ show fromSuper ++ " from " ++
 		show state.rest.super ++ ", but no pattern remained in the sub to match it to!"
 
 -- Accept the given patterns from the start of the "super" pattern to match with the next pattern from "sub".
 accept :: [Pattern] -> ParseRunner
-accept fromSuper = \state -> acceptUsing fromSuper state.context state
+accept fromSuper = \state -> acceptUsing fromSuper state.test state
 
 parseAll :: Parser -> Parser
 parseAll = (>\> const ()) . Parser.parseAllUsing takeAsNull
@@ -161,6 +162,8 @@ comparator = do
 			Or{} -> True
 			_ -> False
 
+		-- TODO: check all other patterns before we typecheck arguments.
+		-- (Typechecks are exponentially inefficient!)
 		case (state.rest.super, state.rest.sub) of
 			([], []) -> acceptRest state
 			(super@(nextSuper:superLeft), []) ->

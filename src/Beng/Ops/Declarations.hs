@@ -3,6 +3,7 @@ module Beng.Ops.Declarations (
 	Associativity(..),
 	Declaration(..),
 	PrecedenceBound(..),
+	isReturnTypeMismatch,
 	isNullary,
 	canHavePrefix,
 	canHaveSuffix,
@@ -13,16 +14,18 @@ module Beng.Ops.Declarations (
 ) where
 
 import Utils.Fallible
-import Utils.Messaging (Messagable, msg)
+import Utils.Messaging (Messagable, debugM, msg)
 import qualified Utils.Populace as P
 
 import {-# SOURCE #-} Beng.Errors (compoundErrorsUsing, showCompoundErrorsUsing)
-import Beng.Types.Build.Context (Context, PrecedenceBound(..))
+import Beng.Locations ()
+import {-# SOURCE #-} qualified Beng.SatisfactionTest as ST
+import Beng.Types.Build.Context (PrecedenceBound(..))
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Types.Parse.Patterns (Pattern(Literal))
-import Beng.Locations ()
+import {-# SOURCE #-} Beng.Things ()
 import Beng.Types.Ops.Declarations (ArgContextBuilder, Associativity(..), Declaration(..), Mismatch(..))
-import {-# SOURCE #-} Beng.Things (oneIsA)
+import Beng.Types.SatisfactionTest (SatisfactionTest)
 
 import Control.Exception.Extra (Partial)
 import Data.Text.Lazy (unpack)
@@ -53,8 +56,8 @@ instance Ord Mismatch where
 	compare CompoundMismatch{..} m = compare compound.head m
 	compare m1 m2 = compare (typeIndex m1) (typeIndex m2)
 		where typeIndex = \case
-			PatternMismatch{} -> 1
-			ReturnTypeMismatch{} -> 2
+			ReturnTypeMismatch{} -> 1
+			PatternMismatch{} -> 2
 			CompoundMismatch{} -> 3  -- Impossible
 
 instance IsError Mismatch where
@@ -76,15 +79,24 @@ instance Eq Declaration where
 	(==) d1 d2 = d1.location == d2.location
 
 instance Show Declaration where
-	show dec = show dec.location ++ "\\" ++ msg dec.pattern ++ " => " ++ show dec.returnType
+	show dec = show dec.location ++ msg dec.pattern ++ " => " ++ msg dec.returnType
 
 instance Messagable Declaration where
-	msg Declaration{pattern} = msg pattern
+	msg Declaration{..} = msg pattern ++ " => " ++ msg returnType
+
+instance Ord Declaration where
+	compare d1 d2 = compare d1.location d2.location
 
 instance HasField "name" Declaration String where
 	getField = nameAsValue
 
 -- exported
+
+isReturnTypeMismatch :: (Mismatch -> Bool)
+isReturnTypeMismatch = \case
+	ReturnTypeMismatch _ -> True
+	PatternMismatch _ -> False
+	CompoundMismatch{..} -> all isReturnTypeMismatch compound
 
 isNullary :: (Declaration -> Bool)
 isNullary = not . Pattern.hasArgs . pattern
@@ -106,7 +118,32 @@ nameAsValue declaration = do
 	let (Literal name) = declaration.pattern
 	unpack name
 
-satisfies :: (Context, Declaration) -> Declaration -> FallibleI Mismatch ()
-satisfies (context, super) sub = do
-	mapError ReturnTypeMismatch $ (context, super.returnType) `oneIsA` sub.returnType
-	mapError PatternMismatch $ (context, super.pattern) `Pattern.satisfies` sub.pattern
+satisfies :: (SatisfactionTest, Declaration) -> Declaration -> FallibleI Mismatch ()
+satisfies (test, super) sub = do
+	debugM $ "Testing satisfaction of declaration:\n" ++
+		"\tSuper: " ++ show super ++ "\n\tSub: " ++ show sub
+	if super == sub then do
+		debugM $ "Satisfies because the declarations are equal"
+		Falue ()
+	else do
+		let patternResult = mapError PatternMismatch $
+			(test, super.pattern) `Pattern.satisfies` sub.pattern
+		case patternResult of
+			Falue _ -> do
+				{- debugM $ "Satisfied PATTERN of declaration:\n\t✓ Super" ++ show super.pattern ++
+					"\n\t✓ Sub: " ++ show sub.pattern ++
+					"\nComparing return types next:\n\t? Super:" ++ show super.returnType  ++
+					"\n\t? Sub: " -}
+				let returnTypeResult = mapError ReturnTypeMismatch $
+					(test, sub.returnType) `ST.satisfiesDuring` super.returnType
+				{- case returnTypeResult of
+					Falue _ -> debugM $ "SATISFIED declaration:\n\t✓ Super:" ++ show super.returnType ++
+						"\n\t✓ Sub: " ++ show sub.returnType
+					Error returnTypeError -> debugM $ "UNsatisfied RETURN TYPE of declaration:\n\t╳ Super:" ++
+						show super.returnType ++ "\n\t╳ Sub: " ++ show sub.returnType ++
+						"\n\tReason: " ++ show returnTypeError -}
+				returnTypeResult
+			Error patternError -> do
+				{- debugM $ "UNsatisfied declaration by pattern mismatch:\n\t╳ Super: " ++ show super.pattern ++
+					"\n\t╳ Sub: " ++ show sub.pattern ++ "\n\tReason: " ++ show patternError -}
+				Error patternError

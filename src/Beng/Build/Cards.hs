@@ -4,18 +4,23 @@ module Beng.Build.Cards (
 	definition,
 	isDefined,
 	defineUsing,
-	isDefinedUsing
+	isDefinedUsing,
+	filterDefs,
+	filterDecs
 ) where
 
 import Utils.Messaging (Messagable, msg)
 
+import Beng.Locations (Location)
+import Beng.Ops.Declarations (Declaration)
+import Beng.Ops.Definitions (Definition)
+import qualified Beng.Ops.Declarations as Declaration
+import qualified Beng.Ops.Definitions as Definition
 import Beng.Types.Build.Cards (Card(..))
 import Beng.Types.Build.Context (Context(..))
-import Beng.Ops.Declarations (Declaration)
-import Beng.Ops.Definitions (Definition(..))
 
 import Data.List (find)
-import Data.Maybe (isJust)
+import Data.Maybe (catMaybes, isJust)
 import GHC.Records (HasField, getField)
 
 -- instances
@@ -26,6 +31,9 @@ instance HasField "declaration" Card Declaration where
 instance HasField "definition" Card (Maybe Definition) where
 	getField = definition
 
+instance HasField "location" Card Location where
+	getField = location
+
 deriving instance Eq Card
 
 instance Show Card where
@@ -33,7 +41,11 @@ instance Show Card where
 	show (DefCard def) = show def
 
 instance Messagable Card where
-	msg card = msg card.declaration
+	msg (DecCard dec) = msg dec
+	msg (DefCard def) = msg def
+
+instance Ord Card where
+	compare c1 c2 = compare c1.location c2.location
 
 -- exported
 
@@ -44,6 +56,10 @@ declaration (DefCard def) = def.declaration
 definition :: (Card -> Maybe Definition)
 definition (DecCard _) = Nothing
 definition (DefCard def) = Just def
+
+location :: (Card -> Location)
+location (DecCard dec) = Declaration.location dec
+location (DefCard def) = Definition.location def
 
 isDefined :: (Card -> Bool)
 isDefined = isJust . \c -> c.definition
@@ -56,3 +72,11 @@ defineUsing context (DecCard dec) = do
 
 isDefinedUsing :: Context -> (Card -> Bool)
 isDefinedUsing context = isJust . defineUsing context
+
+filterDefs :: [Card] -> [Definition]
+filterDefs = catMaybes . map definition
+
+filterDecs :: [Card] -> [Declaration]
+filterDecs = map yankDec . filter (not . isDefined)
+	-- This partial function is safe because `not . isDefined` ensures that only DecCards come through.
+	where yankDec = \(DecCard dec) -> dec
