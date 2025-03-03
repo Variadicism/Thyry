@@ -130,20 +130,20 @@ satisfies (test, super) sub = do
 			(test, super.pattern) `Pattern.satisfies` sub.pattern
 		case patternResult of
 			Falue _ -> do
-				{- debugM $ "Satisfied PATTERN of declaration:\n\t✓ Super" ++ show super.pattern ++
+				debugM $ "Satisfied PATTERN of declaration:\n\t✓ Super" ++ show super.pattern ++
 					"\n\t✓ Sub: " ++ show sub.pattern ++
 					"\nComparing return types next:\n\t? Super:" ++ show super.returnType  ++
-					"\n\t? Sub: " -}
+					"\n\t? Sub: "
 				let returnTypeResult = mapError ReturnTypeMismatch $
 					(test, sub.returnType) `ST.satisfiesDuring` super.returnType
-				{- case returnTypeResult of
+				case returnTypeResult of
 					Falue _ -> debugM $ "SATISFIED declaration:\n\t✓ Super:" ++ show super.returnType ++
 						"\n\t✓ Sub: " ++ show sub.returnType
 					Error returnTypeError -> debugM $ "UNsatisfied RETURN TYPE of declaration:\n\t╳ Super:" ++
 						show super.returnType ++ "\n\t╳ Sub: " ++ show sub.returnType ++
-						"\n\tReason: " ++ show returnTypeError -}
+						"\n\tReason: " ++ show returnTypeError
 				returnTypeResult
 			Error patternError -> do
-				{- debugM $ "UNsatisfied declaration by pattern mismatch:\n\t╳ Super: " ++ show super.pattern ++
-					"\n\t╳ Sub: " ++ show sub.pattern ++ "\n\tReason: " ++ show patternError -}
+				debugM $ "UNSATISFIED declaration by pattern mismatch:\n\t╳ Super: " ++ show super.pattern ++
+					"\n\t╳ Sub: " ++ show sub.pattern ++ "\n\tReason: " ++ show patternError
 				Error patternError

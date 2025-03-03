@@ -66,17 +66,18 @@ showContestUsing useMsg Contest{..} = do
 	nameOrPlain superName super ++ " satisfies? " ++ nameOrPlain subName sub
 	where show' = if useMsg then msg else show
 
-showContestMultilineUsing :: Bool -> Contest -> String
-showContestMultilineUsing useMsg Contest{..} = do
+showContestMultilineUsing :: String -> Bool -> Contest -> String
+showContestMultilineUsing indent useMsg Contest{..} = do
 	let nameOrPlain maybeName value = case maybeName of
 		Nothing -> show' value
 		Just name -> name ++ " := " ++ show' value
-	"Super: " ++ nameOrPlain superName super ++ "\n\t\tSub: " ++ nameOrPlain subName sub
+	"\n" ++ indent ++ "Super: " ++ nameOrPlain superName super ++
+		"\n" ++ indent ++ "Sub: " ++ nameOrPlain subName sub
 	where show' = if useMsg then msg else show
 
 showTestUsing :: Bool -> SatisfactionTest -> String
 showTestUsing useMsg SatisfactionTest{..} = do
-	let showContest contest = "\n\t\t" ++ showContestMultilineUsing useMsg contest
+	let showContest contest = showContestMultilineUsing "\t\t" useMsg contest
 	let ongoingTestDesc i contest =
 		"\n\tOngoing " ++ show (i+1) ++ ") " ++ showContest contest
 	"satisfaction test using " ++ show' context ++ ":\n" ++
@@ -118,7 +119,7 @@ satisfiesDuring (test, super) sub = do
 		debugM $ "UNSATISFIED " ++ show contest ++ " due to tautology!"
 		Error $ Tautology super sub
 	else do
-		debugM $ "Pushing new contest:\n" ++ msg contest
+		debugM $ "Pushing new contest:" ++ showContestMultilineUsing "\t" True contest
 		runTest SatisfactionTest {
 			context = test.context,
 			ongoing = test.current : test.ongoing,

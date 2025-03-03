@@ -208,21 +208,21 @@ testTypecheck = TestCategories "typecheck" do
 		assertSatisfies super sub `hasErrorElse` "This should not have been satisfied!"
 
 	[
-		PureTests "equal" [],
-			-- ("native basic", sound `assertSatisfies` sound),
-			-- ("native constructed type", cat `assertSatisfies` cat),
-			-- ("thing value", reneDescartes `assertSatisfies` reneDescartes) ],
-		PureTests "satisfies by props" [],
-			-- ("human is an animal", human `assertSatisfies` animal),
-			-- ("Rene is a human", reneDescartes `assertSatisfies` human),
-			-- ("a millenium baby is a human", milleniumBaby `assertSatisfies` human) ],
-		PureTests "satisfies by context" [],
-			-- ("cat is an animal", cat `assertSatisfies` animal),
-			-- ("Paris Hilton is a human", parisHilton `assertSatisfies` human),
-			-- ("William Shakespeare is a human", williamShakespeare `assertSatisfies` human) ],
+		PureTests "equal" [
+			("native basic", sound `assertSatisfies` sound),
+			("native constructed type", cat `assertSatisfies` cat),
+			("thing value", reneDescartes `assertSatisfies` reneDescartes) ],
+		PureTests "satisfies by props" [
+			("human is an animal", human `assertSatisfies` animal),
+			("Rene is a human", reneDescartes `assertSatisfies` human),
+			("a millenium baby is a human", milleniumBaby `assertSatisfies` human) ],
+		PureTests "satisfies by context" [
+			("cat is an animal", cat `assertSatisfies` animal),
+			("Paris Hilton is a human", parisHilton `assertSatisfies` human),
+			("William Shakespeare is a human", williamShakespeare `assertSatisfies` human) ],
 		PureTests "does not satisfy" [
-			("Rene is not a sound", reneDescartes `assertDoesNotSatisfy` sound) ]]
-			-- ("Rene is not a cat", reneDescartes `assertDoesNotSatisfy` cat),
-			-- ("William Shakespeare is not a dog", williamShakespeare `assertDoesNotSatisfy` dog),
-			-- ("Bigfoot is not a human", bigfoot `assertDoesNotSatisfy` human),
-			-- ("Paris is not a millenium baby", parisHilton `assertDoesNotSatisfy` milleniumBaby) ]]
+			("Rene is not a sound", reneDescartes `assertDoesNotSatisfy` sound),
+			("Rene is not a cat", reneDescartes `assertDoesNotSatisfy` cat),
+			("William Shakespeare is not a dog", williamShakespeare `assertDoesNotSatisfy` dog),
+			("Bigfoot is not a human", bigfoot `assertDoesNotSatisfy` human),
+			("Paris is not a millenium baby", parisHilton `assertDoesNotSatisfy` milleniumBaby) ]]
