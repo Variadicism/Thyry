@@ -7,7 +7,7 @@ module Beng.SatisfactionTest (
 
 import Utils.Fallible
 import Utils.Lists (mapIndexed)
-import Utils.Messaging (Messagable, debugM, msg)
+import Utils.Messaging (Messagable, debug, debugM, msg)
 
 import Beng.Build.Context (Context)
 import qualified Beng.Build.Context as C
@@ -29,7 +29,16 @@ satisfiesProps :: (SatisfactionTest, Thing) -> (Thing -> [Card]) -> FallibleI Mi
 satisfiesProps (test, super) propsWith = do
 	let checkProp prop = do
 		debugM $ "Testing satisfaction of prop: " ++ show prop ++ "..."
-		void $ case (prop, test `C.has` prop.declaration) of
+
+		let propTest :: SatisfactionTest = case prop of
+			DefCard _ -> do
+				-- Definitions can only fail if one of the other props obscures them.
+				let propsContext = C.fromThings [test.current.super]
+				debug ("Restricing test context to props for definition prop: " ++ show propsContext)
+					test{ ST.context = propsContext }
+			DecCard _ -> test
+
+		void $ case (prop, propTest `C.has` prop.declaration) of
 			(_, Falue _) -> do
 				debugM $ "SATISFIED prop: " ++ show prop
 				Falue ()
