@@ -3,6 +3,7 @@ module Beng.Parse.Patterns (
 	parse,
 	getSubpatterns,
 	getArgs,
+	getNonStructuralArgs,
 	getRequiredArgs,
 	hasArgs,
 	mustHavePrefix,
@@ -44,7 +45,7 @@ import Beng.Types.SatisfactionTest (SatisfactionTest)
 import Beng.Types.Things (Thing(..))
 
 import Data.List (intercalate)
-import Data.Map.Ordered ((<>|), OMap)
+import Data.Map.Ordered ((|<), (<>|), OMap)
 import qualified Data.Map.Ordered as OMap
 import qualified Data.Set as Set
 import Data.Text.Lazy (unpack)
@@ -139,6 +140,8 @@ instance Messagable Pattern where
 
 -- private
 
+type GetArgs = Pattern -> OMap String Parameter
+
 showPatternWith :: Bool -> Pattern -> String
 showPatternWith useMsg = \case
 	Space -> " "
@@ -154,8 +157,8 @@ showPatternWith useMsg = \case
 		then msgArg name argType
 		else showArg name argType decLoc
 
-getOrArgs :: Populace2 Pattern -> OMap String (Parameter, Bool)
-getOrArgs subpatterns = do
+getOrArgsUsing :: GetArgs -> Populace2 Pattern -> OMap String (Parameter, Bool)
+getOrArgsUsing getArgs subpatterns = do
 	let combineTypes
 			:: OMap String (Parameter, Bool) -> OMap String Parameter -> OMap String (Parameter, Bool) =
 		\aArgs bArgs -> do
@@ -191,6 +194,25 @@ getOrArgs subpatterns = do
 		(wrappedParam, optional)
 	OMap.map wrapOptionals argsWithoutOptionalWrappers
 
+getArgsUsing :: GetArgs -> GetArgs
+getArgsUsing getArgs = \case
+	NamedText{decLoc,name,subpattern} -> do
+		let nameArgEntry = (name, Parameter { decLoc, name, paramType = NativeStringType })
+		nameArgEntry |< getArgsUsing getArgs subpattern
+	And subpatterns -> OMap.concat $ map getArgs subpatterns.l
+	Or subpatterns -> OMap.map fst $ getOrArgsUsing getArgs subpatterns
+	Delimited delimiter delimitend ->
+		(wrapTypes NativeSomeType $ getArgs delimiter) <>|
+		(wrapTypes NativeListType $ getArgs delimitend)
+	Argument{decLoc,name,argType} -> OMap.singleton (name,
+		Parameter { decLoc, name, paramType = argType })
+	_ -> OMap.empty
+	where
+		wrapType :: (Thing -> Thing) -> Parameter -> Parameter
+		wrapType wrapper p = p{ paramType = wrapper p.paramType }
+		wrapTypes :: (Thing -> Thing) -> OMap String Parameter -> OMap String Parameter
+		wrapTypes wrapper = OMap.map (wrapType wrapper)
+
 -- exports
 
 parse :: Pattern -> Code.Parser Match
@@ -212,28 +234,21 @@ getSubpatterns = \case
 	Delimited{..} -> P.Populace delimitend [delimiter]
 	pattern -> P.singleton pattern
 
-getArgs :: Pattern -> OMap String Parameter
-getArgs = \case
-	NamedText{decLoc,name} -> OMap.singleton (name,
-		Parameter { decLoc, name, paramType = NativeStringType })
-	And subpatterns -> OMap.concat $ map getArgs subpatterns.l
-	Or subpatterns -> OMap.map fst $ getOrArgs subpatterns
-	Delimited delimiter delimitend ->
-		(wrapTypes NativeSomeType $ getArgs delimiter) <>|
-		(wrapTypes NativeListType $ getArgs delimitend)
-	Argument{decLoc,name,argType} -> OMap.singleton (name,
-		Parameter { decLoc, name, paramType = argType })
-	_ -> OMap.empty
-	where
-		wrapType :: (Thing -> Thing) -> Parameter -> Parameter
-		wrapType wrapper p = p{ paramType = wrapper p.paramType }
-		wrapTypes :: (Thing -> Thing) -> OMap String Parameter -> OMap String Parameter
-		wrapTypes wrapper = OMap.map (wrapType wrapper)
+getArgs :: GetArgs
+getArgs = getArgsUsing getArgs
 
-getRequiredArgs :: Pattern -> OMap String Parameter
+-- TODO: think of a better name for this
+getNonStructuralArgs :: GetArgs
+getNonStructuralArgs = \case
+	NamedText{} -> OMap.empty
+	pattern -> getArgsUsing getNonStructuralArgs pattern
+
+getRequiredArgs :: GetArgs
 getRequiredArgs = \case
-	Or subpatterns -> OMap.map fst $ OMap.filter (\_ (_, optional) -> not optional) $ getOrArgs subpatterns
-	pattern -> getArgs pattern
+	Or subpatterns ->
+		OMap.map fst $ OMap.filter (\_ (_, optional) -> not optional) $
+			getOrArgsUsing getRequiredArgs subpatterns
+	pattern -> getArgsUsing getRequiredArgs pattern
 
 hasArgs :: Pattern -> Bool
 hasArgs = not . null . getArgs
