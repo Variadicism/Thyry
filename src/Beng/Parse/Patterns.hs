@@ -18,7 +18,7 @@ module Beng.Parse.Patterns (
 import Utils.Fallible
 import Utils.Lists (takeUntilIncl, wrap)
 import qualified Utils.Maps.Ordered as OMap
-import Utils.Messaging (Messagable, msg)
+import Utils.Messaging (Messagable, debugM, msg)
 import Utils.Populace (Populace)
 import qualified Utils.Populace as P
 import Utils.Populace.Populace2 (Populace2)
@@ -39,6 +39,7 @@ import qualified Beng.Parse.Patterns.Space as Space
 import Beng.Parse.Matches (Match)
 import Beng.Parse.Parsers ((>>>))
 import qualified Beng.Parse.Parsers.Code as Code
+import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PC
 import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Types.Parse.Patterns
 import Beng.Types.SatisfactionTest (SatisfactionTest)
@@ -310,17 +311,30 @@ isOptional = \case
 
 satisfies :: (SatisfactionTest, Pattern) -> Pattern -> FallibleI Mismatch ()
 (test, super) `satisfies` sub = do
-	let startState = PatternComparator.startState test super sub
-	parses <- startState >>> PatternComparator.comparator
-	-- Writing this as `let isComplete parse =` causes errors with HasField. >:(
-	let isComplete = \parse -> case (parse.state.rest.sub, parse.state.rest.super) of
-		([], []) -> Falue ()
-		(nextSub:subLeft, []) -> Error $ LeftoverSub $ P.Populace nextSub subLeft
-		([], nextSuper:superLeft) -> Error $ LeftoverSuper $ P.Populace nextSuper superLeft
-		(nextSub:_, nextSuper:superLeft) -> Error $ Mismatch nextSub $ P.Populace nextSuper superLeft
-	-- `foldl1` is safe because it's used on a Populace.
-	let errorOfIncompletion = sequenceAny $ map isComplete parses.parses.l
-	case (errorOfIncompletion, parses.bestError) of
-		(Falue _, _) -> Falue ()
-		(Error _, Just bestError) -> Error bestError
-		(Error incomplete, Nothing) -> Error incomplete
+	let rejectIncompleteParses :: PC.Parses -> FallibleI Mismatch () = \parses -> do
+		-- Writing this as `let errIfIncomplete parse =` causes errors with HasField. >:(
+		let errIfIncomplete = \parse -> case (parse.state.rest.sub, parse.state.rest.super) of
+			([], []) -> Falue ()
+			(nextSub:subLeft, []) -> Error $ LeftoverSub $ P.Populace nextSub subLeft
+			([], nextSuper:superLeft) -> Error $ LeftoverSuper $ P.Populace nextSuper superLeft
+			(nextSub:_, nextSuper:superLeft) -> Error $ Mismatch nextSub $ P.Populace nextSuper superLeft
+
+		let errorOfIncompletion = sequenceAny $ map errIfIncomplete parses.parses.l
+		case (errorOfIncompletion, parses.bestError) of
+			(Falue _, _) -> Falue ()
+			(Error _, Just bestError) -> Error bestError
+			(Error incomplete, Nothing) -> Error incomplete
+
+	{- First, parse without matching arg types (i.e., structure only).
+		This is because type checking is extremely expensive, necessitating many pattern checks to see if
+		props are satisfied. (It's exponential.) Structural checks are much easier, so validate that first. -}
+	debugM $ "Testing pattern STRUCTURE:\n\tSuper: " ++ msg super ++ "\n\tSub: " ++ msg sub
+	let structuralStartState = PatternComparator.startState False test super sub
+	structuralParses <- structuralStartState >>> PatternComparator.comparator
+	rejectIncompleteParses structuralParses
+
+	debugM $ "Satisfied pattern STRUCTURE; testing pattern ARG TYPES:\n\tSuper: " ++ msg super ++
+		"\n\tSub: " ++ msg sub
+	let argTypesCheckStartState = PatternComparator.startState True test super sub
+	argTypesParses <- argTypesCheckStartState >>> PatternComparator.comparator
+	rejectIncompleteParses argTypesParses

@@ -83,8 +83,8 @@ compareFrom name argType decLoc = msgArg name argType ++ " comparator" @> \state
 	case state.rest.super of
 		-- Sub must start with the current pattern, so P.assume is safe.
 		[] -> Error $ LeftoverSub $ P.assume state.rest.sub
-		next@Pattern.Argument{}:_ | next.name == name  -- TODO: eliminate the name match requirement?
-				-- TODO: pass details of the type error to the comparator.
-				&& not (hasError ((state.test, argType) `satisfiesDuring` next.argType)) ->
+		next@Pattern.Argument{}:_ |
+				-- TODO: find a way to send this error in the PatternComparator Mismatch
+				not (state.checkArgTypes && hasError ((state.test, argType) `satisfiesDuring` next.argType)) ->
 			PC.accept [next] state
 		nextSuper:superLeft -> Error $ Mismatch self $ P.Populace nextSuper superLeft

@@ -18,6 +18,7 @@ data Comparison = Comparison {
 data State = State {
 	indentation :: Int,
 	rest :: Comparison,
+	checkArgTypes :: Bool,
 	test :: SatisfactionTest }
 
 type Parse = General.Parse Comparison State ()

@@ -116,11 +116,12 @@ compareFrom pattern = do
 
 -- exported
 
-startState :: SatisfactionTest -> Pattern -> Pattern -> State
-startState test super sub =
+startState :: Bool -> SatisfactionTest -> Pattern -> Pattern -> State
+startState checkArgTypes test super sub =
 	State {
 		indentation = 0,
 		rest = Comparison { sub = flat sub, super = flat super },
+		checkArgTypes,
 		test }
 
 swapSub :: [Pattern] -> State -> State
