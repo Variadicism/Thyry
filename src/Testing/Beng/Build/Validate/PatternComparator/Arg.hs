@@ -18,8 +18,8 @@ testArg = TestCategories "Arg" do
 	[
 		PureTests "satisfies" [
 			("exact", a "Int" intType `assertSatisfies` a "Int" intType),
-			("super type", a "Bit" intType `assertSatisfies` a "Bit" bitType) ],
+			("super type", a "Bit" intType `assertSatisfies` a "Bit" bitType),
+			("wrong name", a "Int" intType `assertSatisfies` a "Number" intType) ],
 		PureTests "does not satisfy" [
-			("wrong name", a "Int" intType `assertDoesNotSatisfy` a "Number" intType),
 			("sub type", a "Int" bitType `assertDoesNotSatisfy` a "Int" intType),
 			("disparate type", a "Int" intType `assertDoesNotSatisfy` a "Int" PatternType) ]]
