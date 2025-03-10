@@ -57,6 +57,7 @@ common options
     Beng.Build.Context.Builtin
     Beng.Build.Context.Builders
     Beng.Build.Ops
+    Beng.Build.TypeTest
     Beng.Errors
     Beng.Interpret
     Beng.Locations
@@ -77,9 +78,9 @@ common options
     Beng.Parse.Parsers
     Beng.Parse.Parsers.Code
     Beng.Parse.Parsers.PatternComparator
-    Beng.SatisfactionTest
     Beng.Types.Build.Cards
     Beng.Types.Build.Context
+    Beng.Types.Build.TypeTest
     Beng.Types.Errors
     Beng.Types.Locations
     Beng.Types.Ops
@@ -90,7 +91,6 @@ common options
     Beng.Types.Parse.Parsers.Code
     Beng.Types.Parse.Patterns
     Beng.Types.Parse.Parsers.PatternComparator
-    Beng.Types.SatisfactionTest
     Beng.Types.Things
     Beng.Run
     Beng.Things

@@ -7,7 +7,7 @@ import Beng.Types.Build.Cards (Card)
 import Beng.Types.Build.Context (Context)
 import Beng.Types.Ops.Declarations (Declaration)
 import Beng.Types.Ops.Definitions (Definition)
-import Beng.Types.SatisfactionTest (SatisfactionTestResult)
+import Beng.Types.Build.TypeTest (TypeTestResult)
 import Beng.Types.Things (Mismatch, Thing, Undefined, Thing)
 
 import Data.Text.Lazy (Text)
@@ -36,4 +36,4 @@ cardsOf :: Thing -> [Card]
 
 defsOf :: Thing -> [Definition]
 
-satisfies :: (Context, Thing) -> Thing -> SatisfactionTestResult
+satisfies :: (Context, Thing) -> Thing -> TypeTestResult

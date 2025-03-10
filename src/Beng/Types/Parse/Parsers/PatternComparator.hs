@@ -8,7 +8,7 @@ module Beng.Types.Parse.Parsers.PatternComparator (
 ) where
 
 import Beng.Types.Parse.Patterns (Mismatch, Pattern)
-import Beng.Types.SatisfactionTest (SatisfactionTest)
+import Beng.Types.Build.TypeTest (TypeTest)
 import qualified Beng.Types.Parse.Parsers as General
 
 data Comparison = Comparison {
@@ -19,7 +19,7 @@ data State = State {
 	indentation :: Int,
 	rest :: Comparison,
 	checkArgTypes :: Bool,
-	test :: SatisfactionTest }
+	test :: TypeTest }
 
 type Parse = General.Parse Comparison State ()
 

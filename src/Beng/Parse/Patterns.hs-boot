@@ -7,7 +7,7 @@ import Utils.Populace (Populace)
 import Beng.Types.Parse.Matches (Match)
 import Beng.Types.Parse.Parsers.Code (Parser)
 import Beng.Types.Parse.Patterns (CharRange, Mismatch, Parameter, Pattern)
-import Beng.Types.SatisfactionTest (SatisfactionTest)
+import Beng.Types.Build.TypeTest (TypeTest)
 
 import Data.Map.Ordered (OMap)
 
@@ -59,4 +59,4 @@ mustHaveSuffix :: Pattern -> Bool
 
 isOptional :: Pattern -> Bool
 
-satisfies :: (SatisfactionTest, Pattern) -> Pattern -> FallibleI Mismatch ()
+satisfies :: (TypeTest, Pattern) -> Pattern -> FallibleI Mismatch ()

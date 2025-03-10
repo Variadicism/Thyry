@@ -28,7 +28,7 @@ import Beng.Types.Ops.Declarations (Declaration(..))
 import Beng.Types.Parse.Patterns (Mismatch(..))
 import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Types.Things (Thing, Thing(OpValue))
-import Beng.SatisfactionTest (satisfiesDuring)
+import Beng.Build.TypeTest (satisfiesDuring)
 
 import Control.Monad (when)
 import Data.Char (toLower)

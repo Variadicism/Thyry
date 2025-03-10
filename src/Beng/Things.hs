@@ -22,12 +22,12 @@ import Beng.Build.Cards (filterDefs)
 import Beng.Errors (compoundErrorsUsing, showCompoundErrorsUsing)
 import Beng.Ops ()
 import qualified Beng.Ops as Op
-import qualified Beng.SatisfactionTest as ST
+import qualified Beng.Build.TypeTest as ST
 import Beng.Types.Build.Cards (Card(..))
 import Beng.Types.Build.Context (Context)
 import Beng.Types.Ops.Declarations (Declaration)
 import Beng.Types.Ops.Definitions (Definition)
-import Beng.Types.SatisfactionTest (SatisfactionTestResult)
+import Beng.Types.Build.TypeTest (TypeTestResult)
 import Beng.Types.Things (Mismatch(..), Undefined(..), Thing(..), Thing(..))
 import qualified Beng.Types.Things as Mismatch
 
@@ -251,18 +251,18 @@ defsOf :: Thing -> [Definition]
 defsOf = filterDefs . cardsOf
 
 {- This is NOT meant to be used recursively!
-   Try the SatisfactionTest instead as it can avoid infinite recursions from tautologies.
+   Try the TypeTest instead as it can avoid infinite recursions from tautologies.
    For example, imagine the context at the bottom was asked if `dog` satisfies `animal`.
    The PatternComparator would match "yell as " in animal's yell dec on line 1 and the def on line 3.
    But, when it gets to the argument, it tries to match Dog to One by seeing if a dog is an animal.
    This is identical to the initial question, so it recurses... infinitely.
-   SatisfactionTest instead keeps `dog satisfies? animal` under the "ongoing" field;
+   TypeTest instead keeps `dog satisfies? animal` under the "ongoing" field;
    that way, it can detect the recursion and handle it appropriately.
    ```
    \animal := yell as 'One' => string
    \dog := fetch 'Thing' as 'One' := Thing
    \yell as 'Dog' := "bark"
    ``` -}
-satisfies :: (Context, Thing) -> Thing -> SatisfactionTestResult
+satisfies :: (Context, Thing) -> Thing -> TypeTestResult
 satisfies (context, super) sub =
 	ST.runTest $ ST.fromContext context super sub

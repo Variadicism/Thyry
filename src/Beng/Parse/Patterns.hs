@@ -42,7 +42,7 @@ import qualified Beng.Parse.Parsers.Code as Code
 import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PC
 import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Types.Parse.Patterns
-import Beng.Types.SatisfactionTest (SatisfactionTest)
+import Beng.Types.Build.TypeTest (TypeTest)
 import Beng.Types.Things (Thing(..))
 
 import Data.List (intercalate)
@@ -309,7 +309,7 @@ isOptional = \case
 	Delimited _ delimitend -> isOptional delimitend
 	_ -> False
 
-satisfies :: (SatisfactionTest, Pattern) -> Pattern -> FallibleI Mismatch ()
+satisfies :: (TypeTest, Pattern) -> Pattern -> FallibleI Mismatch ()
 (test, super) `satisfies` sub = do
 	let rejectIncompleteParses :: PC.Parses -> FallibleI Mismatch () = \parses -> do
 		-- Writing this as `let errIfIncomplete parse =` causes errors with HasField. >:(

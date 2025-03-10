@@ -1,7 +1,7 @@
-module Beng.Types.SatisfactionTest (
+module Beng.Types.Build.TypeTest (
 	Contest(..),
-	SatisfactionTest(..),
-	SatisfactionTestResult
+	TypeTest(..),
+	TypeTestResult
 ) where
 
 import Utils.Fallible (FallibleI)
@@ -17,9 +17,9 @@ data Contest = Contest {
 	sub :: Thing,
 	subName :: Maybe String }
 
-data SatisfactionTest = SatisfactionTest {
+data TypeTest = TypeTest {
 	context :: Context,
 	ongoing :: [Contest],  -- prevents infinite recursion
 	current :: Contest }
 
-type SatisfactionTestResult = FallibleI Mismatch ()
+type TypeTestResult = FallibleI Mismatch ()

@@ -1,8 +1,8 @@
-module Beng.SatisfactionTest (
+module Beng.Build.TypeTest (
 	fromContext,
 	satisfiesDuring,
 	runTest,
-	module Beng.Types.SatisfactionTest
+	module Beng.Types.Build.TypeTest
 ) where
 
 import Utils.Fallible
@@ -13,8 +13,8 @@ import Beng.Build.Context (Context)
 import qualified Beng.Build.Context as C
 import Beng.Ops.Declarations (isReturnTypeMismatch)
 import Beng.Types.Build.Cards (Card(..))
-import Beng.Types.SatisfactionTest
-import qualified Beng.Types.SatisfactionTest as ST
+import Beng.Types.Build.TypeTest
+import qualified Beng.Types.Build.TypeTest as ST
 import Beng.Types.Things (Mismatch(..), Thing(..))
 
 import Control.Monad (void)
@@ -25,12 +25,12 @@ import qualified Data.Set as Set
 
 -- private
 
-satisfiesProps :: (SatisfactionTest, Thing) -> (Thing -> [Card]) -> FallibleI Mismatch ()
+satisfiesProps :: (TypeTest, Thing) -> (Thing -> [Card]) -> FallibleI Mismatch ()
 satisfiesProps (test, super) propsWith = do
 	let checkProp prop = do
 		debugM $ "Testing satisfaction of prop: " ++ show prop ++ "..."
 
-		let propTest :: SatisfactionTest = case prop of
+		let propTest :: TypeTest = case prop of
 			DefCard _ -> do
 				-- Definitions can only fail if one of the other props obscures them.
 				let propsContext = C.fromThings [test.current.super]
@@ -84,8 +84,8 @@ showContestMultilineUsing indent useMsg Contest{..} = do
 		"\n" ++ indent ++ "Sub: " ++ nameOrPlain subName sub
 	where show' = if useMsg then msg else show
 
-showTestUsing :: Bool -> SatisfactionTest -> String
-showTestUsing useMsg SatisfactionTest{..} = do
+showTestUsing :: Bool -> TypeTest -> String
+showTestUsing useMsg TypeTest{..} = do
 	let showContest contest = showContestMultilineUsing "\t\t" useMsg contest
 	let ongoingTestDesc i contest =
 		"\n\tOngoing " ++ show (i+1) ++ ") " ++ showContest contest
@@ -105,23 +105,23 @@ instance Show Contest where
 instance Messagable Contest where
 	msg = showContestUsing True
 
-deriving instance Eq SatisfactionTest
+deriving instance Eq TypeTest
 
-instance Show SatisfactionTest where
+instance Show TypeTest where
 	show = showTestUsing False
 
-instance Messagable SatisfactionTest where
+instance Messagable TypeTest where
 	msg = showTestUsing True
 
 -- exported
 
-fromContext :: Context -> Thing -> Thing -> SatisfactionTest
-fromContext context super sub = SatisfactionTest {
+fromContext :: Context -> Thing -> Thing -> TypeTest
+fromContext context super sub = TypeTest {
 	context,
 	ongoing = [],
 	current = Contest { super, sub, superName = Nothing, subName = Nothing } }
 
-satisfiesDuring :: (SatisfactionTest, Thing) -> Thing -> SatisfactionTestResult
+satisfiesDuring :: (TypeTest, Thing) -> Thing -> TypeTestResult
 satisfiesDuring (test, super) sub = do
 	let contest = Contest { super, sub, superName = Nothing, subName = Nothing }
 	if contest == test.current || contest `elem` test.ongoing then do
@@ -129,12 +129,12 @@ satisfiesDuring (test, super) sub = do
 		Error $ Tautology super sub
 	else do
 		debugM $ "Pushing new contest:" ++ showContestMultilineUsing "\t" True contest
-		runTest SatisfactionTest {
+		runTest TypeTest {
 			context = test.context,
 			ongoing = test.current : test.ongoing,
 			current = contest }
 
-runTest :: SatisfactionTest -> FallibleI Mismatch ()
+runTest :: TypeTest -> FallibleI Mismatch ()
 runTest test = do
 	debugM $ "Testing " ++ show test ++ "..."
 

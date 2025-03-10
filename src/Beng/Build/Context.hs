@@ -25,7 +25,7 @@ import Beng.Ops.Declarations (Declaration(..), isReturnTypeMismatch, satisfies)
 import Beng.Ops.Definitions (Definition(..))
 import {-# SOURCE #-} Beng.Things (cardsOf)
 import Beng.Types.Build.Context (Context(..), PrecedenceBound(..))
-import Beng.Types.SatisfactionTest (SatisfactionTest(..))
+import Beng.Types.Build.TypeTest (TypeTest(..))
 import Beng.Types.Things (Thing)
 import qualified Beng.Types.Ops.Declarations as Declaration
 
@@ -57,7 +57,7 @@ findPrecedence context card =
 
 -- I wrote this tail recursion because Fallible.sequenceAny still runs _all_ Fallibles before
 -- checking the results for any, causing every single card to be checked even after a match is found.
-hasIn :: [Card] -> SatisfactionTest -> Declaration -> FallibleI Declaration.Mismatch ()
+hasIn :: [Card] -> TypeTest -> Declaration -> FallibleI Declaration.Mismatch ()
 hasIn [] _ _ = Falue ()
 hasIn [card] test dec = (test, card.declaration) `satisfies` dec
 hasIn (card:rest) test dec = case (test, card.declaration) `satisfies` dec of
@@ -165,6 +165,6 @@ concat (c1:rest) = foldl (flip pushCard) c1 $ concatMap deck rest
 fromThings :: ([Thing] -> Context)
 fromThings = fromCards . concatMap cardsOf
 
-has :: SatisfactionTest -> (Declaration -> FallibleI Declaration.Mismatch ())
+has :: TypeTest -> (Declaration -> FallibleI Declaration.Mismatch ())
 -- TODO: don't let `hasIn` be called with an empty context or it will accept anything.
 has test = hasIn test.context.deck test

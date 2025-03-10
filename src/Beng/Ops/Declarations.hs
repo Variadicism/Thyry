@@ -19,13 +19,13 @@ import qualified Utils.Populace as P
 
 import {-# SOURCE #-} Beng.Errors (compoundErrorsUsing, showCompoundErrorsUsing)
 import Beng.Locations ()
-import {-# SOURCE #-} qualified Beng.SatisfactionTest as ST
+import {-# SOURCE #-} qualified Beng.Build.TypeTest as ST
 import Beng.Types.Build.Context (PrecedenceBound(..))
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Types.Parse.Patterns (Pattern(Literal))
 import {-# SOURCE #-} Beng.Things ()
 import Beng.Types.Ops.Declarations (ArgContextBuilder, Associativity(..), Declaration(..), Mismatch(..))
-import Beng.Types.SatisfactionTest (SatisfactionTest)
+import Beng.Types.Build.TypeTest (TypeTest)
 
 import Control.Exception.Extra (Partial)
 import Data.Text.Lazy (unpack)
@@ -118,7 +118,7 @@ nameAsValue declaration = do
 	let (Literal name) = declaration.pattern
 	unpack name
 
-satisfies :: (SatisfactionTest, Declaration) -> Declaration -> FallibleI Mismatch ()
+satisfies :: (TypeTest, Declaration) -> Declaration -> FallibleI Mismatch ()
 satisfies (test, super) sub = do
 	debugM $ "Testing satisfaction of declaration:\n" ++
 		"\tSuper: " ++ show super ++ "\n\tSub: " ++ show sub

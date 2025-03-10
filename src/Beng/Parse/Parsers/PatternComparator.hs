@@ -27,7 +27,7 @@ import {-# SOURCE #-} qualified Beng.Parse.Patterns.Literal as Literal
 import {-# SOURCE #-} qualified Beng.Parse.Patterns.NamedText as NamedText
 import {-# SOURCE #-} qualified Beng.Parse.Patterns.Or as Or
 import {-# SOURCE #-} qualified Beng.Parse.Patterns.Space as Space
-import Beng.SatisfactionTest (SatisfactionTest)
+import Beng.Build.TypeTest (TypeTest)
 import {-# SOURCE #-} Beng.Parse.Patterns (isOptional)
 import Beng.Types.Parse.Parsers.PatternComparator (Comparison(..), Parse, ParseRunner, Parser, Parses, State(..))
 import qualified Beng.Types.Parse.Parsers.PatternComparator as PC
@@ -116,7 +116,7 @@ compareFrom pattern = do
 
 -- exported
 
-startState :: Bool -> SatisfactionTest -> Pattern -> Pattern -> State
+startState :: Bool -> TypeTest -> Pattern -> Pattern -> State
 startState checkArgTypes test super sub =
 	State {
 		indentation = 0,
@@ -133,7 +133,7 @@ swapSuper newSuper s = s{ rest = s.rest{ super = newSuper }}
 acceptRest :: ParseRunner
 acceptRest state = takeAs state.rest () state
 
-acceptUsing :: [Pattern] -> SatisfactionTest -> ParseRunner
+acceptUsing :: [Pattern] -> TypeTest -> ParseRunner
 acceptUsing fromSuper test = \state -> case state.rest.sub of
 	(next:_) -> takeAs Comparison { sub = [next], super = fromSuper } () state{ PC.test = test }
 	[] -> error $ "A pattern comparator attempted to accept " ++ show fromSuper ++ " from " ++
