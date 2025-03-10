@@ -15,7 +15,7 @@ import Beng.Build.Cards ()
 import Beng.Build.Context (pushCard)
 import {-# SOURCE #-} qualified Beng.Build.Ops as Op
 import Beng.Errors (parseError)
-import Beng.Parse.Matches (Match(Argument, decLoc, name, argType, argValue), Parameter(..))
+import Beng.Parse.Matches (Match(Argument, decLoc, name, argType, op), Parameter(..))
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/\>))
 import Beng.Parse.Parsers.Code (PrefixState(..), State(..))
 import qualified Beng.Parse.Parsers.Code as Code
@@ -50,7 +50,7 @@ msgArg name paramType = do
 
 parse :: String -> Thing -> Location -> Code.Parser Match
 parse name argType decLoc = msgArg name argType @> \state -> do
-	let argOf op = Argument { decLoc, name, argType, argValue = OpValue op }
+	let argOf op = Argument { decLoc, name, argType, op }
 	let putArg op state = do
 		let newArg = Parameter { name, decLoc, paramType = argType, value = OpValue op }
 		state { arguments = Map.insert name newArg state.arguments }
@@ -75,7 +75,7 @@ parse name argType decLoc = msgArg name argType @> \state -> do
 				state{ Code.context = newContext } >>>
 					(Op.build (wrap "'" name) >/\>
 						\s op -> putArg op s{ Code.context = state.context }) >\>
-					\op -> Argument { decLoc, name, argType, argValue = OpValue op }
+					\op -> Argument { decLoc, name, argType, op }
 
 compareFrom :: String -> Thing -> Location -> PatternComparator.Parser
 compareFrom name argType decLoc = msgArg name argType ++ " comparator" @> \state -> do

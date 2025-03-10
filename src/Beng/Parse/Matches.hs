@@ -96,7 +96,7 @@ toCode = \case
 	Or{match} -> toCode match
 	And{matches} -> Text.concat $ map toCode matches.l
 	match@Delimited{} -> Text.concat $ map toCode $ P.toList $ getSubmatches match
-	Argument{argValue} -> Thing.toCode argValue
+	Argument{op} -> Thing.toCode $ OpValue op
 
 getArgs :: (Match -> OMap String Parameter)
 getArgs = \case
@@ -125,17 +125,17 @@ getArgs = \case
 	And{matches} -> OMap.concat $ P2.map getArgs matches
 	delimited@Delimited{head=headMatch,tail=tailMatch} -> case tailMatch of
 		DelimitedTailMatch _ -> do
-			let revalueParam :: Parameter -> Populace Thing -> Parameter = \p@Parameter{..} values -> p{
+			let revalueParam :: Parameter -> Populace Thing -> Parameter = \p values -> p{
 				paramType = NativeSomeType p.paramType,
 				value = NativeSomeValue values }
 			let combineValuesByName
 					:: Parameter -> OMap String (Parameter, Populace Thing) ->
 						OMap String (Parameter, Populace Thing) =
-					\p@Parameter{..} prevs -> do
-				let oldValues = case OMap.lookup name prevs of
+					\p prevs -> do
+				let oldValues = case OMap.lookup p.name prevs of
 					Nothing -> []
 					Just (_, values) -> P.toList values
-				(name, (p, Populace value oldValues)) |< prevs
+				(p.name, (p, Populace p.value oldValues)) |< prevs
 			let collateArgs :: ([Parameter] -> OMap String Parameter) =
 				OMap.map (uncurry revalueParam) . foldr combineValuesByName OMap.empty
 			collateArgs $ concatMap (OMap.values . getArgs) $ P.toList $ getSubmatches delimited
@@ -148,8 +148,8 @@ getArgs = \case
 					value = NativeListValue [] }
 				(name, missingParamMatch) <| matches
 			foldr collateArgsWithMissing (getArgs headMatch) missedParams
-	Argument{decLoc,name,argType,argValue} -> OMap.singleton (name,
-		Parameter { decLoc, name, paramType = argType, value = argValue })
+	Argument{decLoc,name,argType,op} -> OMap.singleton (name,
+		Parameter { decLoc, name, paramType = argType, value = OpValue op })
 
 hasArgs :: (Match -> Bool)
 hasArgs = not . OMap.null . getArgs

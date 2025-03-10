@@ -24,15 +24,15 @@ import qualified Beng.Parse.Matches as M
 import Beng.Parse.Patterns (Parameter(..), Pattern(..))
 import Beng.Run (run)
 import Beng.Types.Locations (FileLocation(..), Location(..))
-import Beng.Types.Things (Thing, Thing(NativeOptionalValue, NativeSomeValue, OpValue))
+import Beng.Types.Things (Thing, Thing(NativeOptionalValue, NativeSomeValue))
 
 import Data.Map ((!))
 
 -- constants
 
-argMatchOf :: Int -> String -> Thing -> Thing -> Match
-argMatchOf parentIndex name argType argValue = M.Argument {
-	argType, name, argValue,
+argMatchOf :: Int -> String -> Thing -> Op -> Match
+argMatchOf parentIndex name argType op = M.Argument {
+	argType, name, op,
 	decLoc = BuiltinArg name parentIndex }
 
 someOrNone :: Definition
@@ -73,19 +73,19 @@ someOp op = Op {
 	location = Builtin 3,
 	match = M.Or {
 		matchIndex = 1, misses = [],
-		match = argMatchOf 3 "Some" intType $ OpValue op }}
+		match = argMatchOf 3 "Some" intType op }}
 
 sumCommasOp :: Op -> Populace Op -> Op
 sumCommasOp firstArgOp argOpsTail = Op {
 	card = DefCard sumCommas,
 	location = Builtin 4,
 	match = M.Delimited {
-		M.head = argMatchOf 4 "Element" intType $ OpValue firstArgOp,
+		M.head = argMatchOf 4 "Element" intType firstArgOp,
 		M.tail = toTail argOpsTail }}
 	where
 		toTail :: (Populace Op -> M.DelimitedTail)
 		toTail = M.DelimitedTailMatch . P.map
-			((M.Literal ",",) . argMatchOf 4 "Element" intType . OpValue)
+			((M.Literal ",",) . argMatchOf 4 "Element" intType)
 
 -- tests
 

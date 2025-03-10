@@ -217,13 +217,13 @@ opOf a = Op (cardOf a) (locationOf a)
 
 prefixedUnaryOpMatch :: ABCD -> Text -> String -> Thing -> Op -> Match
 prefixedUnaryOpMatch abcd prefix argName argType op =
-	Match.And $ dualton (Match.Literal prefix) (Match.Argument (locationOf abcd) argName argType $ OpValue op)
+	Match.And $ dualton (Match.Literal prefix) (Match.Argument (locationOf abcd) argName argType op)
 
 infixOpMatch :: ABCD -> String -> Thing -> Text -> String -> Thing -> Op -> Op -> Match
 infixOpMatch abcd leftName leftType literal rightName rightType leftOp rightOp = Match.And $ P2.Populace2
-	(Match.Argument (locationOf abcd) leftName leftType $ OpValue leftOp)
+	(Match.Argument (locationOf abcd) leftName leftType leftOp)
 	(Match.Literal literal)
-	[Match.Argument (locationOf abcd) rightName rightType $ OpValue rightOp]
+	[Match.Argument (locationOf abcd) rightName rightType rightOp]
 
 type AssertOneArg = (Thing -> Fallible ()) -> Op -> Fallible ()
 
