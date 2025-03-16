@@ -4,6 +4,7 @@ module Beng.Ops (
 	hasPrefix,
 	hasSuffix,
 	getArgs,
+	returnType,
 	toCode
 ) where
 
@@ -13,10 +14,12 @@ import Beng.Build.Cards ()
 import qualified Beng.Ops.Declarations as Declaration
 import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Matches (Parameter)
+import Beng.Types.Things (Thing)
 import Beng.Types.Ops (Op(..))
 
 import Data.Map.Ordered (OMap)
 import Data.Text.Lazy (Text)
+import GHC.Records (HasField, getField)
 
 -- instances
 
@@ -27,6 +30,9 @@ instance Show Op where
 
 instance Messagable Op where
 	msg = msg . match
+
+instance HasField "returnType" Op Thing where
+	getField = returnType
 
 -- exports
 
@@ -41,6 +47,10 @@ hasSuffix = Match.hasSuffix . match
 
 getArgs :: (Op -> OMap String Parameter)
 getArgs = Match.getArgs . match
+
+returnType :: Op -> Thing
+-- TODO: get the return type from Match when typing becomes formulaic
+returnType op = op.card.declaration.returnType
 
 toCode :: (Op -> Text)
 toCode = Match.toCode . match

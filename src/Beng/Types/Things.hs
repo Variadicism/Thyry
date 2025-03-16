@@ -48,7 +48,7 @@ data Thing =
 	DefinitionType |
 	DeclarationType |
 	PatternType |
-	PreOpType |
+	PreOpType { resolvedType :: Thing } |
 	-- native values: values necessary for runtime with language-level equivalents
 	NativeBitsValue { bytes :: ByteString, size :: Int {- in BITS, not bytes -} } |
 	NativeCharValue { char :: Char } |

@@ -14,21 +14,23 @@ import Utils.Strings (pluralCount)
 import Beng.Build.Cards ()
 import Beng.Build.Context (pushCard)
 import {-# SOURCE #-} qualified Beng.Build.Ops as Op
+import Beng.Build.TypeTest (satisfiesDuring)
 import Beng.Errors (parseError)
 import Beng.Parse.Matches (Match(Argument, decLoc, name, argType, op), Parameter(..))
-import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/\>))
+import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/\>), (>-\>))
 import Beng.Parse.Parsers.Code (PrefixState(..), State(..))
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator ()
 import qualified Beng.Parse.Parsers.PatternComparator as PC
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
+import Beng.Things (satisfies)
+import Beng.Types.Errors (Error(..))
 import Beng.Types.Locations (Location)
 import qualified Beng.Types.Locations as Location
 import Beng.Types.Ops.Declarations (Declaration(..))
 import Beng.Types.Parse.Patterns (Mismatch(..))
 import qualified Beng.Types.Parse.Patterns as Pattern
-import Beng.Types.Things (Thing, Thing(OpValue))
-import Beng.Build.TypeTest (satisfiesDuring)
+import Beng.Types.Things (Thing, Thing(OpValue), Thing(PreOpType))
 
 import Control.Monad (when)
 import Data.Char (toLower)
@@ -71,11 +73,25 @@ parse name argType decLoc = msgArg name argType @> \state -> do
 				when (not $ null argContext) $ debugM $
 					pluralCount (length argContext) "contextual card" ++ " generated for '" ++
 					name ++ "': " ++ show argContext
-				let newContext = foldl (flip pushCard) state.context argContext
-				state{ Code.context = newContext } >>>
-					(Op.build (wrap "'" name) >/\>
-						\s op -> putArg op s{ Code.context = state.context }) >\>
-					\op -> Argument { decLoc, name, argType, op }
+
+				let checkReturnType = \argOp -> do
+					{- Parsing the argument builds PreOps into Ops, so the result of the Op build
+						must remove the PreOp wrapper for type comparison. -}
+					let typeToSatisfy = case argType of
+						PreOpType resolvedType -> resolvedType
+						rawType -> rawType
+					mapError (\cause -> TypeError { caller = argOp, argName = name, cause }) $
+						(state.context, argOp.returnType) `satisfies` typeToSatisfy
+					return argOp
+
+				state{ Code.context = foldl (flip pushCard) state.context argContext } >>>
+					Op.build (wrap "'" name)
+						{- Discard context added by parsing the argument;
+							otherwise, context built in arguments will "bubble up" into everything
+							after it in the file, leaking scope everywhere. -}
+						>/\> (\s op -> putArg op s{ Code.context = state.context })
+						>-\> checkReturnType
+						>\> \op -> Argument { decLoc, name, argType, op }
 
 compareFrom :: String -> Thing -> Location -> PatternComparator.Parser
 compareFrom name argType decLoc = msgArg name argType ++ " comparator" @> \state -> do

@@ -56,7 +56,7 @@ import Testing.Beng.Utils.Ops ()
 
 import Beng.Build.Cards (Card(..))
 import qualified Beng.Build.Context as Context
-import Beng.Build.Context.Builders (l, s, asInt, argAt, asOp, buildContextFrom, define, defineRighty, defineLiteral, defineUsing, intType, intValue)
+import Beng.Build.Context.Builders (l, s, asInt, argAt, asNativeString, asOp, bitType, bitValue, buildContextFrom, define, defineRighty, defineLiteral, defineUsing, intType, intValue, stringType, stringValue)
 import qualified Beng.Build.Context.Builders as Builder
 import Beng.Types.Build.Context (PrecedenceBound(..))
 import qualified Beng.Parse.Matches as Match
@@ -73,6 +73,7 @@ import Control.Composition ((.*))
 import Data.Bits (complement)
 import Data.Map ((!))
 import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as Text
 
 -- simple constants
 
@@ -88,7 +89,8 @@ data ABDiv = ABDivA | ABDivB | ABDivDivide deriving (Show, Eq, Enum)
 
 data ABCD = A | B | Divide |
 	DivideWords | Exp | App | AddWords | Add | Not | Negate |
-	C | D
+	C | D |
+	Name | Initial | StartsWith | Concat
 	deriving (Show, Eq, Enum)
 
 -- private
@@ -98,7 +100,7 @@ defineStaticNameValue name location = do
 	let (Builtin parentIndex) = location  -- All locations in mocks are Builtin-type.
 	let a name argType = Argument { decLoc = BuiltinArg { name, parentIndex }, name, argType }
 	defineUsing (Below $ declarationOf App) Righty
-		[l name, s, l ":=", s, a "Thing" intType, s, a "Scope" PreOpType]
+		[l name, s, l ":=", s, a "Thing" intType, s, a "Scope" (PreOpType intType)]
 		intType
 		(\argName args location -> return case argName of
 			"Scope" -> do
@@ -142,7 +144,7 @@ hangingDefinitionOf enum location = case enum of
 		location
 	App ->
 		{- `app` has the same precedence as `add` for testing purposes.
-		   Sorry that that's inconsistent with Haskell where application has an extremely low precedence,
+		   Sorry that that's inconsistent with Haskell where application has a very low precedence,
 		   but there aren't many well-known righty operators and Haskell's builtin operators are
 		   designed to never include two associativities in one precedence level. -}
 		defineRighty (Below $ declarationOf Divide)
@@ -182,6 +184,32 @@ hangingDefinitionOf enum location = case enum of
 		location
 	C -> defineStaticNameValue "C" location
 	D -> defineStaticNameValue "D" location
+	Name -> define None
+		[l "Name"]
+		stringType
+		(\_ -> return $ stringValue "Keith Moon")
+		location
+	Initial -> define None
+		[l "Initial"]
+		stringType
+		(\_ -> return $ stringValue "K")
+		location
+	StartsWith -> define (Below $ declarationOf Add)
+		[a "Target" stringType, s, l "starts", s, l "with", s, a "Prefix" stringType]
+		bitType
+		(\args -> do
+			target <- asNativeString =<< (run $ asOp $ args ! "Target")
+			prefix <- asNativeString =<< (run $ asOp $ args ! "Prefix")
+			return $ bitValue $ prefix `Text.isPrefixOf` target)
+		location
+	Concat -> define (At $ declarationOf Add)
+		[a "Prefix" stringType, s, l "+", s, a "Suffix" stringType]
+		stringType
+		(\args -> do
+			prefix <- asNativeString =<< (run $ asOp $ args ! "Prefix")
+			suffix <- asNativeString =<< (run $ asOp $ args ! "Suffix")
+			return $ stringValue $ Text.concat [prefix, suffix])
+		location
 	where
 		a name argType = do
 			let (Builtin parentIndex) = location  -- All these ops use Builtin location types.

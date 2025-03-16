@@ -130,7 +130,7 @@ instance Eq Thing where
 	(==) DefinitionType DefinitionType = True
 	(==) DeclarationType DeclarationType = True
 	(==) PatternType PatternType = True
-	(==) PreOpType PreOpType = True
+	(==) (PreOpType r1) (PreOpType r2) = r1 == r2
 	(==) (NativeBitsValue bs1 s1) (NativeBitsValue bs2 s2) = s1 == s2 && bs1 == bs2
 	(==) (NativeCharValue c1) (NativeCharValue c2) = c1 == c2
 	(==) (NativeStringValue s1) (NativeStringValue s2) = s1 == s2
@@ -167,7 +167,7 @@ instance Show Thing where
 		DefinitionType -> "op definition"
 		DeclarationType -> "op declaration"
 		PatternType -> "op pattern"
-		PreOpType -> "preop"		
+		PreOpType{resolvedType} -> "a preop of " ++ show resolvedType
 		NativeBitsType{size} -> show size ++ " bits"
 		NativeCharValue{char} -> wrap "'" [char]
 		NativeStringValue{text} -> show text
@@ -195,6 +195,7 @@ instance Messagable Thing where
 		DefinitionValue def -> msg def
 		DeclarationValue dec -> msg dec
 		PatternValue pat -> msg pat
+		PreOpType{resolvedType} -> "a preop of " ++ msg resolvedType
 		NativeCharValue{char} -> wrap "'" [char]
 		NativeStringValue{text} -> msg text
 		NativeListValue{values} -> msgList values

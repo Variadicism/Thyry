@@ -105,7 +105,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 			return $ intValue $ minuend - subtrahend)
 		location
 	DefineValue -> defineUsing (Below $ dec Add) Righty
-		[t "Name" valueName, s, l ":=", s, a "Thing" intType, s, a "Scope" PreOpType]
+		[t "Name" valueName, s, l ":=", s, a "Thing" intType, s, a "Scope" (PreOpType intType)]
 		intType
 		(\name args location -> case name of
 			"Scope" -> do

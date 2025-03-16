@@ -19,46 +19,27 @@ import Beng.Locations (FileLocation(..), Location)
 import qualified Beng.Locations as Location
 import {-# SOURCE #-} Beng.Ops ()
 import Beng.Ops.Declarations ()
+-- import {-# SOURCE #-} Beng.Things ()
 import Beng.Types.Parse.Parsers.Code (State(..))
 import Beng.Types.Errors
+import Beng.Types.Ops (Op(..))
 import qualified Beng.Types.Errors as Error
 
 import GHC.Records (HasField, getField)
 
 -- private
 
-printParseErrorSubDetails :: Int -> Populace ParseErrorDetails -> String
-printParseErrorSubDetails indent =
-	intercalate "\n" . P.map ((replicate (2*indent) ' '++) . ("• "++) . printParseErrorDetail 0)
-
-printParseErrorDetail :: Int -> ParseErrorDetails -> String
-printParseErrorDetail indent = \case
-	ParseErrorContext context subDetails ->
-		context ++ "\n" ++ printParseErrorSubDetails (indent+1) subDetails
-	ParseErrorMessage message -> message
-
-printParseErrorDetails :: (Populace ParseErrorDetails -> String)
-printParseErrorDetails details =
-	tColor [Red] case details.tail of
-		[] -> printParseErrorDetail 0 details.head
-		_ -> printParseErrorSubDetails 0 details
-
-printErrorBody :: (Error -> String)
-printErrorBody = \case
-	ParseError{details} -> printParseErrorDetails details
-	ue@UndefinedError{} -> tColor [Red] $ msg ue
+printErrorBodyAt :: Int -> Error -> String
+printErrorBodyAt indent error = replicate (2*indent) ' ' ++ case error of
+	ParseError{..} -> details
+	TypeError{..} -> msg cause
+	ue@UndefinedError{} -> msg ue
+	CompoundError{..} ->
+		ifNotNull (++"\n") context ++
+			intercalate "\n" (
+				P.map ((replicate (2*indent) ' '++) . ("• "++) . printErrorBodyAt indent) compound)
 
 -- instances
-
-deriving instance Eq ParseErrorDetails
-
-instance Show ParseErrorDetails where
-	show = show . \case
-		ParseErrorContext context subDetails ->
-			context ++ " " ++ case subDetails.tail of
-				[] -> show subDetails.head
-				_ -> show subDetails
-		ParseErrorMessage message -> message
 
 instance Eq Error where
 	(==) p1@ParseError{} p2@ParseError{} =
@@ -73,38 +54,39 @@ instance Show Error where
 	show = \case
 		ParseError{details,fileLocation=FileLocation{..}} ->
 			concatMap (++":") [file, show line, show column] ++ " " ++ show details
-		UndefinedError{..} -> ifNotNull (++" for ") context ++ show declaration ++
-			" at " ++ show callLocation ++ " in " ++ show caller
+		UndefinedError{..} -> show declaration ++ " in " ++ show caller
+		TypeError{..} -> "from " ++ argName ++ " in " ++ show caller ++ ": " ++ show cause
+		CompoundError{..} -> ifNotNull (++", ") context ++ intercalate " AND " (P.map show compound)
 
 instance Messagable Error where
 	msg = \case
-		ParseError{..} -> show fileLocation ++ " " ++ show details
-		UndefinedError{..} -> context ++ show declaration ++ " in " ++ show caller ++ " cannot run before it is defined!"
+		ParseError{..} -> msg fileLocation ++ " " ++ msg details
+		UndefinedError{..} -> msg declaration ++
+			" in " ++ msg caller ++
+			" cannot run before it is defined!"
+		TypeError{..} -> "from " ++ argName ++ " in " ++ msg caller ++ ": " ++ msg cause
+		CompoundError{..} -> ifNotNull (++", ") context ++ intercalate " AND " (P.map msg compound)
 
 instance Ord Error where
 	-- Lower => closer to success
 	compare e1 e2 = case (e1, e2) of
-		(ParseError{}, UndefinedError{}) -> GT
-		(UndefinedError{}, ParseError{}) -> LT
-		_ ->  -- Operands are flipped because further location => closer to success => lower Ordering
-			compare e2.location e1.location
+		(e1@CompoundError{}, e2) -> compare e1.compound.head e2
+		(e1, e2@CompoundError{}) -> compare e1 e2.compound.head
+		(e1, e2) | typeIndex e1 == typeIndex e2 &&  e1.location == e2.location -> EQ
+		(e1, e2) -> compare (typeIndex e1) (typeIndex e2)
+		where typeIndex = \case
+			UndefinedError{} -> 1
+			TypeError{} -> 2
+			ParseError{} -> 3
+			CompoundError{} -> 4  -- impossible
 
 instance IsError Error where
 	prepend prefix = \case
-		pe@ParseError{} -> pe{ details = P.singleton $ ParseErrorContext prefix pe.details }
-		ue@UndefinedError{} ->
-			-- I need to qualify the field... even in a record update... even with DuplicateRecordFields. >:(
-			ue{ Error.context = prefix ++ ue.context }
-	(<!>) e1 e2 = if compare e1 e2 /= EQ
-		then min e1 e2
-		else case e1 of
-			ParseError{} -> do
-				-- If compare e1 e2 == EQ, then e1 and e2 must be of matching types.
-				let e2p@ParseError{} = e2
-				e1{ details = e1.details <> e2p.details }
-			UndefinedError{} -> do
-				let e2u@UndefinedError{} = e2
-				e1{ Error.context = e1.context ++ e2u.context }
+		e@CompoundError{} -> e{ Error.context = prefix ++ e.context }
+		e -> CompoundError { context = prefix, compound = P.singleton e }
+	(<!>) e1 e2 = if compare e1 e2 == EQ
+		then CompoundError { context = "", compound = P.Populace e1 [e2] }
+		else min e1 e2  -- Lower => closer to success
 
 instance HasField "location" Error Location where
 	getField = getLocation
@@ -113,7 +95,7 @@ instance HasField "location" Error Location where
 
 parseError :: State -> String -> Error
 parseError state message = ParseError {
-	details = P.singleton $ ParseErrorMessage message,
+	details = message,
 	fileLocation = state.location }
 
 {- typeError :: Thing -> PatternComparator.Parses -> Error
@@ -122,12 +104,14 @@ typeError expected parses = TypeError { context = "", expected, parses } -}
 getLocation :: Error -> Location
 getLocation = \case
 	ParseError{fileLocation} -> Location.Code fileLocation
-	UndefinedError{callLocation} -> callLocation
+	UndefinedError{caller=Op{location}} -> location
+	TypeError{caller} -> caller.location
+	CompoundError{compound} -> compound.head.location
 
 printError :: Error -> String
 printError error =
 	tColor [Reset, LightGray] (msg error.location ++ ",\n") ++
-	tColor [Red] (printErrorBody error)
+	tColor [Red] (printErrorBodyAt 0 error)
 	-- TODO: add the line of code with the error column highlighted
 
 compoundErrorsUsing :: Ord e => (e -> Maybe (String, Populace e)) -> (String -> Populace e -> e) -> e -> e -> e

@@ -6,18 +6,19 @@ import Utils.Fallible
 import qualified Utils.Populace as P
 import Utils.Testing
 
-import Testing.Beng.Utils.Mocks (a, b, assertDiv, mockABDivision)
+import Testing.Beng.Utils.Mocks (a, b, assertDiv, mockABCD)
 import Testing.Beng.Utils.Ops ()
 
 import Beng.Build (buildCodeUsing)
 import Beng.Types.Ops (Op)
 
+import Control.Monad (void)
 import Data.Text.Lazy (Text, unpack)
 
 -- private
 
 build :: Text -> Fallible [Op]
-build mockCode = fmap P.toList $ buildCodeUsing mockABDivision (unpack mockCode) mockCode
+build mockCode = fmap P.toList $ buildCodeUsing mockABCD (unpack mockCode) mockCode
 
 noBuild :: Text -> Fallible ()
 noBuild mockCode = build mockCode `hasErrorElse` "Building should have failed!"
@@ -74,6 +75,20 @@ testBuildCode = TestCategories "buildCode" [
 			(aOp, bOp) <- assert2 "ops" ops
 			a.null aOp
 			b.null bOp)],
+	TestCategories "type checks" [
+		PureTests "satisfies" [
+			("simple int division", void do
+				build "a/b"),
+			("int addition distinct from string concatenation", void do
+				build "a+b"),
+			("string starts with", void do
+				build "Name starts with Initial")],
+		PureTests "does not satisfy" [
+			-- TODO: assert type errors specifically when the parser returns better error structures.
+			("string minus int",
+				noBuild "Name - b"),
+			("type mismatch in preop",
+				noBuild "C := a\nInitial - a")]],
 	PureTests "junk" [
 		("err on immediately invalid code", do
 			noBuild "ja"),

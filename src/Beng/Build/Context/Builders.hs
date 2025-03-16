@@ -24,6 +24,8 @@ module Beng.Build.Context.Builders (
 	asInt,
 	bitValue,
 	intValue,
+	stringType,
+	stringValue,
 	declare,
 	declareLiteral,
 	define,
@@ -114,6 +116,21 @@ bitType = NativeBitsType 1
 -- TODO: replace with an "integer" type operator that returns the type.
 intType = NativeBitsType 32
 
+bitsValue :: Int -> [Int] -> Thing
+bitsValue size byteValues =
+	NativeBitsValue { size, bytes = BS.pack $ map (fromInteger . toInteger) byteValues }
+
+bitValue :: Bool -> Thing
+bitValue true = bitsValue 1 [if true then 1 else 0]
+
+intValue :: Int32 -> Thing
+intValue int = bitsValue 32 $
+	map ((.&. 0xFF) . shiftR (fromInteger $ toInteger int)) [24, 16, 8, 0]
+
+stringType = NativeStringType  -- TODO: replace with language-level string type when available
+
+stringValue = NativeStringValue
+
 asOp :: (Thing -> Op)
 asOp = \case
 	OpValue op -> op
@@ -143,10 +160,6 @@ asBits size = \case
 			"b) were found instead: " ++ show bitsValue
 	other -> asOpOf (show size ++ "b") (asBits size) other
 
-bitsValue :: Int -> [Int] -> Thing
-bitsValue size byteValues =
-	NativeBitsValue { size, bytes = BS.pack $ map (fromInteger . toInteger) byteValues }
-
 asInt :: Thing -> Fallible Int32
 asInt value = do  -- TODO TEMPORARY
 	bytestring <- asBits 32 value
@@ -156,13 +169,6 @@ asInt value = do  -- TODO TEMPORARY
 		(shiftL (fromIntegral b2) 16) .|.
 		(shiftL (fromIntegral b3) 8) .|.
 		(fromIntegral b4)
-
-bitValue :: Bool -> Thing
-bitValue true = bitsValue 1 [if true then 1 else 0]
-
-intValue :: Int32 -> Thing
-intValue int = bitsValue 32 $
-	map ((.&. 0xFF) . shiftR (fromInteger $ toInteger int)) [24, 16, 8, 0]
 
 declare :: PrecedenceBound -> [Pattern] -> Thing -> Location -> Declaration
 declare precedence subpatterns returnType location =

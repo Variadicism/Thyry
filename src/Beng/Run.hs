@@ -17,7 +17,8 @@ import qualified Data.Map.Ordered as OMap
 run :: Op -> Fallible Thing
 run op = case op.card.definition of
 	Nothing -> Error $ UndefinedError {
-		context = "", declaration = op.card.declaration, caller = op, callLocation = op.location }
+		-- TODO: The declaration and caller should not be the same; I think info is missing.
+		declaration = op.card.declaration, caller = op }
 	Just definition -> definition.runWith $ OMap.toMap $ OMap.map value $ getArgs op
 
 runWhileOp :: Thing -> Fallible Thing

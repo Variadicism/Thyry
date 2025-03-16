@@ -1,6 +1,5 @@
 module Beng.Types.Errors (
 	Error(..),
-	ParseErrorDetails(..),
 	Fallible,
 	IOFallible
 ) where
@@ -9,28 +8,27 @@ import Utils.Fallible (FallibleI)
 import Utils.Fallible.Trans (IOFallibleI)
 import Utils.Populace (Populace)
 
-import Beng.Types.Locations (FileLocation, Location)
+import Beng.Types.Locations (FileLocation)
 import Beng.Types.Ops (Op)
 import {-# SOURCE #-} Beng.Types.Ops.Declarations (Declaration)
+import qualified Beng.Types.Things as Thing
 
 data Error =
-	-- TODO: callStack :: [(String, Location, Op)]
+	-- \/ closest to success
 	UndefinedError {
-		context :: String,
+		-- TODO: callStack :: Populace (String, Location, Op)
 		declaration :: Declaration,
+		caller :: Op } |
+	TypeError {
+		-- TODO: callStack :: Populace (String, Location, Op)
 		caller :: Op,
-		callLocation :: Location } |
-	{- TypeError {
-		context :: String,
-		expected :: Thing,
-		considerations :: PatternComparator.Parses } | -}
+		argName :: String,
+		cause :: Thing.Mismatch } |
 	ParseError {
-		details :: Populace ParseErrorDetails,
-		fileLocation :: FileLocation }
-
-data ParseErrorDetails =
-	ParseErrorContext String (Populace ParseErrorDetails) |
-	ParseErrorMessage String
+		details :: String,  -- TODO: structure this string
+		fileLocation :: FileLocation } |
+	-- /\ furthest from success
+	CompoundError { context :: String, compound :: Populace Error }
 
 type Fallible a = FallibleI Error a
 
