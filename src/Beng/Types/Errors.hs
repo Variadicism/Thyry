@@ -8,6 +8,7 @@ import Utils.Fallible (FallibleI)
 import Utils.Fallible.Trans (IOFallibleI)
 import Utils.Populace (Populace)
 
+import Beng.Types.Build.Cards (Card)
 import Beng.Types.Locations (FileLocation)
 import Beng.Types.Ops (Op)
 import {-# SOURCE #-} Beng.Types.Ops.Declarations (Declaration)
@@ -21,8 +22,10 @@ data Error =
 		caller :: Op } |
 	TypeError {
 		-- TODO: callStack :: Populace (String, Location, Op)
-		caller :: Op,
+		-- TODO: when Ops can continue parsing through type errors, make this an Op.
+		attemptedCaller :: Card,
 		argName :: String,
+		fileLocation :: FileLocation,
 		cause :: Thing.Mismatch } |
 	ParseError {
 		fileLocation :: FileLocation,

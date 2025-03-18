@@ -52,46 +52,51 @@ msgArg name paramType = do
 
 parse :: String -> Thing -> Location -> Code.Parser Match
 parse name argType decLoc = msgArg name argType @> \state -> do
+	-- Arg Patterns are only applicable within ops, so parent must be present.
+	let (Just parent) = state.parent
+
+	{- Parsing the argument builds PreOps into Ops, so the result of the Op build
+		must remove the PreOp wrapper for type comparison. -}
+	let typeToSatisfy = case argType of
+		PreOpType resolvedType -> resolvedType
+		rawType -> rawType
+	let checkSatisfiesArgType typeFound = do
+		let toTypeError cause = TypeError {
+			attemptedCaller = parent,
+			argName = name,
+			fileLocation = state.location,
+			cause }
+		-- TODO: allow parsing to continue through a type error for better debugging info
+		mapError toTypeError $ (state.context, typeFound) `satisfies` typeToSatisfy
+
 	let argOf op = Argument { decLoc, name, argType, op }
 	let putArg op state = do
 		let newArg = Parameter { name, decLoc, paramType = argType, value = OpValue op }
 		state { arguments = Map.insert name newArg state.arguments }
 	case state.prefixState of
-		AvoidingFor op ->
+		AvoidingFor op -> do
+			checkSatisfiesArgType op.returnType
 			Code.takeAs "" (argOf op) $ putArg op $ state{ prefixState = Unneeded }
 		Needed -> Error $ parseError state $
-			"An op prefix was needed, but " ++ show state.parent ++ " had none!"
-		Unneeded -> do
-			-- Arg Patterns are only applicable within ops, so parent must be present.
-			let (Just parent) = state.parent
-			prependToError ("in '" ++ name ++ "' of " ++ msg parent ++ ", ") do
-				-- TODO: add previous arguments as additional context
-				argContext <- prependToError
-						("There was an error attempting to build a context to parse the preop for " ++
-							wrap "'" name ++ ": ") $
-					parent.declaration.contextualize name state.arguments (Location.Code state.location)
-				when (not $ null argContext) $ debugM $
-					pluralCount (length argContext) "contextual card" ++ " generated for '" ++
-					name ++ "': " ++ show argContext
+			"An op prefix was needed, but " ++ show parent ++ " had none!"
+		Unneeded -> prependToError ("in '" ++ name ++ "' of " ++ msg parent ++ ", ") do
+			-- TODO: add previous arguments as additional context
+			argContext <- prependToError
+					("There was an error attempting to build a context to parse the preop for " ++
+						wrap "'" name ++ ": ") $
+				parent.declaration.contextualize name state.arguments (Location.Code state.location)
+			when (not $ null argContext) $ debugM $
+				pluralCount (length argContext) "contextual card" ++ " generated for '" ++
+				name ++ "': " ++ show argContext
 
-				let checkReturnType = \argOp -> do
-					{- Parsing the argument builds PreOps into Ops, so the result of the Op build
-						must remove the PreOp wrapper for type comparison. -}
-					let typeToSatisfy = case argType of
-						PreOpType resolvedType -> resolvedType
-						rawType -> rawType
-					mapError (\cause -> TypeError { caller = argOp, argName = name, cause }) $
-						(state.context, argOp.returnType) `satisfies` typeToSatisfy
-					return argOp
-
-				state{ Code.context = foldl (flip pushCard) state.context argContext } >>>
-					Op.build (wrap "'" name)
-						{- Discard context added by parsing the argument;
-							otherwise, context built in arguments will "bubble up" into everything
-							after it in the file, leaking scope everywhere. -}
-						>/\> (\s op -> putArg op s{ Code.context = state.context })
-						>-\> checkReturnType
-						>\> \op -> Argument { decLoc, name, argType, op }
+			state{ Code.context = foldl (flip pushCard) state.context argContext } >>>
+				Op.build (wrap "'" name)
+					{- Discard context added by parsing the argument;
+						otherwise, context built in arguments will "bubble up" into everything
+						after it in the file, leaking scope everywhere. -}
+					>/\> (\s op -> putArg op s{ Code.context = state.context })
+					>-\> (\op -> checkSatisfiesArgType op.returnType >> return op)
+					>\> \op -> Argument { decLoc, name, argType, op }
 
 compareFrom :: String -> Thing -> Location -> PatternComparator.Parser
 compareFrom name argType decLoc = msgArg name argType ++ " comparator" @> \state -> do

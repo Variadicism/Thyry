@@ -15,6 +15,7 @@ import Utils.Messaging (Messagable, TerminalColor(..), msg, tColor)
 import Utils.Populace (Populace)
 import qualified Utils.Populace as P
 
+import Beng.Build.Cards ()
 import Beng.Locations (FileLocation(..), Location)
 import qualified Beng.Locations as Location
 import {-# SOURCE #-} Beng.Ops ()
@@ -65,7 +66,10 @@ instance Show Error where
 		ParseError{details,fileLocation=FileLocation{..}} ->
 			concatMap (++":") [file, show line, show column] ++ " " ++ show details
 		UndefinedError{..} -> show declaration ++ " in " ++ show caller
-		TypeError{..} -> "from " ++ argName ++ " in " ++ show caller ++ ": " ++ show cause
+		TypeError{..} -> "at " ++ show fileLocation ++
+			" for " ++ argName ++
+			" in " ++ show attemptedCaller ++ ": " ++
+			show cause
 		CompoundError{..} -> ifNotNull (++", ") context ++ intercalate " AND " (P.map show compound)
 
 instance Messagable Error where
@@ -74,7 +78,10 @@ instance Messagable Error where
 		UndefinedError{..} -> msg declaration ++
 			" in " ++ msg caller ++
 			" cannot run before it is defined!"
-		TypeError{..} -> "from " ++ argName ++ " in " ++ msg caller ++ ": " ++ msg cause
+		TypeError{..} -> "at " ++ msg fileLocation ++
+			" for " ++ argName ++
+			" in " ++ msg attemptedCaller ++ ": " ++
+			msg cause
 		CompoundError{..} -> ifNotNull (++", ") context ++ intercalate " AND " (P.map msg compound)
 
 instance Ord Error where
@@ -122,7 +129,7 @@ getLocation :: Error -> Location
 getLocation = \case
 	ParseError{fileLocation} -> Location.Code fileLocation
 	UndefinedError{caller=Op{location}} -> location
-	TypeError{caller} -> caller.location
+	TypeError{fileLocation} -> Location.Code fileLocation
 	CompoundError{compound} -> compound.head.location
 
 printError :: Error -> String
