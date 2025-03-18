@@ -19,7 +19,6 @@ import Beng.Locations (FileLocation(..), Location)
 import qualified Beng.Locations as Location
 import {-# SOURCE #-} Beng.Ops ()
 import Beng.Ops.Declarations ()
--- import {-# SOURCE #-} Beng.Things ()
 import Beng.Types.Parse.Parsers.Code (State(..))
 import Beng.Types.Errors
 import Beng.Types.Ops (Op(..))
@@ -29,15 +28,26 @@ import GHC.Records (HasField, getField)
 
 -- private
 
-printErrorBodyAt :: Int -> Error -> String
-printErrorBodyAt indent error = replicate (2*indent) ' ' ++ case error of
+printErrorBodyAt :: Int -> (Error -> String)
+printErrorBodyAt indentLevel = \case
 	ParseError{..} -> details
 	TypeError{..} -> msg cause
 	ue@UndefinedError{} -> msg ue
-	CompoundError{..} ->
-		ifNotNull (++"\n") context ++
-			intercalate "\n" (
-				P.map ((replicate (2*indent) ' '++) . ("• "++) . printErrorBodyAt indent) compound)
+	CompoundError{..} -> do
+		let bulletIfNeeded = if length compound == 1 then "" else "• "
+		let printSubError =
+			(("\n" ++ replicate (2*indentLevel) ' ' ++ bulletIfNeeded)++) .
+			printErrorBodyAt (indentLevel + 1)
+		let header = context ++ (if length compound == 1
+			then "an error occurred:"
+			else show (length compound) ++ " equal errors:")
+		header ++ concat (P.map printSubError compound)
+	{- CompoundError{..} | null context -> do
+		let printSubError = ("\n"++) . indent . printErrorBodyAt indentLevel
+		concat $ P.map printSubError compound
+	CompoundError{..} -> do
+		let printSubError = ("\n"++) . indent . ("• "++) . printErrorBodyAt (indentLevel + 1)
+		context ++ concat (P.map printSubError compound) -}
 
 -- instances
 
@@ -72,8 +82,10 @@ instance Ord Error where
 	compare e1 e2 = case (e1, e2) of
 		(e1@CompoundError{}, e2) -> compare e1.compound.head e2
 		(e1, e2@CompoundError{}) -> compare e1 e2.compound.head
-		(e1, e2) | typeIndex e1 == typeIndex e2 &&  e1.location == e2.location -> EQ
-		(e1, e2) -> compare (typeIndex e1) (typeIndex e2)
+		(e1, e2) ->
+			compare (typeIndex e1) (typeIndex e2) <>
+			-- Swap operands because later location are closer to success (ordered lower).
+			compare e2.location e1.location
 		where typeIndex = \case
 			UndefinedError{} -> 1
 			TypeError{} -> 2
@@ -85,8 +97,16 @@ instance IsError Error where
 		e@CompoundError{} -> e{ Error.context = prefix ++ e.context }
 		e -> CompoundError { context = prefix, compound = P.singleton e }
 	(<!>) e1 e2 = if compare e1 e2 == EQ
-		then CompoundError { context = "", compound = P.Populace e1 [e2] }
-		else min e1 e2  -- Lower => closer to success
+		then case (e1, e2) of
+			(e1@CompoundError{}, e2@CompoundError{}) | e1.context == e2.context ->
+				CompoundError e1.context $ e1.compound <> e2.compound
+			(e1@CompoundError{}, e2) | null e1.context ->
+				CompoundError "" $ P.snoc e1.compound e2
+			(e1, e2@CompoundError{}) | null e2.context ->
+				CompoundError "" $ P.cons e1 e2.compound
+			(e1, e2) ->
+				CompoundError "" $ P.Populace e1 [e2]
+		else min e1 e2  -- lower -> closer to success
 
 instance HasField "location" Error Location where
 	getField = getLocation
@@ -97,9 +117,6 @@ parseError :: State -> String -> Error
 parseError state message = ParseError {
 	details = message,
 	fileLocation = state.location }
-
-{- typeError :: Thing -> PatternComparator.Parses -> Error
-typeError expected parses = TypeError { context = "", expected, parses } -}
 
 getLocation :: Error -> Location
 getLocation = \case

@@ -25,8 +25,8 @@ data Error =
 		argName :: String,
 		cause :: Thing.Mismatch } |
 	ParseError {
-		details :: String,  -- TODO: structure this string
-		fileLocation :: FileLocation } |
+		fileLocation :: FileLocation,
+		details :: String } |  -- TODO: structure this string
 	-- /\ furthest from success
 	CompoundError { context :: String, compound :: Populace Error }
 
