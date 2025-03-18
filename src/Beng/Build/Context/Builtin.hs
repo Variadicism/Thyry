@@ -7,7 +7,7 @@ import Prelude hiding (subtract)
 import qualified Utils.Populace.Populace2 as P2
 
 import Beng.Build.Context (Context(..), PrecedenceBound(..))
-import Beng.Build.Context.Builders (c, cr, e, s, l, multi, argAt, asBits, asInt, asNativeString, asOp, bitType, bitsValue, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf, intType, intValue, textAt)
+import Beng.Build.Context.Builders (c, cr, e, nc, s, l, multi, argAt, asBits, asInt, asNativeString, asOp, bitType, bitValue, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf, intType, intValue, stringType, stringValue, textAt)
 import Beng.Types.Build.Cards (Card(DefCard))
 import Beng.Types.Parse.Matches (value)
 import Beng.Types.Parse.Patterns (Pattern(..))
@@ -21,6 +21,7 @@ import qualified Data.ByteString as BS
 import Data.Int (Int32)
 import Data.Map ((!))
 import Data.Text.Lazy (unpack)
+import qualified Data.Text.Lazy as Text
 import GHC.Records (HasField, getField)
 
 -- constants
@@ -44,9 +45,10 @@ valueName = do
    Java or Beng, this wouldn't be such a pain. -}
 
 data BuiltinOp =
-	IntType | Ints |
-	BitType | Yes | No |
+	Ints | Strings | Yes | No |
+	IntType | BitType |
 	Add | Subtract |
+	StartsWith |
 	DefineValue | If
 	deriving (Show, Eq, Enum, Ord)
 
@@ -60,11 +62,6 @@ hangingDefinitionOf :: BuiltinOp -> Location -> Definition
 hangingDefinitionOf opEnum location = case opEnum of
 	-- Types of the arguments and the values in these definitions are disjointed,
 	-- losing all type guarantees. This will not be an issue in Beng! :)
-	IntType -> define None
-		[l "an int"]
-		intType
-		(\_ -> return intType)
-		location
 	Ints -> define None
 		[t "Integer" $ multi $ c [cr '0' '9']]
 		intType
@@ -72,6 +69,19 @@ hangingDefinitionOf opEnum location = case opEnum of
 			text <- asNativeString $ args ! "Integer"
 			-- `read :: Int` is safe because we only match '0'-'9'.
 			return $ intValue (read $ unpack text :: Int32))
+		location
+	Strings -> define None
+		[l "\"", t "Content" $ multi $ Or $ P2.dualton (l "\\\"") (nc [cr '"' '"']), l "\""]
+		stringType
+		(\args -> do
+			text <- asNativeString $ args ! "Content"
+			let escaped = Text.replace "\\\"" "\"" $ Text.replace "\\\\" "\\" text
+			return $ stringValue escaped)
+		location
+	IntType -> define None
+		[l "an int"]
+		intType
+		(\_ -> return intType)
 		location
 	BitType -> define None
 		[l "a bit"]
@@ -81,12 +91,12 @@ hangingDefinitionOf opEnum location = case opEnum of
 	Yes -> define None
 		[l "yes"]
 		(NativeBitsType 1)
-		(\_ -> return $ bitsValue 1 [1])
+		(\_ -> return $ bitValue True)
 		location
 	No -> define None
 		[l "no"]
 		(NativeBitsType 1)
-		(\_ -> return $ bitsValue 1 [0])
+		(\_ -> return $ bitValue False)
 		location
 	Add -> define Default
 		[a "Augend" intType, s, l "+", s, a "Addend" intType]
@@ -103,6 +113,14 @@ hangingDefinitionOf opEnum location = case opEnum of
 			minuend <- asInt $ args ! "Minuend"
 			subtrahend <- asInt $ args ! "Subtrahend"
 			return $ intValue $ minuend - subtrahend)
+		location
+	StartsWith -> define (Below $ dec Add)
+		[a "Target" stringType, s, l "starts", s, l "with", s, a "Prefix" stringType]
+		bitType
+		(\args -> do
+			target <- asNativeString $ args ! "Target"
+			prefix <- asNativeString $ args ! "Prefix"
+			return $ bitValue $ prefix `Text.isPrefixOf` target)
 		location
 	DefineValue -> defineUsing (Below $ dec Add) Righty
 		[t "Name" valueName, s, l ":=", s, a "Thing" intType, s, a "Scope" (PreOpType intType)]
@@ -140,4 +158,4 @@ hangingDefinitionOf opEnum location = case opEnum of
 -- exported
 
 context :: Context
-context = buildContextFrom hangingDefinitionOf IntType
+context = buildContextFrom hangingDefinitionOf Ints
