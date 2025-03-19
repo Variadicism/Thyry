@@ -1,13 +1,13 @@
 cabal-version: 2.4
 name: BengI
-version: 0.15.1.3
+version: 0.16.0.0
 synopsis: This is the interpreter for the Beng programming language.
 -- description:
 license: Artistic-2.0
 license-file: LICENSE
 author: Variadicism (Connor Davey)
-maintainer: conman.davey@gmail.com
-copyright: Beng 2016-2024
+maintainer: variadicism@variadicism.dev
+copyright: Beng 2016-2025
 category: Language
 build-type: Simple
 extra-source-files: README.md
