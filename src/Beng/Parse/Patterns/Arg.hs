@@ -5,7 +5,7 @@ module Beng.Parse.Patterns.Arg (
 	compareFrom
 ) where
 
-import Utils.Fallible
+import Utils.Fallible hiding (Fallible)
 import Utils.Messaging (debugM, msg)
 import Utils.Lists (wrap)
 import qualified Utils.Populace as P
@@ -16,6 +16,7 @@ import Beng.Build.Context (pushCard)
 import {-# SOURCE #-} qualified Beng.Build.Ops as Op
 import Beng.Build.TypeTest (satisfiesDuring)
 import Beng.Errors (parseError)
+import Beng.Ops ()
 import Beng.Parse.Matches (Match(Argument, decLoc, name, argType, op), Parameter(..))
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/\>), (>-\>))
 import Beng.Parse.Parsers.Code (PrefixState(..), State(..))
@@ -24,9 +25,10 @@ import Beng.Parse.Parsers.PatternComparator ()
 import qualified Beng.Parse.Parsers.PatternComparator as PC
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Things (satisfies)
-import Beng.Types.Errors (Error(..))
+import Beng.Types.Errors (Error(..), Fallible)
 import Beng.Types.Locations (Location)
 import qualified Beng.Types.Locations as Location
+import Beng.Types.Ops (Op(..))
 import Beng.Types.Ops.Declarations (Declaration(..))
 import Beng.Types.Parse.Patterns (Mismatch(..))
 import qualified Beng.Types.Parse.Patterns as Pattern
@@ -60,14 +62,16 @@ parse name argType decLoc = msgArg name argType @> \state -> do
 	let typeToSatisfy = case argType of
 		PreOpType resolvedType -> resolvedType
 		rawType -> rawType
-	let checkSatisfiesArgType typeFound = do
+	let checkSatisfiesArgType :: Op -> Fallible () = \op -> do
+		-- This only happens to the op parsed as the argument, so it must be a code location.
+		let (Location.Code opLocation) = op.location
 		let toTypeError cause = TypeError {
 			attemptedCaller = parent,
 			argName = name,
-			fileLocation = state.location,
+			fileLocation = opLocation,
 			cause }
 		-- TODO: allow parsing to continue through a type error for better debugging info
-		mapError toTypeError $ (state.context, typeFound) `satisfies` typeToSatisfy
+		mapError toTypeError $ (state.context, op.returnType) `satisfies` typeToSatisfy
 
 	let argOf op = Argument { decLoc, name, argType, op }
 	let putArg op state = do
@@ -75,7 +79,7 @@ parse name argType decLoc = msgArg name argType @> \state -> do
 		state { arguments = Map.insert name newArg state.arguments }
 	case state.prefixState of
 		AvoidingFor op -> do
-			checkSatisfiesArgType op.returnType
+			checkSatisfiesArgType op
 			Code.takeAs "" (argOf op) $ putArg op $ state{ prefixState = Unneeded }
 		Needed -> Error $ parseError state $
 			"An op prefix was needed, but " ++ show parent ++ " had none!"
@@ -95,7 +99,7 @@ parse name argType decLoc = msgArg name argType @> \state -> do
 						otherwise, context built in arguments will "bubble up" into everything
 						after it in the file, leaking scope everywhere. -}
 					>/\> (\s op -> putArg op s{ Code.context = state.context })
-					>-\> (\op -> checkSatisfiesArgType op.returnType >> return op)
+					>-\> (\op -> checkSatisfiesArgType op >> return op)
 					>\> \op -> Argument { decLoc, name, argType, op }
 
 compareFrom :: String -> Thing -> Location -> PatternComparator.Parser
