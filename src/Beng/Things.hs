@@ -168,6 +168,7 @@ instance Show Thing where
 		DeclarationType -> "op declaration"
 		PatternType -> "op pattern"
 		PreOpType{resolvedType} -> "a preop of " ++ show resolvedType
+		NativeBitsType{size=1} -> "a bit"
 		NativeBitsType{size} -> show size ++ " bits"
 		NativeCharValue{char} -> wrap "'" [char]
 		NativeStringValue{text} -> show text
@@ -183,6 +184,7 @@ instance Show Thing where
 		NativeStringType -> "a native string"
 		NativeListType{elementType} -> "a native list of " ++ show elementType  -- TODO: pluralize elementType
 		NativeSomeType{elementType} -> "a native some " ++ show elementType  -- TODO: pluralize
+		-- TODO: remove a(n) from the falueType
 		NativeOptionalType{falueType} -> "a native " ++ show falueType ++ "?"
 		NativeOrType{options} -> "a native " ++ showWithOr options.l
 		One -> "one"
@@ -204,6 +206,12 @@ instance Messagable Thing where
 		NativeType{..} -> if null $ properties One
 			then "thing"
 			else msgList $ properties One
+		NativeCharType -> "a char"
+		NativeStringType -> "a string"
+		NativeListType{elementType} -> "a list of " ++ show elementType  -- TODO: pluralize elementType
+		NativeSomeType{elementType} -> "some " ++ show elementType  -- TODO: pluralize
+		NativeOptionalType{falueType} -> show falueType ++ "?"
+		NativeOrType{options} -> showWithOr options.l
 		CombinedThings{..} -> intercalate " + " $ map msg things.l
 		NamedThing{..} -> name
 		v -> show v

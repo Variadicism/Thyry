@@ -25,6 +25,7 @@ data Error =
 		-- TODO: when Ops can continue parsing through type errors, make this an Op.
 		attemptedCaller :: Card,
 		argName :: String,
+		-- TODO: mismatchedOp :: Op,
 		fileLocation :: FileLocation,
 		cause :: Thing.Mismatch } |
 	ParseError {
