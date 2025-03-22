@@ -10,7 +10,7 @@ module Beng.Errors (
 
 import Utils.Collective (intercalate)
 import Utils.Fallible hiding (Fallible)
-import Utils.Lists (ifNotNull)
+import Utils.Lists (equalsIgnoreOrder, ifNotNull)
 import Utils.Messaging (Messagable, TerminalColor(..), msg, tColor)
 import Utils.Populace (Populace)
 import qualified Utils.Populace as P
@@ -32,23 +32,32 @@ import GHC.Records (HasField, getField)
 printErrorBodyAt :: Int -> (Error -> String)
 printErrorBodyAt indentLevel = \case
 	ParseError{..} -> details
-	TypeError{..} -> msg cause
+	TypeError{..} -> do
+		let context = "in '" ++ argName ++ "' of " ++ msg attemptedCaller
+		context ++ ",\n" ++ indentFor (indentLevel+1) ++ msg cause
 	ue@UndefinedError{} -> msg ue
 	CompoundError{..} -> do
-		let bulletIfNeeded = if length compound == 1 then "" else "• "
-		let printSubError =
-			(("\n" ++ replicate (2*indentLevel) ' ' ++ bulletIfNeeded)++) .
-			printErrorBodyAt (indentLevel + 1)
-		let header = context ++ (if length compound == 1
-			then "an error occurred:"
-			else show (length compound) ++ " equal errors:")
-		header ++ concat (P.map printSubError compound)
-	{- CompoundError{..} | null context -> do
-		let printSubError = ("\n"++) . indent . printErrorBodyAt indentLevel
-		concat $ P.map printSubError compound
-	CompoundError{..} -> do
-		let printSubError = ("\n"++) . indent . ("• "++) . printErrorBodyAt (indentLevel + 1)
-		context ++ concat (P.map printSubError compound) -}
+		-- Like the errors above, this compound error must not indent its first line.
+		-- But, it should indent subsequent lines.
+		let printEqualEntries indentLevel indentFirst entries = do
+			let printEntry index entry = do
+				let prefix = if index == 0 && indentFirst
+					then indentFor indentLevel ++ "• "
+					else if index == 0 then "• "
+					else indentFor indentLevel ++ "\n& "
+				prefix ++ entry
+			concat $ P.mapIndexed printEntry entries
+		let printSubErrors indentLevel indentFirst =
+			printEqualEntries indentLevel indentFirst . P.map (printErrorBodyAt indentLevel)
+		case contexts of
+			[] -> printSubErrors indentLevel False compound
+			[context] ->
+				context ++ "\n" ++ printSubErrors (indentLevel+1) True compound
+			first:rest -> do
+				let contextsHeader = printEqualEntries indentLevel False $ P.Populace first rest
+				contextsHeader ++ "\n" ++ printSubErrors (indentLevel+1) True compound
+	where
+		indentFor indentLevel = replicate (2*indentLevel) ' '
 
 -- instances
 
@@ -59,6 +68,7 @@ instance Eq Error where
 	(==) u1@UndefinedError{} u2@UndefinedError{} =
 		u1.declaration == u2.declaration &&
 		u1.caller == u2.caller
+	-- TODO: CompoundError ==!
 	(==) _ _ = False
 
 instance Show Error where
@@ -70,7 +80,8 @@ instance Show Error where
 			" for " ++ argName ++
 			" in " ++ show attemptedCaller ++ ": " ++
 			show cause
-		CompoundError{..} -> ifNotNull (++", ") context ++ intercalate " AND " (P.map show compound)
+		CompoundError{..} -> ifNotNull (++", ") (intercalate " AND " contexts) ++
+			intercalate " AND " (P.map show compound)
 
 instance Messagable Error where
 	msg = \case
@@ -82,7 +93,8 @@ instance Messagable Error where
 			" for " ++ argName ++
 			" in " ++ msg attemptedCaller ++ ": " ++
 			msg cause
-		CompoundError{..} -> ifNotNull (++", ") context ++ intercalate " AND " (P.map msg compound)
+		CompoundError{..} -> ifNotNull (++", ") (intercalate " AND " contexts) ++
+			intercalate " AND " (P.map msg compound)
 
 instance Ord Error where
 	-- Lower => closer to success
@@ -101,18 +113,21 @@ instance Ord Error where
 
 instance IsError Error where
 	prepend prefix = \case
-		e@CompoundError{} -> e{ Error.context = prefix ++ e.context }
-		e -> CompoundError { context = prefix, compound = P.singleton e }
+		e@CompoundError{} -> e{ Error.contexts = case e.contexts of
+			[] -> [prefix]
+			contexts -> map (prefix++) contexts }
+		e -> CompoundError { contexts = [prefix], compound = P.singleton e }
 	(<!>) e1 e2 = if compare e1 e2 == EQ
 		then case (e1, e2) of
-			(e1@CompoundError{}, e2@CompoundError{}) | e1.context == e2.context ->
-				CompoundError e1.context $ e1.compound <> e2.compound
-			(e1@CompoundError{}, e2) | null e1.context ->
-				CompoundError "" $ P.snoc e1.compound e2
-			(e1, e2@CompoundError{}) | null e2.context ->
-				CompoundError "" $ P.cons e1 e2.compound
+			-- TODO: combine contexts if the errors are equal but contexts aren't
+			(e1@CompoundError{}, e2@CompoundError{}) | e1.contexts `equalsIgnoreOrder` e2.contexts ->
+				CompoundError e1.contexts $ e1.compound <> e2.compound
+			(e1@CompoundError{}, e2) | null e1.contexts ->
+				CompoundError [] $ P.snoc e1.compound e2
+			(e1, e2@CompoundError{}) | null e2.contexts ->
+				CompoundError [] $ P.cons e1 e2.compound
 			(e1, e2) ->
-				CompoundError "" $ P.Populace e1 [e2]
+				CompoundError [] $ P.Populace e1 [e2]
 		else min e1 e2  -- lower -> closer to success
 
 instance HasField "location" Error Location where

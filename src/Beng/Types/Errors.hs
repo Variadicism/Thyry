@@ -31,7 +31,7 @@ data Error =
 		fileLocation :: FileLocation,
 		details :: String } |  -- TODO: structure this string
 	-- /\ furthest from success
-	CompoundError { context :: String, compound :: Populace Error }
+	CompoundError { contexts :: [String], compound :: Populace Error }
 
 type Fallible a = FallibleI Error a
 

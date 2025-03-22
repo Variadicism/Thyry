@@ -65,13 +65,13 @@ parse name argType decLoc = msgArg name argType @> \state -> do
 	let checkSatisfiesArgType :: Op -> Fallible () = \op -> do
 		-- This only happens to the op parsed as the argument, so it must be a code location.
 		let (Location.Code opLocation) = op.location
-		let toTypeError cause = TypeError {
+		let contextualizeError cause = TypeError {
 			attemptedCaller = parent,
 			argName = name,
 			fileLocation = opLocation,
 			cause }
 		-- TODO: allow parsing to continue through a type error for better debugging info
-		mapError toTypeError $ (state.context, op.returnType) `satisfies` typeToSatisfy
+		mapError contextualizeError $ (state.context, op.returnType) `satisfies` typeToSatisfy
 
 	let argOf op = Argument { decLoc, name, argType, op }
 	let putArg op state = do
