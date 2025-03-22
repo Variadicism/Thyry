@@ -33,6 +33,7 @@ printErrorBodyAt :: Int -> (Error -> String)
 printErrorBodyAt indentLevel = \case
 	ParseError{..} -> details
 	TypeError{..} -> do
+		-- TODO: print the attempted caller without the return type; it's not germane.
 		let context = "in '" ++ argName ++ "' of " ++ msg attemptedCaller
 		context ++ ",\n" ++ indentFor (indentLevel+1) ++ msg cause
 	ue@UndefinedError{} -> msg ue
@@ -68,7 +69,9 @@ instance Eq Error where
 	(==) u1@UndefinedError{} u2@UndefinedError{} =
 		u1.declaration == u2.declaration &&
 		u1.caller == u2.caller
-	-- TODO: CompoundError ==!
+	(==) c1@CompoundError{} c2@CompoundError{} =
+		c1.contexts == c2.contexts &&
+		c1.compound == c2.compound
 	(==) _ _ = False
 
 instance Show Error where

@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name: BengI
-version: 0.16.0.3
+version: 0.16.0.4
 synopsis: This is the interpreter for the Beng programming language.
 -- description:
 license: Artistic-2.0
