@@ -23,8 +23,10 @@ import Beng.Ops.Declarations ()
 import Beng.Types.Parse.Parsers.Code (State(..))
 import Beng.Types.Errors
 import Beng.Types.Ops (Op(..))
+import Beng.Types.Ops.Declarations (Declaration(pattern))
 import qualified Beng.Types.Errors as Error
 
+import Data.List (nub)
 import GHC.Records (HasField, getField)
 
 -- private
@@ -32,10 +34,9 @@ import GHC.Records (HasField, getField)
 printErrorBodyAt :: Int -> (Error -> String)
 printErrorBodyAt indentLevel = \case
 	ParseError{..} -> details
-	TypeError{..} -> do
-		-- TODO: print the attempted caller without the return type; it's not germane.
-		let context = "in '" ++ argName ++ "' of " ++ msg attemptedCaller
-		context ++ ",\n" ++ indentFor (indentLevel+1) ++ msg cause
+	TypeError{..} ->
+		"in '" ++ argName ++ "' of " ++ msg attemptedCaller.declaration.pattern ++ ",\n" ++
+			indentFor (indentLevel+1) ++ msg cause
 	ue@UndefinedError{} -> msg ue
 	CompoundError{..} -> do
 		-- Like the errors above, this compound error must not indent its first line.
@@ -58,7 +59,7 @@ printErrorBodyAt indentLevel = \case
 				let contextsHeader = printEqualEntries indentLevel False $ P.Populace first rest
 				contextsHeader ++ "\n" ++ printSubErrors (indentLevel+1) True compound
 	where
-		indentFor indentLevel = replicate (2*indentLevel) ' '
+		indentFor indentLevel = replicate (4*indentLevel) ' '
 
 -- instances
 
@@ -122,7 +123,8 @@ instance IsError Error where
 		e -> CompoundError { contexts = [prefix], compound = P.singleton e }
 	(<!>) e1 e2 = if compare e1 e2 == EQ
 		then case (e1, e2) of
-			-- TODO: combine contexts if the errors are equal but contexts aren't
+			(e1@CompoundError{}, e2@CompoundError{}) | e1.compound `equalsIgnoreOrder` e2.compound ->
+				CompoundError (nub $ e1.contexts <> e2.contexts) e1.compound
 			(e1@CompoundError{}, e2@CompoundError{}) | e1.contexts `equalsIgnoreOrder` e2.contexts ->
 				CompoundError e1.contexts $ e1.compound <> e2.compound
 			(e1@CompoundError{}, e2) | null e1.contexts ->
@@ -153,7 +155,7 @@ getLocation = \case
 printError :: Error -> String
 printError error =
 	tColor [Reset, LightGray] (msg error.location ++ ",\n") ++
-	tColor [Red] (printErrorBodyAt 0 error)
+		tColor [Red] (printErrorBodyAt 0 error)
 	-- TODO: add the line of code with the error column highlighted
 
 compoundErrorsUsing :: Ord e => (e -> Maybe (String, Populace e)) -> (String -> Populace e -> e) -> e -> e -> e
@@ -162,8 +164,7 @@ compoundErrorsUsing getCompound makeCompound e1 e2 = case compare e1 e2 of
 		(Just (context1, compound1), Just (context2, compound2)) -> 
 			makeCompound (context1 ++ " & " ++ context2) $
 				P.Populace compound1.head $ compound1.tail ++ compound2.l
-		_ -> -- Don't apply one compound's context to both; remember: it doesn't apply to the new error.
-			makeCompound "" $ P.Populace e1 [e2]
+		_ -> makeCompound "" $ P.Populace e1 [e2]
 	LT -> e1
 	GT -> e2
 
