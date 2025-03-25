@@ -44,7 +44,7 @@ data State = State {
 	context :: Context,
 	parent :: Maybe Card,  -- TODO: turn into a stack of op arguments for debugging
 	maxPrecedence :: Maybe Card,
-	arguments :: Map String Match.Parameter,
+	arguments :: Map String Match.Argument,
 	indentation :: Int,
 	rest :: Text,
 	prefixState :: PrefixState,

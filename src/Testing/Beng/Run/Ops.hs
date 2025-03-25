@@ -19,20 +19,20 @@ import Beng.Build.Context.Builders (l, argOfBuiltin, asInt, asOp, declare, defin
 import Beng.Build.Cards (Card(..))
 import Beng.Ops (Op(..))
 import Beng.Ops.Definitions (Definition)
-import Beng.Parse.Matches (Match)
+import Beng.Parse.Matches (Match(ArgM))
 import qualified Beng.Parse.Matches as M
-import Beng.Parse.Patterns (Parameter(..), Pattern(..))
+import Beng.Parse.Patterns (Argument(..), Pattern(..))
 import Beng.Run (run)
 import Beng.Types.Locations (FileLocation(..), Location(..))
-import Beng.Types.Things (Thing, Thing(NativeOptionalValue, NativeSomeValue))
+import Beng.Types.Things (Thing, Thing(NativeOptionalValue, NativeSomeValue, OpValue))
 
 import Data.Map ((!))
 
 -- constants
 
 argMatchOf :: Int -> String -> Thing -> Op -> Match
-argMatchOf parentIndex name argType op = M.Argument {
-	argType, name, op,
+argMatchOf parentIndex name argType op = ArgM M.Argument {
+	argType, name, value = OpValue op,
 	decLoc = BuiltinArg name parentIndex }
 
 someOrNone :: Definition
@@ -62,7 +62,7 @@ noneOp = Op {
 	card = DefCard someOrNone,
 	location = Builtin 2,
 	match = M.Or { matchIndex = 0,
-		misses = [Parameter "Some" intType (BuiltinArg "Some" 2)],
+		misses = [Argument "Some" intType (BuiltinArg "Some" 2)],
 		match = M.Literal "none" }}
 
 -- private

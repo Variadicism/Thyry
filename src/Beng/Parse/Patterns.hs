@@ -29,7 +29,7 @@ import Beng.Build.Context.Builders (patConcat)
 import Beng.Errors (compoundErrorsUsing, showCompoundErrorsUsing)
 import qualified Beng.Parse.Patterns.And as And
 import Beng.Parse.Patterns.Arg (msgArg, showArg)
-import qualified Beng.Parse.Patterns.Arg as Argument
+import qualified Beng.Parse.Patterns.Arg as ArgP
 import qualified Beng.Parse.Patterns.CharClass as CharClass
 import qualified Beng.Parse.Patterns.Delimited as Delimited
 import qualified Beng.Parse.Patterns.Literal as Literal
@@ -119,14 +119,14 @@ instance Show CharRange where
 instance Messagable CharRange where
 	msg = show
 
-instance Eq Parameter where
+instance Eq Argument where
 	(==) p1 p2 = p1.name == p2.name
 
-instance Show Parameter where
-	show Parameter{name,paramType,decLoc} = showArg name paramType decLoc
+instance Show Argument where
+	show Argument{name,argType,decLoc} = showArg name argType decLoc
 
-instance Messagable Parameter where
-	msg Parameter{name,paramType} = msgArg name paramType
+instance Messagable Argument where
+	msg Argument{name,argType} = msgArg name argType
 
 deriving instance Eq Pattern
 
@@ -136,12 +136,12 @@ instance Show Pattern where
 instance Messagable Pattern where
 	-- In the future, I might show simplified versions of some patterns or a simple subset of the pattern here.
 	msg p = '\\' : case p of
-		Argument{name,argType} -> msgArg name argType
+		ArgP Argument{name,argType} -> msgArg name argType
 		p -> showPatternWith True p
 
 -- private
 
-type GetArgs = Pattern -> OMap String Parameter
+type GetArgs = Pattern -> OMap String Argument
 
 showPatternWith :: Bool -> Pattern -> String
 showPatternWith useMsg = \case
@@ -154,64 +154,63 @@ showPatternWith useMsg = \case
 	Delimited{..} ->
 		-- TODO: determine if parentheses are necessary based on precedence.
 		parenthesize (showPatternWith useMsg delimitend) ++ "{" ++ showPatternWith useMsg delimiter ++ "}"
-	Argument{name,argType,decLoc} -> if useMsg
+	ArgP Argument{name,argType,decLoc} -> if useMsg
 		then msgArg name argType
 		else showArg name argType decLoc
 
-getOrArgsUsing :: GetArgs -> Populace2 Pattern -> OMap String (Parameter, Bool)
+getOrArgsUsing :: GetArgs -> Populace2 Pattern -> OMap String (Argument, Bool)
 getOrArgsUsing getArgs subpatterns = do
 	let combineTypes
-			:: OMap String (Parameter, Bool) -> OMap String Parameter -> OMap String (Parameter, Bool) =
+			:: OMap String (Argument, Bool) -> OMap String Argument -> OMap String (Argument, Bool) =
 		\aArgs bArgs -> do
 			let keys = Set.union (Set.fromList $ OMap.keys aArgs) (Set.fromList $ OMap.keys bArgs)
-			let paramInfoFor :: String -> (Parameter, Bool) = \key ->
+			let argInfoFor :: String -> (Argument, Bool) = \key ->
 				case (OMap.lookup key aArgs, OMap.lookup key bArgs) of
 					(Nothing, Just bParam) -> (bParam, True)
 					(Just (aParam, _), Nothing) -> (aParam, True)
 					(Just (aParam, aOptional), Just bParam) -> do
-						let newParam = case (aParam.paramType, bParam.paramType) of
+						let newParam = case (aParam.argType, bParam.argType) of
 							(aType, bType) | aType == bType -> aParam
 							(NativeOrType aTypes, NativeOrType bTypes) -> bParam{
-								paramType = NativeOrType $ P2.concat $ P2.dualton aTypes bTypes }
+								argType = NativeOrType $ P2.concat $ P2.dualton aTypes bTypes }
 							(NativeOrType aTypes, bType) -> bParam{
-								paramType = NativeOrType $ P2.snoc aTypes bType }
+								argType = NativeOrType $ P2.snoc aTypes bType }
 							(aType, NativeOrType bTypes) -> bParam {
-								paramType = NativeOrType $ P2.cons aType bTypes }
+								argType = NativeOrType $ P2.cons aType bTypes }
 							(aType, bType) -> bParam{
-								paramType = NativeOrType $ P2.dualton aType bType }
+								argType = NativeOrType $ P2.dualton aType bType }
 						(newParam, aOptional)
 					(Nothing, Nothing) ->
 						-- This is impossible because this is mapped over keys from aArgs and bArgs, so
 						-- at least one of them must have it.
 						error $ "Attempted to retrieve arg '" ++ key ++ " from no options!"
-			OMap.fromList $ map (\key -> (key, paramInfoFor key)) $ Set.elems keys
-	let start :: OMap String (Parameter, Bool) = OMap.map (,False) $ getArgs subpatterns.head
-	let argsWithoutOptionalWrappers :: OMap String (Parameter, Bool) =
+			OMap.fromList $ map (\key -> (key, argInfoFor key)) $ Set.elems keys
+	let start :: OMap String (Argument, Bool) = OMap.map (,False) $ getArgs subpatterns.head
+	let argsWithoutOptionalWrappers :: OMap String (Argument, Bool) =
 		foldl combineTypes start $ map getArgs subpatterns.tail.l
-	let wrapOptionals :: (Parameter, Bool) -> (Parameter, Bool) = \(param, optional) -> do
+	let wrapOptionals :: (Argument, Bool) -> (Argument, Bool) = \(arg, optional) -> do
 		let wrappedParam = if optional
-			then param{ paramType = NativeOptionalType param.paramType }
-			else param
+			then arg{ argType = NativeOptionalType arg.argType }
+			else arg
 		(wrappedParam, optional)
 	OMap.map wrapOptionals argsWithoutOptionalWrappers
 
 getArgsUsing :: GetArgs -> GetArgs
 getArgsUsing getArgs = \case
 	NamedText{decLoc,name,subpattern} -> do
-		let nameArgEntry = (name, Parameter { decLoc, name, paramType = NativeStringType })
+		let nameArgEntry = (name, Argument { decLoc, name, argType = NativeStringType })
 		nameArgEntry |< getArgsUsing getArgs subpattern
 	And subpatterns -> OMap.concat $ map getArgs subpatterns.l
 	Or subpatterns -> OMap.map fst $ getOrArgsUsing getArgs subpatterns
 	Delimited delimiter delimitend ->
 		(wrapTypes NativeSomeType $ getArgs delimiter) <>|
 		(wrapTypes NativeListType $ getArgs delimitend)
-	Argument{decLoc,name,argType} -> OMap.singleton (name,
-		Parameter { decLoc, name, paramType = argType })
+	ArgP arg -> OMap.singleton (arg.name, arg)
 	_ -> OMap.empty
 	where
-		wrapType :: (Thing -> Thing) -> Parameter -> Parameter
-		wrapType wrapper p = p{ paramType = wrapper p.paramType }
-		wrapTypes :: (Thing -> Thing) -> OMap String Parameter -> OMap String Parameter
+		wrapType :: (Thing -> Thing) -> Argument -> Argument
+		wrapType wrapper p = p{ argType = wrapper p.argType }
+		wrapTypes :: (Thing -> Thing) -> OMap String Argument -> OMap String Argument
 		wrapTypes wrapper = OMap.map (wrapType wrapper)
 
 -- exports
@@ -225,7 +224,7 @@ parse = \case
 	And subpatterns -> And.parse subpatterns
 	Or subpatterns -> Or.parse subpatterns
 	Delimited{delimiter,delimitend} -> Delimited.parse delimiter delimitend
-	Argument{name,argType,decLoc} -> Argument.parse name argType decLoc
+	ArgP Argument{..} -> ArgP.parse name argType decLoc
 
 getSubpatterns :: Pattern -> Populace Pattern
 getSubpatterns = \case
@@ -264,7 +263,7 @@ mustHavePrefix = \case
 		any mustHavePrefix $ takeUntilIncl hasArgs subpatterns.l
 	Or subpatterns -> all mustHavePrefix subpatterns
 	Delimited _ delimitend -> mustHavePrefix delimitend
-	Argument{} -> False
+	ArgP{} -> False
 
 mustHaveSuffix :: (Pattern -> Bool)
 mustHaveSuffix = \case

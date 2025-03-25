@@ -6,7 +6,7 @@ import Utils.Populace (Populace)
 
 import Beng.Types.Parse.Matches (Match)
 import Beng.Types.Parse.Parsers.Code (Parser)
-import Beng.Types.Parse.Patterns (CharRange, Mismatch, Parameter, Pattern)
+import Beng.Types.Parse.Patterns (CharRange, Mismatch, Argument, Pattern)
 import Beng.Types.Build.TypeTest (TypeTest)
 
 import Data.Map.Ordered (OMap)
@@ -27,11 +27,11 @@ instance Show CharRange
 
 instance Messagable CharRange
 
-instance Eq Parameter
+instance Eq Argument
 
-instance Show Parameter
+instance Show Argument
 
-instance Messagable Parameter
+instance Messagable Argument
 
 instance Eq Pattern
 
@@ -43,9 +43,9 @@ parse :: Pattern -> Parser Match
 
 getSubpatterns :: Pattern -> Populace Pattern
 
-getArgs :: Pattern -> OMap String Parameter
+getArgs :: Pattern -> OMap String Argument
 
-getRequiredArgs :: Pattern -> OMap String Parameter
+getRequiredArgs :: Pattern -> OMap String Argument
 
 hasArgs :: Pattern -> Bool
 

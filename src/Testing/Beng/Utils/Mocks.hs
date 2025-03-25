@@ -60,8 +60,8 @@ import Beng.Build.Context.Builders (l, s, asInt, argAt, asNativeString, asOp, bi
 import qualified Beng.Build.Context.Builders as Builder
 import Beng.Types.Build.Context (PrecedenceBound(..))
 import qualified Beng.Parse.Matches as Match
-import Beng.Types.Parse.Matches (Match, value)
-import Beng.Types.Parse.Patterns (Pattern(Argument, decLoc, name, argType))
+import Beng.Types.Parse.Matches (Match(ArgM), value)
+import Beng.Types.Parse.Patterns (Argument(..), Pattern(ArgP))
 import Beng.Types.Ops (Op(..))
 import Beng.Types.Ops.Declarations (Associativity(..), Declaration)
 import Beng.Types.Ops.Definitions (Definition(..))
@@ -98,7 +98,8 @@ data ABCD = A | B | Divide |
 defineStaticNameValue :: Text -> Location -> Definition
 defineStaticNameValue name location = do
 	let (Builtin parentIndex) = location  -- All locations in mocks are Builtin-type.
-	let a name argType = Argument { decLoc = BuiltinArg { name, parentIndex }, name, argType }
+	let a name argType = ArgP Argument {
+		decLoc = BuiltinArg { name, parentIndex }, name, argType }
 	defineUsing (Below $ declarationOf App) Righty
 		[l name, s, l ":=", s, a "Thing" intType, s, a "Scope" (PreOpType intType)]
 		intType
@@ -213,7 +214,7 @@ hangingDefinitionOf enum location = case enum of
 	where
 		a name argType = do
 			let (Builtin parentIndex) = location  -- All these ops use Builtin location types.
-			Argument { decLoc = BuiltinArg { name, parentIndex }, name, argType }
+			ArgP Argument { decLoc = BuiltinArg { name, parentIndex }, name, argType }
 
 
 hangingABDivDefinitionOf :: ABDiv -> (Location -> Definition)
@@ -245,13 +246,15 @@ opOf a = Op (cardOf a) (locationOf a)
 
 prefixedUnaryOpMatch :: ABCD -> Text -> String -> Thing -> Op -> Match
 prefixedUnaryOpMatch abcd prefix argName argType op =
-	Match.And $ dualton (Match.Literal prefix) (Match.Argument (locationOf abcd) argName argType op)
+	Match.And $ dualton (Match.Literal prefix) $ ArgM Match.Argument {
+		decLoc = (locationOf abcd), name = argName, argType, value = OpValue op }
 
 infixOpMatch :: ABCD -> String -> Thing -> Text -> String -> Thing -> Op -> Op -> Match
-infixOpMatch abcd leftName leftType literal rightName rightType leftOp rightOp = Match.And $ P2.Populace2
-	(Match.Argument (locationOf abcd) leftName leftType leftOp)
-	(Match.Literal literal)
-	[Match.Argument (locationOf abcd) rightName rightType rightOp]
+infixOpMatch abcd leftName leftType literal rightName rightType leftOp rightOp =
+	Match.And $ P2.Populace2
+		(ArgM $ Match.Argument (locationOf abcd) leftName leftType $ OpValue leftOp)
+		(Match.Literal literal)
+		[ArgM $ Match.Argument (locationOf abcd) rightName rightType $ OpValue rightOp]
 
 type AssertOneArg = (Thing -> Fallible ()) -> Op -> Fallible ()
 

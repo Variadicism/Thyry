@@ -20,7 +20,7 @@ import qualified Utils.Populace.Populace2 as P2
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>:>), (>|>), parseAny)
 import {-# SOURCE #-} qualified Beng.Parse.Parsers as Parser
 import {-# SOURCE #-} qualified Beng.Parse.Patterns.And as And
-import {-# SOURCE #-} qualified Beng.Parse.Patterns.Arg as Argument
+import {-# SOURCE #-} qualified Beng.Parse.Patterns.Arg as Arg
 import {-# SOURCE #-} qualified Beng.Parse.Patterns.CharClass as CharClass
 import {-# SOURCE #-} qualified Beng.Parse.Patterns.Delimited as Delimited
 import {-# SOURCE #-} qualified Beng.Parse.Patterns.Literal as Literal
@@ -31,7 +31,7 @@ import Beng.Build.TypeTest (TypeTest)
 import {-# SOURCE #-} Beng.Parse.Patterns (isOptional)
 import Beng.Types.Parse.Parsers.PatternComparator (Comparison(..), Parse, ParseRunner, Parser, Parses, State(..))
 import qualified Beng.Types.Parse.Parsers.PatternComparator as PC
-import Beng.Types.Parse.Patterns (Mismatch(..), Pattern(..))
+import Beng.Types.Parse.Patterns (Argument(..), Mismatch(..), Pattern(..))
 
 import Data.List (isPrefixOf)
 
@@ -111,7 +111,7 @@ compareFrom pattern = do
 		And subpatterns -> And.compareFrom subpatterns
 		Or subpatterns -> Or.compareFrom subpatterns
 		Delimited delimiter delimitend -> Delimited.compareFrom delimiter delimitend
-		Argument{..} -> Argument.compareFrom name argType decLoc
+		ArgP Argument{..} -> Arg.compareFrom name argType decLoc
 	comparatorByPattern >:> comparator >\> const ()
 
 -- exported

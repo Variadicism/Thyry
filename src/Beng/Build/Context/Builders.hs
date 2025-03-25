@@ -48,7 +48,7 @@ import Beng.Types.Ops (Op)
 import Beng.Ops.Declarations (ArgContextBuilder, Associativity(..), Declaration(..), PrecedenceBound(..))
 import Beng.Ops.Definitions (Definition(..), Runner)
 import qualified Beng.Ops.Definitions as Definition
-import Beng.Types.Parse.Patterns (CharRange(..), Pattern(..))
+import Beng.Types.Parse.Patterns (Argument(..), CharRange(..), Pattern(..))
 import {-# SOURCE #-} Beng.Run (run)
 import Beng.Errors (Fallible)
 import Beng.Types.Locations (Location(..))
@@ -64,11 +64,11 @@ import Data.Text.Lazy (Text)
 -- exported
 
 argAt :: Location -> String -> Thing -> Pattern
-argAt decLoc name argType = Argument { name, argType, decLoc }
+argAt decLoc name argType = ArgP Argument { name, argType, decLoc }
 
 argOfBuiltin :: Int -> String -> Thing -> Pattern
 argOfBuiltin builtinIndex name argType =
-	Argument { name, argType, decLoc = BuiltinArg name builtinIndex }
+	ArgP Argument { name, argType, decLoc = BuiltinArg name builtinIndex }
 
 c :: [CharRange] -> Pattern
 c ranges = CharClass { ranges = P.assume ranges, negate = False }

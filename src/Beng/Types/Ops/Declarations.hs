@@ -29,10 +29,10 @@ data Mismatch =
 
 type ArgContextBuilder =
 	String  -- ^ The name of the argument for which context is needed.
-	-> Map String Match.Parameter  -- ^ The arguments built so far; they may be needed to build the preop
+	-> Map String Match.Argument  -- ^ The arguments built so far; they may be needed to build the preop
 	-> Location
 	-> Fallible [Card]  -- ^ The Cards to appended to context to parse the preop.
-{- TODO: The Location parameter is TEMPORARY and should be removed later!
+{- TODO: The Location field is TEMPORARY and should be removed later!
    In the future, the Card should use the Location of the Declaration passed into `build...using`.
    However, we can't use `build...using` until the type system is working.
    In the meantime, we need some declaration-generating builtin ops.

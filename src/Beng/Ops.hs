@@ -13,7 +13,7 @@ import Utils.Messaging (Messagable, msg)
 import Beng.Build.Cards ()
 import qualified Beng.Ops.Declarations as Declaration
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Matches (Parameter)
+import Beng.Parse.Matches (Argument)
 import Beng.Types.Things (Thing)
 import Beng.Types.Ops (Op(..))
 
@@ -45,7 +45,7 @@ hasPrefix = Match.hasPrefix . match
 hasSuffix :: (Op -> Bool)
 hasSuffix = Match.hasSuffix . match
 
-getArgs :: (Op -> OMap String Parameter)
+getArgs :: (Op -> OMap String Argument)
 getArgs = Match.getArgs . match
 
 returnType :: Op -> Thing

@@ -33,15 +33,15 @@ canBeEmpty = \case
 	And subpatterns -> all canBeEmpty subpatterns
 	Or subpatterns -> any canBeEmpty subpatterns
 	Delimited{delimitend} -> canBeEmpty delimitend
-	Argument{} -> False
+	ArgP{} -> False
 
 parse :: String -> Pattern -> Location -> Code.Parser Match
 parse name subpattern decLoc = "named text " ++ wrap "\"" name @+>
 	Pattern.parse subpattern >/\> (\s match -> do
-		let parameter = Match.Parameter {
-			decLoc, name, paramType = NativeStringType,
+		let argument = Match.Argument {
+			decLoc, name, argType = NativeStringType,
 			value = NativeStringValue $ Match.toCode match }
-		s{ Code.arguments = Map.insert name parameter s.arguments }) >\> \match ->
+		s{ Code.arguments = Map.insert name argument s.arguments }) >\> \match ->
 	Match.NamedText { decLoc, name, match }
 
 compareFrom :: String -> Pattern -> PatternComparator.Parser
