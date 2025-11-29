@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name: BengI
-version: 0.16.0.8
+version: 0.16.0.9
 synopsis: This is the interpreter for the Beng programming language.
 -- description:
 license: Artistic-2.0
@@ -14,14 +14,14 @@ extra-source-files: README.md
 
 common options
   build-depends:
-    base ^>= 4.18.3.0,
+    base ^>= 4.19.1.0,
     Utils ^>= 0.20.10.0,
-    bytestring ^>= 0.11.5.2,
+    bytestring ^>= 0.12.0.1,
     composition-prelude ^>= 3.0.0.2,
     containers ^>= 0.6.7,
     extra ^>= 1.7.14,
     ordered-containers ^>= 0.2.1,
-    text ^>= 2.0.2
+    text ^>= 2.1.1
   default-extensions:
     BlockArguments,
     DataKinds,
@@ -47,7 +47,7 @@ common options
     TupleSections,
     TypeSynonymInstances,
     UndecidableInstances
-  ghc-options: -W -Wno-tabs -Werror
+  ghc-options: -W -Wno-tabs -Wno-x-partial -Werror
   hs-source-dirs: src
   default-language: Haskell2010
   other-modules:
