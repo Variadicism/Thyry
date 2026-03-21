@@ -14,13 +14,13 @@ import Beng.Build.Context.Builders (cr, cr2)
 import Beng.Parse.Parsers.Code ((>\>), Parse, SpaceState(..))
 import qualified Beng.Parse.Patterns.CharClass as CharClass
 import qualified Beng.Types.Parse.Matches as Match
-import Beng.Types.Parse.Patterns (CharRange)
+import Beng.Types.Parse.Patterns (CharClass(..), CharRange)
 
 import Data.Text.Lazy (Text)
 
 parse :: [CharRange] -> Bool -> Text -> Fallible (Populace (Parse ()))
 parse ranges negate = mockNothing !>>>
-	CharClass.parse (P.assume ranges) negate >\>
+	CharClass.parse CharClass { ranges = P.assume ranges, negate } >\>
 	\Match.CharClass{} -> ()
 
 -- tests

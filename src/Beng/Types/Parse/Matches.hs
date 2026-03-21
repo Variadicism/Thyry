@@ -7,7 +7,7 @@ module Beng.Types.Parse.Matches (
 import Utils.Populace (Populace)
 import Utils.Populace.Populace2 (Populace2)
 
-import qualified Beng.Types.Parse.Patterns as Pattern
+import qualified Beng.Types.Parse.PatternArguments as Pattern
 import Beng.Types.Locations (Location)
 import {-# SOURCE #-} Beng.Types.Things (Thing)
 

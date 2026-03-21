@@ -16,12 +16,14 @@ import Beng.Parse.Matches (Match)
 import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Parsers.Code ((>\>), Parse, SpaceState(..), target)
 import qualified Beng.Parse.Patterns as Pattern
-import Beng.Types.Parse.Patterns (Pattern)
+import Beng.Types.Parse.Patterns (Or(..), SomePattern(..))
 
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
 
 -- private
+
+type Pattern = SomePattern
 
 parse :: [Pattern] -> MockParser (Populace Match)
 parse subpatterns = mockNothing !>>>
@@ -49,10 +51,10 @@ sM :: (Text -> Match)
 sM = Match.Space
 
 gThenOptionalR :: [Pattern]
-gThenOptionalR = [l "g", Pattern.Or $ P2.dualton (l "") (l "r")]
+gThenOptionalR = [l "g", SomePattern $ Or $ P2.dualton (l "") (l "r")]
 
 optionalsKAndJ :: [Pattern]
-optionalsKAndJ = [Pattern.Or $ P2.dualton (l "k") (l ""), Pattern.Or $ P2.dualton (l "") (l "j")]
+optionalsKAndJ = [SomePattern $ Or $ P2.dualton (l "k") (l ""), SomePattern $ Or $ P2.dualton (l "") (l "j")]
 
 sSpaceP :: [Pattern]
 sSpaceP = [l "s", s, l "p"]

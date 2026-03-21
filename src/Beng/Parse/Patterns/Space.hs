@@ -1,10 +1,10 @@
 module Beng.Parse.Patterns.Space (
-	parse,
-	compareFrom
+	parse
 ) where
 
 import Utils.Fallible hiding (Fallible)
 import Utils.Lists (wrap)
+import Utils.Messaging (Messagable(..))
 import qualified Utils.Populace as P
 
 import Beng.Errors (Fallible, parseError)
@@ -14,16 +14,17 @@ import Beng.Parse.Parsers ((@>), (@+>), (>|>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import qualified Beng.Parse.Parsers.PatternComparator as PC
+import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Parsers.Code (PrefixState(..))
 import qualified Beng.Types.Parse.Parsers.Code as SpaceState (SpaceState(..))
-import Beng.Types.Parse.Patterns (Mismatch(..), Pattern(..))
+import Beng.Types.Parse.Patterns (Comparison(..), ComparatorState(..), Mismatch(..), SomePattern(..), Space(..), asPattern)
 
 import Data.Char (isAlphaNum, isSpace)
 import Data.Text.Lazy (pack)
 import qualified Data.Text.Lazy as T
 
-parse :: Code.Parser Match
-parse = "space pattern" @+> parseBoundary >|> parseSpaces where
+parseSpace :: Space -> Code.Parser Match
+parseSpace _ = "space pattern" @+> parseBoundary >|> parseSpaces where
 	parseBoundary :: Code.Parser Match
 	parseBoundary = "parse word boundary" @> \state ->
 		case T.uncons state.rest of
@@ -62,10 +63,27 @@ parse = "space pattern" @+> parseBoundary >|> parseSpaces where
 			Nothing -> Error $ parseError state
 				"The end of the text was reached while trying to parse whitespace!"
 
-compareFrom :: PatternComparator.Parser
-compareFrom = "space comparator" @> \state -> case state.rest.super of
-	[] -> case tail state.rest.sub of  -- If this is called, sub must start with a Space, so tail is safe.
+compareFromSpace :: Space -> PatternComparator.Parser
+compareFromSpace _ = "space comparator" @> \state -> case state.rest.super of
+	[] -> case tail state.rest.sub of
 		[] -> PC.accept [] state
-		_ -> Error $ Mismatch Space $ P.assume state.rest.sub  -- P.assume is safe b/c length sub >= 2.
-	Space:_ -> PC.accept [Space] state
-	nextSuper:superLeft -> Error $ Mismatch Space $ P.Populace nextSuper superLeft
+		_ -> Error $ Mismatch (SomePattern Space) $ P.assume state.rest.sub
+	(nextSuper:_) | maybe False (const True) (asPattern nextSuper :: Maybe Space) ->
+		PC.accept [SomePattern Space] state
+	nextSuper:superLeft -> Error $ Mismatch (SomePattern Space) $ P.Populace nextSuper superLeft
+
+instance Messagable Space where
+	msg = show
+
+instance TPattern.Pattern Space where
+	parse = parseSpace
+	compareFrom = compareFromSpace
+	showPatternWith _ _ = " "
+	mustHavePrefix _ = False
+	mustHaveSuffix _ = False
+	canHavePrefix _ = True
+	canHaveSuffix _ = True
+	isOptional _ = True
+
+parse :: Space -> Code.Parser Match
+parse = parseSpace

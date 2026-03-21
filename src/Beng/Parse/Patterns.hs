@@ -5,6 +5,7 @@ module Beng.Parse.Patterns (
 	getArgs,
 	getNonStructuralArgs,
 	getRequiredArgs,
+	getOrArgsUsing,
 	hasArgs,
 	mustHavePrefix,
 	mustHaveSuffix,
@@ -16,48 +17,60 @@ module Beng.Parse.Patterns (
 ) where
 
 import Utils.Fallible
-import Utils.Lists (takeUntilIncl, wrap)
 import qualified Utils.Maps.Ordered as OMap
 import Utils.Messaging (Messagable, debugM, msg)
 import Utils.Populace (Populace)
 import qualified Utils.Populace as P
 import Utils.Populace.Populace2 (Populace2)
 import qualified Utils.Populace.Populace2 as P2
-import Utils.Strings (escape, parenthesize)
+import Utils.Strings (escape)
 
-import Beng.Build.Context.Builders (patConcat)
 import Beng.Errors (compoundErrorsUsing, showCompoundErrorsUsing)
-import qualified Beng.Parse.Patterns.And as And
+import {-# SOURCE #-} Beng.Parse.Patterns.And ()
+import {-# SOURCE #-} Beng.Parse.Patterns.Arg ()
+import {-# SOURCE #-} qualified Beng.Parse.Patterns.CharClass as CharClass
+import {-# SOURCE #-} Beng.Parse.Patterns.Delimited ()
+import {-# SOURCE #-} Beng.Parse.Patterns.Literal ()
+import {-# SOURCE #-} Beng.Parse.Patterns.NamedText ()
+import {-# SOURCE #-} Beng.Parse.Patterns.Or ()
+import {-# SOURCE #-} Beng.Parse.Patterns.Space ()
 import Beng.Parse.Patterns.Arg (msgArg, showArg)
-import qualified Beng.Parse.Patterns.Arg as ArgP
-import qualified Beng.Parse.Patterns.CharClass as CharClass
-import qualified Beng.Parse.Patterns.Delimited as Delimited
-import qualified Beng.Parse.Patterns.Literal as Literal
-import qualified Beng.Parse.Patterns.NamedText as NamedText
-import qualified Beng.Parse.Patterns.Or as Or
-import qualified Beng.Parse.Patterns.Space as Space
-import Beng.Parse.Matches (Match)
+import Beng.Types.Parse.Patterns (
+	And(..),
+	ArgP(..),
+	Argument(..),
+	CharClass(..),
+	CharRange(..),
+	Delimited(..),
+	Literal(..),
+	Mismatch(..),
+	NamedText(..),
+	Or(..),
+	SomePattern(..),
+	Space(..),
+	getArgsOf,
+	getNonStructuralArgsOf,
+	getRequiredArgsOf)
+import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Parse.Parsers ((>>>))
 import qualified Beng.Parse.Parsers.Code as Code
 import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PC
 import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
-import Beng.Types.Parse.Patterns
 import Beng.Types.Build.TypeTest (TypeTest)
+import Beng.Types.Parse.Matches (Match)
 import Beng.Types.Things (Thing(..))
 
-import Data.List (intercalate)
-import Data.Map.Ordered ((|<), (<>|), OMap)
+import Data.Map.Ordered (OMap)
 import qualified Data.Map.Ordered as OMap
 import qualified Data.Set as Set
-import Data.Text.Lazy (unpack)
-import qualified Data.Text.Lazy as Text
 
--- constants
-
--- ^ and $ are not applicable in Literal patterns.
 specials = ".{}[] "
 
--- private
+patConcat :: [SomePattern] -> SomePattern
+patConcat = \case
+	[] -> SomePattern $ Literal ""
+	[solo] -> solo
+	(first:(second:rest)) -> SomePattern $ And $ P2.Populace2 first second rest
 
 showMismatchUsing :: Bool -> Mismatch -> String
 showMismatchUsing useMsg = \case
@@ -72,8 +85,6 @@ showMismatchUsing useMsg = \case
 	where
 		show' :: (Show a, Messagable a) => (a -> String)
 		show' = if useMsg then show else msg
-
--- instances
 
 instance Eq Mismatch where
 	mm1@Mismatch{} == mm2@Mismatch{} = mm1.nextSub == mm2.nextSub && mm1.remainingSuper == mm2.remainingSuper
@@ -96,7 +107,7 @@ instance Ord Mismatch where
 			LeftoverSuper{} -> 1
 			LeftoverSub{} -> 2
 			Mismatch{} -> 3
-			CompoundMismatch{} -> 4 -- impossible
+			CompoundMismatch{} -> 4
 
 instance IsError Mismatch where
 	prepend newContext = \case
@@ -108,7 +119,8 @@ instance IsError Mismatch where
 			_ -> Nothing
 		compoundErrorsUsing getCompound CompoundMismatch m1 m2
 
-deriving instance Eq CharRange
+instance Eq CharRange where
+	CharRange a1 b1 == CharRange a2 b2 = a1 == a2 && b1 == b2
 
 instance Show CharRange where
 	show CharRange{start,end} =
@@ -128,37 +140,9 @@ instance Show Argument where
 instance Messagable Argument where
 	msg Argument{name,argType} = msgArg name argType
 
-deriving instance Eq Pattern
+type GetArgs = SomePattern -> OMap String Argument
 
-instance Show Pattern where
-	show p = '\\' : showPatternWith False p
-
-instance Messagable Pattern where
-	-- In the future, I might show simplified versions of some patterns or a simple subset of the pattern here.
-	msg p = '\\' : case p of
-		ArgP Argument{name,argType} -> msgArg name argType
-		p -> showPatternWith True p
-
--- private
-
-type GetArgs = Pattern -> OMap String Argument
-
-showPatternWith :: Bool -> Pattern -> String
-showPatternWith useMsg = \case
-	Space -> " "
-	Literal literal -> unpack literal
-	CharClass{ranges,negate} -> CharClass.showClass ranges negate
-	NamedText{name,subpattern} -> wrap "\"" name ++ parenthesize (showPatternWith useMsg subpattern)
-	And subpatterns -> concatMap (showPatternWith useMsg) subpatterns
-	Or subpatterns -> parenthesize $ intercalate "|" $ map (showPatternWith useMsg) subpatterns.l
-	Delimited{..} ->
-		-- TODO: determine if parentheses are necessary based on precedence.
-		parenthesize (showPatternWith useMsg delimitend) ++ "{" ++ showPatternWith useMsg delimiter ++ "}"
-	ArgP Argument{name,argType,decLoc} -> if useMsg
-		then msgArg name argType
-		else showArg name argType decLoc
-
-getOrArgsUsing :: GetArgs -> Populace2 Pattern -> OMap String (Argument, Bool)
+getOrArgsUsing :: GetArgs -> Populace2 SomePattern -> OMap String (Argument, Bool)
 getOrArgsUsing getArgs subpatterns = do
 	let combineTypes
 			:: OMap String (Argument, Bool) -> OMap String Argument -> OMap String (Argument, Bool) =
@@ -181,8 +165,6 @@ getOrArgsUsing getArgs subpatterns = do
 								argType = NativeOrType $ P2.dualton aType bType }
 						(newParam, aOptional)
 					(Nothing, Nothing) ->
-						-- This is impossible because this is mapped over keys from aArgs and bArgs, so
-						-- at least one of them must have it.
 						error $ "Attempted to retrieve arg '" ++ key ++ " from no options!"
 			OMap.fromList $ map (\key -> (key, argInfoFor key)) $ Set.elems keys
 	let start :: OMap String (Argument, Bool) = OMap.map (,False) $ getArgs subpatterns.head
@@ -195,124 +177,43 @@ getOrArgsUsing getArgs subpatterns = do
 		(wrappedParam, optional)
 	OMap.map wrapOptionals argsWithoutOptionalWrappers
 
-getArgsUsing :: GetArgs -> GetArgs
-getArgsUsing getArgs = \case
-	NamedText{decLoc,name,subpattern} -> do
-		let nameArgEntry = (name, Argument { decLoc, name, argType = NativeStringType })
-		nameArgEntry |< getArgsUsing getArgs subpattern
-	And subpatterns -> OMap.concat $ map getArgs subpatterns.l
-	Or subpatterns -> OMap.map fst $ getOrArgsUsing getArgs subpatterns
-	Delimited delimiter delimitend ->
-		(wrapTypes NativeSomeType $ getArgs delimiter) <>|
-		(wrapTypes NativeListType $ getArgs delimitend)
-	ArgP arg -> OMap.singleton (arg.name, arg)
-	_ -> OMap.empty
-	where
-		wrapType :: (Thing -> Thing) -> Argument -> Argument
-		wrapType wrapper p = p{ argType = wrapper p.argType }
-		wrapTypes :: (Thing -> Thing) -> OMap String Argument -> OMap String Argument
-		wrapTypes wrapper = OMap.map (wrapType wrapper)
+parse :: SomePattern -> Code.Parser Match
+parse (SomePattern p) = TPattern.parse p
 
--- exports
-
-parse :: Pattern -> Code.Parser Match
-parse = \case
-	Space -> Space.parse
-	Literal literal -> Literal.parse literal
-	CharClass{ranges,negate} -> CharClass.parse ranges negate
-	NamedText{name,subpattern,decLoc} -> NamedText.parse name subpattern decLoc
-	And subpatterns -> And.parse subpatterns
-	Or subpatterns -> Or.parse subpatterns
-	Delimited{delimiter,delimitend} -> Delimited.parse delimiter delimitend
-	ArgP Argument{..} -> ArgP.parse name argType decLoc
-
-getSubpatterns :: Pattern -> Populace Pattern
-getSubpatterns = \case
-	NamedText{subpattern} -> P.singleton subpattern
-	And subpatterns -> subpatterns.p1
-	Or subpatterns -> subpatterns.p1
-	Delimited{..} -> P.Populace delimitend [delimiter]
-	pattern -> P.singleton pattern
+getSubpatterns :: SomePattern -> Populace SomePattern
+getSubpatterns (SomePattern p) = TPattern.getSubpatterns p
 
 getArgs :: GetArgs
-getArgs = getArgsUsing getArgs
+getArgs = getArgsOf
 
--- TODO: think of a better name for this
 getNonStructuralArgs :: GetArgs
-getNonStructuralArgs = \case
-	NamedText{} -> OMap.empty
-	pattern -> getArgsUsing getNonStructuralArgs pattern
+getNonStructuralArgs = getNonStructuralArgsOf
 
 getRequiredArgs :: GetArgs
-getRequiredArgs = \case
-	Or subpatterns ->
-		OMap.map fst $ OMap.filter (\_ (_, optional) -> not optional) $
-			getOrArgsUsing getRequiredArgs subpatterns
-	pattern -> getArgsUsing getRequiredArgs pattern
+getRequiredArgs = getRequiredArgsOf
 
-hasArgs :: Pattern -> Bool
-hasArgs = not . null . getArgs
+hasArgs :: SomePattern -> Bool
+hasArgs (SomePattern p) = TPattern.hasArgs p
 
-mustHavePrefix :: (Pattern -> Bool)
-mustHavePrefix = \case
-	Space -> False
-	Literal literal -> not $ Text.null literal
-	CharClass{} -> True
-	NamedText{subpattern} -> not $ NamedText.canBeEmpty subpattern
-	And subpatterns ->
-		any mustHavePrefix $ takeUntilIncl hasArgs subpatterns.l
-	Or subpatterns -> all mustHavePrefix subpatterns
-	Delimited _ delimitend -> mustHavePrefix delimitend
-	ArgP{} -> False
+mustHavePrefix :: SomePattern -> Bool
+mustHavePrefix (SomePattern p) = TPattern.mustHavePrefix p
 
-mustHaveSuffix :: (Pattern -> Bool)
-mustHaveSuffix = \case
-	And subpatterns ->
-		any mustHaveSuffix $ takeUntilIncl hasArgs $ reverse subpatterns.l
-	Or subpatterns -> all mustHaveSuffix subpatterns.l
-	Delimited _ delimitend -> mustHaveSuffix delimitend
-	pattern -> mustHavePrefix pattern
+mustHaveSuffix :: SomePattern -> Bool
+mustHaveSuffix (SomePattern p) = TPattern.mustHaveSuffix p
 
-canHavePrefix :: (Pattern -> Bool)
-canHavePrefix = \case
-	Space -> True
-	NamedText{} -> True
-	And subpatterns ->
-		any canHavePrefix $ takeUntilIncl hasArgs subpatterns.l
-	Or subpatterns -> any canHavePrefix subpatterns
-	Delimited delimiter delimitend -> any canHavePrefix [delimiter, delimitend]
-	pattern -> mustHavePrefix pattern
+canHavePrefix :: SomePattern -> Bool
+canHavePrefix (SomePattern p) = TPattern.canHavePrefix p
 
-canHaveSuffix :: (Pattern -> Bool)
-canHaveSuffix = \case
-	And subpatterns ->
-		any canHaveSuffix $ takeUntilIncl hasArgs $ reverse subpatterns.l
-	Or subpatterns -> any canHaveSuffix subpatterns
-	Delimited delimiter delimitend -> any canHaveSuffix [delimiter, delimitend]
-	pattern -> canHavePrefix pattern
+canHaveSuffix :: SomePattern -> Bool
+canHaveSuffix (SomePattern p) = TPattern.canHaveSuffix p
 
-isOptional :: (Pattern -> Bool)
-isOptional = \case
-	Literal literal -> Text.null literal
-	NamedText{subpattern} -> isOptional subpattern
-	And subpatterns -> do
-		{- Spaces are non-optional _unless_ everything either before or after it is optional.
-		   Since everything else must be optional for this to pass anyway, we don't need any complex logic
-		   checking that everything before or after each Space is optional; if everything besides Spaces
-		   are optional, then everything before AND after must be optional. -}
-		let isSpace = \case -- Seriously, is there a better way to check this?
-			Space -> True
-			_ -> False
-		all isOptional $ filter (not . isSpace) subpatterns.l
-	Or subpatterns -> any isOptional subpatterns
-	Delimited _ delimitend -> isOptional delimitend
-	_ -> False
+isOptional :: SomePattern -> Bool
+isOptional (SomePattern p) = TPattern.isOptional p
 
-satisfies :: (TypeTest, Pattern) -> Pattern -> FallibleI Mismatch ()
+satisfies :: (TypeTest, SomePattern) -> SomePattern -> FallibleI Mismatch ()
 (test, super) `satisfies` sub = do
 	let rejectIncompleteParses :: PC.Parses -> FallibleI Mismatch () = \parses -> do
-		-- Writing this as `let errIfIncomplete parse =` causes errors with HasField. >:(
-		let errIfIncomplete = \parse -> case (parse.state.rest.sub, parse.state.rest.super) of
+		let errIfIncomplete = \parseResult -> case (parseResult.state.rest.sub, parseResult.state.rest.super) of
 			([], []) -> Falue ()
 			(nextSub:subLeft, []) -> Error $ LeftoverSub $ P.Populace nextSub subLeft
 			([], nextSuper:superLeft) -> Error $ LeftoverSuper $ P.Populace nextSuper superLeft
@@ -324,9 +225,6 @@ satisfies :: (TypeTest, Pattern) -> Pattern -> FallibleI Mismatch ()
 			(Error _, Just bestError) -> Error bestError
 			(Error incomplete, Nothing) -> Error incomplete
 
-	{- First, parse without matching arg types (i.e., structure only).
-		This is because type checking is extremely expensive, necessitating many pattern checks to see if
-		props are satisfied. (It's exponential.) Structural checks are much easier, so validate that first. -}
 	debugM $ "Testing pattern STRUCTURE:\n\tSuper: " ++ msg super ++ "\n\tSub: " ++ msg sub
 	let structuralStartState = PatternComparator.startState False test super sub
 	structuralParses <- structuralStartState >>> PatternComparator.comparator

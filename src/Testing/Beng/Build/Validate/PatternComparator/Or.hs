@@ -8,12 +8,14 @@ import Utils.Testing
 import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, assertDoesNotSatisfy)
 
 import Beng.Build.Context.Builders (c, cr, e, patConcat)
-import Beng.Types.Parse.Patterns (Pattern(Or, Space))
+import Beng.Types.Parse.Patterns (Or(..), SomePattern(..), Space(..))
 
 -- private
 
+type Pattern = SomePattern
+
 o :: [Pattern] -> Pattern
-o = Or . P2.assume
+o = SomePattern . Or . P2.assume
 
 zero = c [cr '0' '0']
 
@@ -38,7 +40,7 @@ testOr = TestCategories "Or sub" [
 		PureTests "does not satisfy" [
 			("all super subpatterns subs", o [zero, two] `assertDoesNotSatisfy` o [low, digit]),
 			("one super subpattern sub", o [zero, two] `assertDoesNotSatisfy` o [zero, digit]),
-			("one subpattern disparate", o [zero, Space] `assertDoesNotSatisfy` o [zero, digit]) ]],
+			("one subpattern disparate", o [zero, SomePattern Space] `assertDoesNotSatisfy` o [zero, digit]) ]],
 	TestCategories "end of super" [
 		-- I cannot pass an empty super into `satisfies`, so each super and sub share a prefix.
 		-- This means that the second super subpattern, the Or, will match against [] on the second pass.

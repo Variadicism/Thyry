@@ -10,7 +10,7 @@ import Beng.Build.Context (Context(..), PrecedenceBound(..))
 import Beng.Build.Context.Builders (c, cr, e, nc, s, l, multi, argAt, asBits, asInt, asNativeString, asOp, bitType, bitValue, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf, intType, intValue, stringType, stringValue, textAt)
 import Beng.Types.Build.Cards (Card(DefCard))
 import Beng.Types.Parse.Matches (value)
-import Beng.Types.Parse.Patterns (Pattern(..))
+import Beng.Types.Parse.Patterns (And(..), Delimited(..), Or(..), SomePattern(..))
 import Beng.Run (run, runWhileOp)
 import Beng.Types.Ops.Declarations (Associativity(..), Declaration)
 import Beng.Types.Ops.Definitions (Definition(..))
@@ -26,12 +26,14 @@ import GHC.Records (HasField, getField)
 
 -- constants
 
+type Pattern = SomePattern
+
 valueName :: Pattern
 valueName = do
 	let uppercaseLetter = c [cr 'A' 'Z']
 	let letter = c [cr 'A' 'Z', cr 'a' 'z']
-	let capitalizedWord = And $ P2.dualton uppercaseLetter (Or $ P2.dualton e $ multi letter)
-	Delimited { delimiter = Space, delimitend = capitalizedWord }
+	let capitalizedWord = SomePattern $ And $ P2.dualton uppercaseLetter (SomePattern $ Or $ P2.dualton e $ multi letter)
+	SomePattern Delimited { delimiter = s, delimitend = capitalizedWord }
 
 -- builtin enumeration
 
@@ -71,7 +73,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 			return $ intValue (read $ unpack text :: Int32))
 		location
 	Strings -> define None
-		[l "\"", t "Content" $ multi $ Or $ P2.dualton (l "\\\"") (nc [cr '"' '"']), l "\""]
+		[l "\"", t "Content" $ multi $ SomePattern (Or $ P2.dualton (l "\\\"") (nc [cr '"' '"'])), l "\""]
 		stringType
 		(\args -> do
 			text <- asNativeString $ args ! "Content"

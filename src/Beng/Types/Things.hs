@@ -14,7 +14,7 @@ import {-# SOURCE #-} Beng.Types.Ops.Declarations (Declaration)
 import {-# SOURCE #-} qualified Beng.Types.Ops.Declarations as Declaration
 import {-# SOURCE #-} Beng.Types.Ops.Definitions (Definition)
 import {-# SOURCE #-} Beng.Types.Ops (Op)
-import Beng.Types.Parse.Patterns (Pattern)
+import {-# SOURCE #-} Beng.Types.Parse.Patterns (SomePattern)
 
 import Data.ByteString (ByteString)
 import Data.Map (Map)
@@ -40,7 +40,7 @@ data Thing =
 	OpValue Op |
 	DefinitionValue Definition |
 	DeclarationValue Declaration |
-	PatternValue Pattern |
+	PatternValue SomePattern |
 	-- TODO: PreOpValue
 	-- primitive types: types representing the primitive values
 	-- TODO: these should be replaceable when the type system is more fleshed out and stable

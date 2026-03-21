@@ -1,12 +1,11 @@
 module Beng.Parse.Patterns.Arg (
 	showArg,
 	msgArg,
-	parse,
-	compareFrom
+	parse
 ) where
 
 import Utils.Fallible hiding (Fallible)
-import Utils.Messaging (debugM, msg)
+import Utils.Messaging (Messagable(..), debugM, msg)
 import Utils.Lists (wrap)
 import qualified Utils.Populace as P
 import Utils.Strings (pluralCount)
@@ -17,7 +16,8 @@ import {-# SOURCE #-} qualified Beng.Build.Ops as Op
 import Beng.Build.TypeTest (satisfiesDuring)
 import Beng.Errors (parseError)
 import Beng.Ops ()
-import Beng.Parse.Matches (Argument(..), Match(ArgM))
+import Beng.Parse.Matches (Match(ArgM))
+import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/\>), (>-\>))
 import Beng.Parse.Parsers.Code (PrefixState(..), State(..))
 import qualified Beng.Parse.Parsers.Code as Code
@@ -30,17 +30,15 @@ import Beng.Types.Locations (Location)
 import qualified Beng.Types.Locations as Location
 import Beng.Types.Ops (Op(..))
 import Beng.Types.Ops.Declarations (Declaration(..))
-import Beng.Types.Parse.Patterns (Mismatch(..))
-import qualified Beng.Types.Parse.Patterns as Pattern
-import Beng.Types.Parse.Patterns (Pattern(..))
+import qualified Beng.Types.Parse.Patterns as TPattern
+import Beng.Types.Parse.Patterns (ArgP(..), Argument(..), Comparison(..), ComparatorState(..), Mismatch(..), SomePattern(..), asPattern)
 import Beng.Types.Things (Thing, Thing(OpValue), Thing(PreOpType))
 
-import Control.Monad (when)
+import qualified Data.Map as Map
+import qualified Data.Map.Ordered as OMap
 import Data.Char (toLower)
 import Data.List.Extra (dropPrefix)
-import qualified Data.Map as Map
-
--- exported
+import Control.Monad (when)
 
 showArg :: String -> Thing -> Location -> String
 showArg name argType decLoc = show decLoc ++ ":" ++ msgArg name argType
@@ -53,31 +51,25 @@ msgArg name argType = do
 		else name ++ ", " ++ msg argType
 	wrap "'" contents
 
-parse :: String -> Thing -> Location -> Code.Parser Match
-parse name argType decLoc = msgArg name argType @> \state -> do
-	-- Arg Patterns are only applicable within ops, so parent must be present.
+parseArg :: ArgP -> Code.Parser Match
+parseArg (ArgP Argument{..}) = msgArg name argType @> \state -> do
 	let (Just parent) = state.parent
-
-	{- Parsing the argument builds PreOps into Ops, so the result of the Op build
-		must remove the PreOp wrapper for type comparison. -}
 	let typeToSatisfy = case argType of
 		PreOpType resolvedType -> resolvedType
 		rawType -> rawType
 	let checkSatisfiesArgType :: Op -> Fallible () = \op -> do
-		-- This only happens to the op parsed as the argument, so it must be a code location.
 		let (Location.Code opLocation) = op.location
 		let contextualizeError cause = TypeError {
 			attemptedCaller = parent,
 			argName = name,
 			fileLocation = opLocation,
 			cause }
-		-- TODO: allow parsing to continue through a type error for better debugging info
 		mapError contextualizeError $ (state.context, op.returnType) `satisfies` typeToSatisfy
 
-	let argOf op = ArgM Argument { decLoc, name, argType, value = OpValue op }
-	let putArg op state = do
-		let newArg = Argument { name, decLoc, argType = argType, value = OpValue op }
-		state { arguments = Map.insert name newArg state.arguments }
+	let argOf op = ArgM Match.Argument { decLoc, name, argType, value = OpValue op }
+	let putArg op state' = do
+		let newArg = Match.Argument { name, decLoc, argType, value = OpValue op }
+		state' { arguments = Map.insert name newArg state'.arguments }
 	case state.prefixState of
 		AvoidingFor op -> do
 			checkSatisfiesArgType op
@@ -85,7 +77,6 @@ parse name argType decLoc = msgArg name argType @> \state -> do
 		Needed -> Error $ parseError state $
 			"An op prefix was needed, but " ++ show parent ++ " had none!"
 		Unneeded -> prependToError ("in '" ++ name ++ "' of " ++ msg parent ++ ", ") do
-			-- TODO: add previous arguments as additional context
 			argContext <- prependToError
 					("There was an error attempting to build a context to parse the preop for " ++
 						wrap "'" name ++ ": ") $
@@ -96,22 +87,42 @@ parse name argType decLoc = msgArg name argType @> \state -> do
 
 			state{ Code.context = foldl (flip pushCard) state.context argContext } >>>
 				Op.build (wrap "'" name)
-					{- Discard context added by parsing the argument;
-						otherwise, context built in arguments will "bubble up" into everything
-						after it in the file, leaking scope everywhere. -}
 					>/\> (\s op -> putArg op s{ Code.context = state.context })
 					>-\> (\op -> checkSatisfiesArgType op >> return op)
-					>\> \op -> ArgM Argument { decLoc, name, argType, value = OpValue op }
+					>\> \op -> ArgM Match.Argument { decLoc, name, argType, value = OpValue op }
 
-compareFrom :: String -> Thing -> Location -> PatternComparator.Parser
-compareFrom name argType decLoc = msgArg name argType ++ " comparator" @> \state -> do
-	let self = ArgP Pattern.Argument { name, argType, decLoc }
+compareFromArg :: ArgP -> PatternComparator.Parser
+compareFromArg self@(ArgP Argument{..}) = msgArg name argType ++ " comparator" @> \state -> do
 	case state.rest.super of
-		-- Sub must start with the current pattern, so P.assume is safe.
 		[] -> Error $ LeftoverSub $ P.assume state.rest.sub
-		next@(ArgP arg):_ |
-				-- TODO: find a way to send this error in the PatternComparator Mismatch
+		(nextSuper:_) |
+				Just (ArgP arg) <- (asPattern nextSuper :: Maybe ArgP),
 				not (state.checkArgTypes &&
 					hasError ((state.test, argType) `satisfiesDuring` arg.argType)) ->
-			PC.accept [next] state
-		nextSuper:superLeft -> Error $ Mismatch self $ P.Populace nextSuper superLeft
+			PC.accept [nextSuper] state
+		nextSuper:superLeft -> Error $ Mismatch (SomePattern self) $ P.Populace nextSuper superLeft
+
+instance Eq ArgP where
+	ArgP a1 == ArgP a2 = a1 == a2
+
+instance Show ArgP where
+	show (ArgP Argument{name,argType,decLoc}) = showArg name argType decLoc
+
+instance Messagable ArgP where
+	msg (ArgP Argument{name,argType}) = msgArg name argType
+
+instance TPattern.Pattern ArgP where
+	parse = parseArg
+	compareFrom = compareFromArg
+	showPatternWith useMsg (ArgP Argument{name,argType,decLoc}) = if useMsg
+		then msgArg name argType
+		else showArg name argType decLoc
+	mustHavePrefix _ = False
+	mustHaveSuffix _ = False
+	canHavePrefix _ = False
+	canHaveSuffix _ = False
+	isOptional _ = False
+	getArgsUsing _ (ArgP arg) = OMap.singleton (arg.name, arg)
+
+parse :: ArgP -> Code.Parser Match
+parse = parseArg

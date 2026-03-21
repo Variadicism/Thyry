@@ -14,12 +14,13 @@ import Beng.Parse.Parsers.Code ((>\>), Parse, SpaceState(..), target)
 import qualified Beng.Parse.Patterns.Delimited as Delimited
 import Beng.Types.Parse.Matches (DelimitedTail(..), Match)
 import qualified Beng.Types.Parse.Matches as Match
+import Beng.Types.Parse.Patterns (Delimited(..))
 
 -- private
 
 parse :: MockParser (Match, DelimitedTail)
 parse = mockNothing !>>>
-	Delimited.parse (l ",") (l "p") >\>
+	Delimited.parse Delimited { delimiter = l ",", delimitend = l "p" } >\>
 	\match@Match.Delimited{} -> (match.head, match.tail)
 
 assertMatches :: Int -> Parse (Match, DelimitedTail) -> Fallible ()

@@ -12,7 +12,7 @@ import Beng.Types.Build.Cards (Card)
 import Beng.Types.Locations (FileLocation)
 import Beng.Types.Ops (Op)
 import {-# SOURCE #-} Beng.Types.Ops.Declarations (Declaration)
-import qualified Beng.Types.Things as Thing
+import {-# SOURCE #-} qualified Beng.Types.Things as Thing
 
 data Error =
 	-- \/ closest to success

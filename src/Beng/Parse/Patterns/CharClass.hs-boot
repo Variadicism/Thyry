@@ -4,8 +4,7 @@ import Utils.Populace (Populace)
 
 import Beng.Types.Parse.Matches (Match)
 import qualified Beng.Types.Parse.Parsers.Code as Code
-import qualified Beng.Types.Parse.Parsers.PatternComparator as PatternComparator
-import Beng.Types.Parse.Patterns (CharRange)
+import Beng.Types.Parse.Patterns (CharClass, CharRange, Pattern)
 
 enumerate :: (Populace CharRange -> [Char])
 
@@ -17,6 +16,5 @@ has :: Char -> Populace CharRange -> Bool -> Bool
 
 showClass :: Populace CharRange -> Bool -> String
 
-parse :: Populace CharRange -> Bool -> Code.Parser Match
-
-compareFrom :: Populace CharRange -> Bool -> PatternComparator.Parser
+parse :: CharClass -> Code.Parser Match
+instance Pattern CharClass

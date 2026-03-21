@@ -11,7 +11,7 @@ import {-# SOURCE #-} Beng.Parse.Patterns ()
 import Beng.Types.Build.Cards (Card)
 import Beng.Types.Build.Context (PrecedenceBound)
 import qualified Beng.Types.Parse.Matches as Match
-import Beng.Types.Parse.Patterns (Pattern)
+import Beng.Types.Parse.Patterns (SomePattern)
 import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Types.Errors (Fallible)
 import Beng.Types.Locations (Location)
@@ -50,7 +50,7 @@ type ArgContextBuilder =
 
 data Declaration = Declaration {
 	location :: Location,
-	pattern :: Pattern,
+	pattern :: SomePattern,
 	returnType :: Thing,  -- TODO: use types from args to formulate the return type
 	associativity :: Associativity,
 	precedence :: PrecedenceBound,

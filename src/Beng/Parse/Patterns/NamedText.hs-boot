@@ -1,11 +1,10 @@
 module Beng.Parse.Patterns.NamedText where
 
-import Beng.Types.Locations (Location)
 import Beng.Types.Parse.Matches (Match)
 import qualified Beng.Types.Parse.Parsers.Code as Code
-import qualified Beng.Types.Parse.Parsers.PatternComparator as PatternComparator
-import Beng.Types.Parse.Patterns (Pattern)
+import Beng.Types.Parse.Patterns (NamedText, Pattern, SomePattern)
 
-parse :: String -> Pattern -> Location -> Code.Parser Match
+canBeEmpty :: SomePattern -> Bool
 
-compareFrom :: String -> Pattern -> PatternComparator.Parser
+parse :: NamedText -> Code.Parser Match
+instance Pattern NamedText

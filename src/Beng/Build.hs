@@ -24,6 +24,7 @@ import Beng.Errors (printError)
 import qualified Beng.Parse.Parsers.Code as Parser
 import Beng.Parse.Parsers.Code ((@+>), (<<<), (>:>), (>\>), State(..), fileStartState, parseWhile, target)
 import qualified Beng.Parse.Patterns.Space as Space
+import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Types.Ops (Op)
 
 import Control.Monad (when)
@@ -46,7 +47,7 @@ buildCodeUsing context filePath code = do
 				filePath ++ " at " ++ show state ++ "...") $
 			Text.any (not . isSpace) state.rest
 	let parser = "build code in " ++ filePath @+>
-		parseWhile "text remains" hasText (Space.parse >:> Op.build filePath >\> snd)
+		parseWhile "text remains" hasText (Space.parse Pattern.Space >:> Op.build filePath >\> snd)
 
 	parses <- fmap Parser.parses $ mapError printError (parser <<< initialState)
 

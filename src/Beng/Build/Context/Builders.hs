@@ -48,7 +48,15 @@ import Beng.Types.Ops (Op)
 import Beng.Ops.Declarations (ArgContextBuilder, Associativity(..), Declaration(..), PrecedenceBound(..))
 import Beng.Ops.Definitions (Definition(..), Runner)
 import qualified Beng.Ops.Definitions as Definition
-import Beng.Types.Parse.Patterns (Argument(..), CharRange(..), Pattern(..))
+import {-# SOURCE #-} Beng.Parse.Patterns.And ()
+import {-# SOURCE #-} Beng.Parse.Patterns.Arg ()
+import {-# SOURCE #-} Beng.Parse.Patterns.CharClass ()
+import {-# SOURCE #-} Beng.Parse.Patterns.Delimited ()
+import {-# SOURCE #-} Beng.Parse.Patterns.Literal ()
+import {-# SOURCE #-} Beng.Parse.Patterns.NamedText ()
+import {-# SOURCE #-} Beng.Parse.Patterns.Or ()
+import {-# SOURCE #-} Beng.Parse.Patterns.Space ()
+import Beng.Types.Parse.Patterns (And(..), ArgP(..), Argument(..), CharClass(..), CharRange(..), Delimited(..), Literal(..), NamedText(..), Or(..), SomePattern(..), Space(..))
 import {-# SOURCE #-} Beng.Run (run)
 import Beng.Errors (Fallible)
 import Beng.Types.Locations (Location(..))
@@ -63,18 +71,18 @@ import Data.Text.Lazy (Text)
 
 -- exported
 
-argAt :: Location -> String -> Thing -> Pattern
-argAt decLoc name argType = ArgP Argument { name, argType, decLoc }
+argAt :: Location -> String -> Thing -> SomePattern
+argAt decLoc name argType = SomePattern $ ArgP Argument { name, argType, decLoc }
 
-argOfBuiltin :: Int -> String -> Thing -> Pattern
+argOfBuiltin :: Int -> String -> Thing -> SomePattern
 argOfBuiltin builtinIndex name argType =
-	ArgP Argument { name, argType, decLoc = BuiltinArg name builtinIndex }
+	SomePattern $ ArgP Argument { name, argType, decLoc = BuiltinArg name builtinIndex }
 
-c :: [CharRange] -> Pattern
-c ranges = CharClass { ranges = P.assume ranges, negate = False }
+c :: [CharRange] -> SomePattern
+c ranges = SomePattern $ CharClass { ranges = P.assume ranges, negate = False }
 
-nc :: [CharRange] -> Pattern
-nc ranges = CharClass { ranges = P.assume ranges, negate = True }
+nc :: [CharRange] -> SomePattern
+nc ranges = SomePattern $ CharClass { ranges = P.assume ranges, negate = True }
 
 cr :: Char -> Char -> CharRange
 cr = CharRange
@@ -82,34 +90,35 @@ cr = CharRange
 cr2 :: Char -> CharRange
 cr2 c = CharRange c c
 
-e :: Pattern
-e = Literal ""
+e :: SomePattern
+e = SomePattern $ Literal ""
 
-s :: Pattern
-s = Space
+s :: SomePattern
+s = SomePattern Space
 
-l :: (Text -> Pattern)
-l = Literal
+l :: Text -> SomePattern
+l = SomePattern . Literal
 
-by delimitend delimiter = Delimited { delimitend, delimiter }
+by :: SomePattern -> SomePattern -> SomePattern
+by delimitend delimiter = SomePattern $ Delimited { delimitend, delimiter }
 
-textAt :: Location -> String -> Pattern -> Pattern
-textAt decLoc name subpattern = NamedText { name, subpattern, decLoc }
+textAt :: Location -> String -> SomePattern -> SomePattern
+textAt decLoc name subpattern = SomePattern $ NamedText { name, subpattern, decLoc }
 
 noContext :: ArgContextBuilder
 noContext _ _ _ = Falue []
 
-multi :: (Pattern -> Pattern)
-multi = Delimited e
+multi :: SomePattern -> SomePattern
+multi = SomePattern . Delimited e
 
-optional :: Pattern -> Pattern
-optional = Or . P2.dualton e
+optional :: SomePattern -> SomePattern
+optional = SomePattern . Or . P2.dualton e
 
-patConcat :: [Pattern] -> Pattern
+patConcat :: [SomePattern] -> SomePattern
 patConcat = \case
 	[] -> e
 	[solo] -> solo
-	(first:(second:rest)) -> And $ P2.Populace2 first second rest
+	(first:(second:rest)) -> SomePattern $ And $ P2.Populace2 first second rest
 
 bitType = NativeBitsType 1
 
@@ -170,7 +179,7 @@ asInt value = do  -- TODO TEMPORARY
 		(shiftL (fromIntegral b3) 8) .|.
 		(fromIntegral b4)
 
-declare :: PrecedenceBound -> [Pattern] -> Thing -> Location -> Declaration
+declare :: PrecedenceBound -> [SomePattern] -> Thing -> Location -> Declaration
 declare precedence subpatterns returnType location =
 	Declaration { precedence, location, returnType,
 		pattern = patConcat subpatterns,
@@ -179,7 +188,7 @@ declare precedence subpatterns returnType location =
 declareLiteral :: Text -> Thing -> Location -> Declaration
 declareLiteral literal returnType location = Declaration {
 	location,
-	pattern = Literal literal,
+	pattern = SomePattern $ Literal literal,
 	returnType,
 	associativity = Lefty {- irrelevant in nullary ops -},
 	contextualize = noContext,
@@ -187,18 +196,18 @@ declareLiteral literal returnType location = Declaration {
 
 defineUsing ::
 	PrecedenceBound -> Associativity ->
-	[Pattern] -> Thing -> ArgContextBuilder -> Runner -> Location -> Definition
+	[SomePattern] -> Thing -> ArgContextBuilder -> Runner -> Location -> Definition
 defineUsing precedence associativity subpatterns returnType contextualize runWith location =
 	Definition { location, runWith,
 		declaration = Declaration {
 			precedence, location, contextualize, associativity, returnType,
 			pattern = patConcat subpatterns }}
 
-define :: PrecedenceBound -> [Pattern] -> Thing -> (Runner -> Location -> Definition)
+define :: PrecedenceBound -> [SomePattern] -> Thing -> (Runner -> Location -> Definition)
 define precedence subpatterns returnType =
 	defineUsing precedence Lefty subpatterns returnType noContext
 
-defineRighty :: PrecedenceBound -> [Pattern] -> Thing -> (Runner -> Location -> Definition)
+defineRighty :: PrecedenceBound -> [SomePattern] -> Thing -> (Runner -> Location -> Definition)
 defineRighty precedence subpatterns returnType = defineUsing precedence Righty subpatterns returnType noContext
 
 defineLiteral :: Text -> Thing -> Thing -> Location -> Definition

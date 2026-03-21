@@ -8,12 +8,14 @@ import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, ass
 
 import Beng.Build.Context.Builders (c, cr)
 import Beng.Types.Locations (Location(Builtin))
-import Beng.Types.Parse.Patterns (Pattern(..))
+import Beng.Types.Parse.Patterns (NamedText(..), SomePattern(..), Space(..))
 
 -- private
 
+type Pattern = SomePattern
+
 nt :: String -> Pattern -> Pattern
-nt name subpattern = NamedText { name, subpattern, decLoc = Builtin 1 }
+nt name subpattern = SomePattern $ NamedText { name, subpattern, decLoc = Builtin 1 }
 
 zero = c [cr '0' '0']
 
@@ -30,11 +32,11 @@ testNamedText = TestCategories "NamedText sub" [
 		PureTests "does not satisfy" [
 			("misnamed", nt "Number" zero `assertDoesNotSatisfy` nt "Zero" zero),
 			("super subpattern", nt "Zero" zero `assertDoesNotSatisfy` nt "Zero" digit),
-			("disparate subpattern", nt "Zero" Space `assertDoesNotSatisfy` nt "Zero" zero) ]],
+			("disparate subpattern", nt "Zero" (SomePattern Space) `assertDoesNotSatisfy` nt "Zero" zero) ]],
 	TestCategories "disparate super" [
 		PureTests "satisfies" [
 			("unnamed exact subpattern", zero `assertSatisfies` nt "Zero" zero),
 			("unnamed super subpattern", digit `assertSatisfies` nt "Zero" zero) ],
 		PureTests "does not satisfy" [
 			("unnamed sub subpattern", zero `assertDoesNotSatisfy` nt "Number" digit),
-			("Space", Space `assertDoesNotSatisfy` nt "Zero" zero) ]]]
+			("Space", SomePattern Space `assertDoesNotSatisfy` nt "Zero" zero) ]]]

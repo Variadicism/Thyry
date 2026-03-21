@@ -22,13 +22,14 @@ import Beng.Locations ()
 import {-# SOURCE #-} qualified Beng.Build.TypeTest as ST
 import Beng.Types.Build.Context (PrecedenceBound(..))
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
-import Beng.Types.Parse.Patterns (Pattern(Literal))
+import Beng.Types.Parse.Patterns (Literal(..), SomePattern(..))
 import {-# SOURCE #-} Beng.Things ()
 import Beng.Types.Ops.Declarations (ArgContextBuilder, Associativity(..), Declaration(..), Mismatch(..))
 import Beng.Types.Build.TypeTest (TypeTest)
 
 import Control.Exception.Extra (Partial)
 import Data.Text.Lazy (unpack)
+import Data.Typeable (cast)
 import GHC.Records (HasField, getField)
 
 -- instances
@@ -114,9 +115,10 @@ mustHaveSuffix :: Declaration -> Bool
 mustHaveSuffix = Pattern.mustHaveSuffix . pattern
 
 nameAsValue :: Partial => Declaration -> String
-nameAsValue declaration = do
-	let (Literal name) = declaration.pattern
-	unpack name
+nameAsValue declaration = case declaration.pattern of
+	SomePattern pattern -> case cast pattern of
+		Just (Literal name) -> unpack name
+		Nothing -> error "Expected literal declaration pattern"
 
 satisfies :: (TypeTest, Declaration) -> Declaration -> FallibleI Mismatch ()
 satisfies (test, super) sub = do

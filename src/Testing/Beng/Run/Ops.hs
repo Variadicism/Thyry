@@ -21,9 +21,10 @@ import Beng.Ops (Op(..))
 import Beng.Ops.Definitions (Definition)
 import Beng.Parse.Matches (Match(ArgM))
 import qualified Beng.Parse.Matches as M
-import Beng.Parse.Patterns (Argument(..), Pattern(..))
+import Beng.Parse.Patterns (Argument(..))
 import Beng.Run (run)
 import Beng.Types.Locations (FileLocation(..), Location(..))
+import Beng.Types.Parse.Patterns (Delimited(..), Or(..), SomePattern(..))
 import Beng.Types.Things (Thing, Thing(NativeOptionalValue, NativeSomeValue, OpValue))
 
 import Data.Map ((!))
@@ -37,7 +38,7 @@ argMatchOf parentIndex name argType op = ArgM M.Argument {
 
 someOrNone :: Definition
 someOrNone = define Default
-	[Or $ dualton (l "none") $ argOfBuiltin 0 "Some" intType]
+	[SomePattern $ Or $ dualton (l "none") $ argOfBuiltin 0 "Some" intType]
 	intType
 	(\args -> do
 		let (NativeOptionalValue maybeSome) = args ! "Some"
@@ -48,7 +49,7 @@ someOrNone = define Default
 
 sumCommas :: Definition
 sumCommas = define Default
-	[Delimited (l ",") $ argOfBuiltin 1 "Element" intType]
+	[SomePattern Delimited { delimiter = l ",", delimitend = argOfBuiltin 1 "Element" intType }]
 	intType
 	(\args -> do
 		let (NativeSomeValue elements) = args ! "Element"

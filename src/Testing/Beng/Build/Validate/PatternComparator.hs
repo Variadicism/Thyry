@@ -16,27 +16,27 @@ import Testing.Beng.Build.Validate.PatternComparator.Space (testSpace)
 import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, assertDoesNotSatisfy)
 
 import Beng.Build.Context.Builders (c, cr, l, multi, optional, s, textAt)
-import Beng.Parse.Patterns (Argument(..), Pattern(..))
 import Beng.Types.Locations (Location(Builtin))
+import Beng.Types.Parse.Patterns (And(..), ArgP(..), Argument(..), SomePattern(..))
 import Beng.Things (thing)
 
 -- private
 
 testComparator :: TestCategory
 testComparator = PureTests "interpattern complexities" do
-	let capitalizedWords = And $ P2.dualton (c [cr 'A' 'Z']) (optional $ multi $ c [cr 'a' 'z'])
-	let valueArg = ArgP Argument { name = "Thing", argType = thing, decLoc = Builtin 0 }
+	let capitalizedWords = SomePattern $ And $ P2.dualton (c [cr 'A' 'Z']) (optional $ multi $ c [cr 'a' 'z'])
+	let valueArg = SomePattern $ ArgP Argument { name = "Thing", argType = thing, decLoc = Builtin 0 }
 
-	let varDef = And $ P2.Populace2 capitalizedWords s
+	let varDef = SomePattern $ And $ P2.Populace2 capitalizedWords s
 		[l ":", l "=", s, valueArg]
-	let varDefOrUn = And $ P2.Populace2 capitalizedWords s
+	let varDefOrUn = SomePattern $ And $ P2.Populace2 capitalizedWords s
 		[l ":", optional (l "/"), l "=", s, valueArg]
-	let varUndef = And $ P2.Populace2 capitalizedWords s
+	let varUndef = SomePattern $ And $ P2.Populace2 capitalizedWords s
 		[l ":/=", s, valueArg]
 	let namedCapitalizedWords = textAt (Builtin 1) "Name" capitalizedWords
-	let varNamedDef = And $ P2.Populace2 namedCapitalizedWords s
+	let varNamedDef = SomePattern $ And $ P2.Populace2 namedCapitalizedWords s
 		[l ":", l "=", s, valueArg]
-	let varNamedDefOrUn = And $ P2.Populace2 namedCapitalizedWords s
+	let varNamedDefOrUn = SomePattern $ And $ P2.Populace2 namedCapitalizedWords s
 		[l ":", optional (l "/"), l "=", s, valueArg]
 	[
 		("equal", varDefOrUn `assertSatisfies` varDefOrUn),

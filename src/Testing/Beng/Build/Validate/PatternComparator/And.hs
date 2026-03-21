@@ -8,10 +8,12 @@ import Utils.Testing
 import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, assertDoesNotSatisfy)
 
 import Beng.Build.Context.Builders (l)
-import Beng.Parse.Patterns (Pattern(And))
+import Beng.Types.Parse.Patterns (And(..), SomePattern(..))
+
+type Pattern = SomePattern
 
 a :: [Pattern] -> Pattern
-a = And . P2.assume
+a = SomePattern . And . P2.assume
 
 testAnd :: TestCategory
 testAnd = PureTests "And" do

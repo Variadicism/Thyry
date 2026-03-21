@@ -7,7 +7,7 @@ import Utils.Testing
 import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, assertDoesNotSatisfy)
 
 import Beng.Build.Context.Builders (c, cr, l, patConcat)
-import Beng.Types.Parse.Patterns (Pattern(Space))
+import Beng.Types.Parse.Patterns (SomePattern(..), Space(..))
 
 testLiteral :: TestCategory
 testLiteral = TestCategories "Literal sub" [
@@ -23,7 +23,7 @@ testLiteral = TestCategories "Literal sub" [
 		("satisfies", c [cr 'a' 'b'] `assertSatisfies` l "a"),
 		("does not satisfy", c [cr '0' '9'] `assertDoesNotSatisfy` l "a") ],
 	PureTests "Space super" [
-		("satisfies", patConcat [Space, l "test"] `assertSatisfies` l " test"),
-		("err does not satisfy", patConcat [Space, l "test"] `assertDoesNotSatisfy` l "test") ],
+		("satisfies", patConcat [SomePattern Space, l "test"] `assertSatisfies` l " test"),
+		("err does not satisfy", patConcat [SomePattern Space, l "test"] `assertDoesNotSatisfy` l "test") ],
 	PureTests "disparate" [
-		("Space", assertDoesNotSatisfy Space (l "if")) ]]]
+		("Space", assertDoesNotSatisfy (SomePattern Space) (l "if")) ]]]

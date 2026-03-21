@@ -1,43 +1,70 @@
 module Beng.Parse.Patterns.Delimited (
-	parse,
-	compareFrom
+	parse
 ) where
 
 import Utils.Fallible
+import Utils.Messaging (Messagable(..), msg)
 import qualified Utils.Maps.Ordered as OMap
 import qualified Utils.Populace as P
 
-import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
+import qualified Beng.Parse.Patterns as Pattern
 import Beng.Parse.Matches (Match)
 import qualified Beng.Types.Parse.Matches as Match
-import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Parse.Parsers ((@>), (@+>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
 import qualified Beng.Parse.Parsers.PatternComparator as PC
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
-import Beng.Types.Parse.Patterns (Mismatch(..), Pattern(..))
+import qualified Beng.Types.Parse.Patterns as TPattern
+import Beng.Types.Parse.Patterns (
+	Argument(..),
+	Comparison(..),
+	ComparatorState(..),
+	Delimited(..),
+	Mismatch(..),
+	SomePattern(..),
+	asPattern)
+import Beng.Types.Things (Thing(..))
 
--- exported
+import Data.Map.Ordered ((<>|))
 
-parse :: Pattern -> Pattern -> Code.Parser Match
-parse delimiter delimitend = show delimitend ++ " by " ++ show delimiter @+>
+parseDelimited :: Delimited -> Code.Parser Match
+parseDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter @+>
 	Pattern.parse delimitend >:>
 	(Code.parseAll (Pattern.parse delimiter >:> Pattern.parse delimitend) >\> \case
-		[] -> Match.DelimitedTailMissing $ OMap.values $
-			Pattern.getArgs $ Pattern.Delimited delimiter delimitend
+		[] -> Match.DelimitedTailMissing $ OMap.values $ Pattern.getArgs (SomePattern self)
 		firstMatch:matchTail -> Match.DelimitedTailMatch $ P.Populace firstMatch matchTail) >\>
 	uncurry Match.Delimited
 
-compareFrom :: Pattern -> Pattern -> PatternComparator.Parser
-compareFrom delimiter delimitend = show delimitend ++ " by " ++ show delimiter ++ " comparator" @> \state -> do
-	let self = Delimited { delimiter, delimitend }
+compareFromDelimited :: Delimited -> PatternComparator.Parser
+compareFromDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter ++ " comparator" @> \state -> do
 	case state.rest.super of
-		-- Sub must start with the current pattern, so P.assume is safe.
 		[] -> Error $ LeftoverSub $ P.assume state.rest.sub
-		nextSuper@Delimited{}:_ -> do
-			sequence $ [
+		(next:_) | Just nextSuper@Delimited{} <- (asPattern next :: Maybe Delimited) -> do
+			sequence [
 				(state, nextSuper.delimitend) `internallySatisfies` delimitend,
 				(state, nextSuper.delimiter) `internallySatisfies` delimiter]
-			PC.accept [nextSuper] state
-		nextSuper:superLeft -> Error $ Mismatch self $ P.Populace nextSuper superLeft
+			PC.accept [next] state
+		nextSuper:superLeft -> Error $ Mismatch (SomePattern self) $ P.Populace nextSuper superLeft
+
+instance Messagable Delimited where
+	msg = show
+
+instance TPattern.Pattern Delimited where
+	parse = parseDelimited
+	compareFrom = compareFromDelimited
+	showPatternWith useMsg Delimited{..} =
+		"(" ++ (if useMsg then msg delimitend else show delimitend) ++ "){" ++
+			(if useMsg then msg delimiter else show delimiter) ++ "}"
+	getSubpatterns Delimited{..} = P.Populace delimitend [delimiter]
+	mustHavePrefix Delimited{..} = Pattern.mustHavePrefix delimitend
+	mustHaveSuffix Delimited{..} = Pattern.mustHaveSuffix delimitend
+	canHavePrefix Delimited{..} = Pattern.canHavePrefix delimiter || Pattern.canHavePrefix delimitend
+	canHaveSuffix Delimited{..} = Pattern.canHaveSuffix delimiter || Pattern.canHaveSuffix delimitend
+	isOptional Delimited{..} = Pattern.isOptional delimitend
+	getArgsUsing getArgs Delimited{..} =
+		let wrapTypes wrapper = OMap.map (\p -> p{ argType = wrapper p.argType })
+		in wrapTypes NativeSomeType (getArgs delimiter) <>| wrapTypes NativeListType (getArgs delimitend)
+
+parse :: Delimited -> Code.Parser Match
+parse = parseDelimited

@@ -7,11 +7,11 @@ import Utils.Testing
 import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, assertDoesNotSatisfy)
 
 import Beng.Build.Context.Builders (c, cr)
-import Beng.Types.Parse.Patterns (Pattern(Delimited, Space))
+import Beng.Types.Parse.Patterns (Delimited(..), SomePattern(..), Space(..))
 
 -- private
 
-d = Delimited
+d delimitend delimiter = SomePattern Delimited { delimiter, delimitend }
 
 testDelimited :: TestCategory
 testDelimited = TestCategories "Delimited" do
@@ -27,6 +27,6 @@ testDelimited = TestCategories "Delimited" do
 			("super both", d alphaNum punct `assertSatisfies` d digit comma) ],
 		PureTests "does not satisfy" [
 			("sub", d digit comma `assertDoesNotSatisfy` d alphaNum punct),
-			("disparate delimitend", d Space punct `assertDoesNotSatisfy` d alphaNum punct),
-			("disparate delimiter", d alphaNum Space `assertDoesNotSatisfy` d alphaNum punct),
-			("disparate", Space `assertDoesNotSatisfy` d alphaNum punct) ]]
+			("disparate delimitend", d (SomePattern Space) punct `assertDoesNotSatisfy` d alphaNum punct),
+			("disparate delimiter", d alphaNum (SomePattern Space) `assertDoesNotSatisfy` d alphaNum punct),
+			("disparate", SomePattern Space `assertDoesNotSatisfy` d alphaNum punct) ]]

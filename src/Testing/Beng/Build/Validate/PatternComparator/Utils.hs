@@ -11,8 +11,10 @@ import Testing.Beng.Utils.Mocks (mockNothing)
 
 import Beng.Parse.Patterns (satisfies)
 import qualified Beng.Build.TypeTest as TypeTest
-import Beng.Types.Parse.Patterns (Pattern)
+import Beng.Types.Parse.Patterns (SomePattern)
 import Beng.Types.Things (Thing(One))
+
+type Pattern = SomePattern
 
 assertSatisfies :: Pattern -> Pattern -> Fallible ()
 assertSatisfies super sub = do

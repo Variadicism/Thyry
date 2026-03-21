@@ -17,31 +17,20 @@ import Utils.Messaging (Messagable, msg, msgList)
 import qualified Utils.Populace as P
 import qualified Utils.Populace.Populace2 as P2
 
-import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>:>), (>|>), parseAny)
+import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>:>), parseAny)
 import {-# SOURCE #-} qualified Beng.Parse.Parsers as Parser
-import {-# SOURCE #-} qualified Beng.Parse.Patterns.And as And
-import {-# SOURCE #-} qualified Beng.Parse.Patterns.Arg as Arg
-import {-# SOURCE #-} qualified Beng.Parse.Patterns.CharClass as CharClass
-import {-# SOURCE #-} qualified Beng.Parse.Patterns.Delimited as Delimited
-import {-# SOURCE #-} qualified Beng.Parse.Patterns.Literal as Literal
-import {-# SOURCE #-} qualified Beng.Parse.Patterns.NamedText as NamedText
-import {-# SOURCE #-} qualified Beng.Parse.Patterns.Or as Or
-import {-# SOURCE #-} qualified Beng.Parse.Patterns.Space as Space
 import Beng.Build.TypeTest (TypeTest)
-import {-# SOURCE #-} Beng.Parse.Patterns (isOptional)
-import Beng.Types.Parse.Parsers.PatternComparator (Comparison(..), Parse, ParseRunner, Parser, Parses, State(..))
-import qualified Beng.Types.Parse.Parsers.PatternComparator as PC
-import Beng.Types.Parse.Patterns (Argument(..), Mismatch(..), Pattern(..))
+import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
+import Beng.Types.Parse.Parsers.PatternComparator (Comparison(..), Parse, ParseRunner, Parser, Parses)
+import Beng.Types.Parse.Patterns (And(..), ComparatorState(..), Literal(..), Mismatch(..), NamedText(..), Or(..), SomePattern(..))
+import qualified Beng.Types.Parse.Patterns as TPattern
 
 import Data.List (isPrefixOf)
 
--- instances
-
 deriving instance Eq Comparison
+deriving instance Eq ComparatorState
 
-deriving instance Eq State
-
-instance Parser.State Comparison State where
+instance Parser.State Comparison ComparatorState where
 	rest = rest
 	indentation = indentation
 	indent s = s{ indentation = s.indentation + 1 }
@@ -59,23 +48,18 @@ instance Ord Comparison where
 instance Semigroup Comparison where
 	a <> b = Comparison { sub = a.sub ++ b.sub, super = a.super ++ b.super }
 
-instance Messagable State where
-	msg State{..} = msg rest
+instance Messagable ComparatorState where
+	msg ComparatorState{..} = msg rest
 
-instance Show State where
-	show State{..} =
-		{- Don't print the test; this state prints at every single parser step and the test prints
-		   lots of info, so the logs get INCREDIBLY spammy. -}
-		show rest ++ " at depth " ++ show indentation
+instance Show ComparatorState where
+	show ComparatorState{..} = show rest ++ " at depth " ++ show indentation
 
--- private
+flat :: SomePattern -> [SomePattern]
+flat pattern = case TPattern.asPattern pattern of
+	Just (And subpatterns) -> subpatterns.l
+	Nothing -> [pattern]
 
-flat :: Pattern -> [Pattern]
-flat = \case
-	And subpatterns -> subpatterns.l
-	pattern -> [pattern]
-
-takeAs1 :: Comparison -> t -> State -> Parser.Parse Comparison State t
+takeAs1 :: Comparison -> t -> ComparatorState -> Parser.Parse Comparison ComparatorState t
 takeAs1 parsed target state =
 	if not $ parsed.sub `isPrefixOf` state.rest.sub && parsed.super `isPrefixOf` state.rest.super then
 		error $ "A pattern comparator illegally requested that " ++ show parsed.sub ++
@@ -92,111 +76,80 @@ takeAs1 parsed target state =
 				sub = drop (length parsed.sub) state.rest.sub,
 				super }}}
 
-takeAs :: Show t => Comparison -> t -> Parser.ParseRunner Mismatch Comparison State t
+takeAs :: Show t => Comparison -> t -> Parser.ParseRunner Mismatch Comparison ComparatorState t
 takeAs = Parser.takeAsUsing takeAs1
 
-takeAsNull :: Show t => (t -> Parser.ParseRunner Mismatch Comparison State t)
+takeAsNull :: Show t => t -> Parser.ParseRunner Mismatch Comparison ComparatorState t
 takeAsNull = takeAs Comparison { sub = [], super = [] }
 
-compareFrom :: Pattern -> Parser
-compareFrom pattern = do
-	let comparatorByPattern = case pattern of
-		-- I am so tired of these big fat case statements.
-		-- Everyone is eager to critique inheritance,
-		-- but at least this stuff comes free with it.
-		Space -> Space.compareFrom
-		Literal literal -> Literal.compareFrom literal
-		CharClass{..} -> CharClass.compareFrom ranges negate
-		NamedText{..} -> NamedText.compareFrom name subpattern
-		And subpatterns -> And.compareFrom subpatterns
-		Or subpatterns -> Or.compareFrom subpatterns
-		Delimited delimiter delimitend -> Delimited.compareFrom delimiter delimitend
-		ArgP Argument{..} -> Arg.compareFrom name argType decLoc
-	comparatorByPattern >:> comparator >\> const ()
+compareFromPattern :: SomePattern -> Parser
+compareFromPattern (SomePattern pattern) = TPattern.compareFrom pattern >:> comparator >\> const ()
 
--- exported
-
-startState :: Bool -> TypeTest -> Pattern -> Pattern -> State
+startState :: Bool -> TypeTest -> SomePattern -> SomePattern -> ComparatorState
 startState checkArgTypes test super sub =
-	State {
+	ComparatorState {
 		indentation = 0,
 		rest = Comparison { sub = flat sub, super = flat super },
 		checkArgTypes,
 		test }
 
-swapSub :: [Pattern] -> State -> State
+swapSub :: [SomePattern] -> ComparatorState -> ComparatorState
 swapSub newSub s = s{ rest = s.rest{ sub = newSub }}
 
-swapSuper :: [Pattern] -> State -> State
+swapSuper :: [SomePattern] -> ComparatorState -> ComparatorState
 swapSuper newSuper s = s{ rest = s.rest{ super = newSuper }}
 
 acceptRest :: ParseRunner
 acceptRest state = takeAs state.rest () state
 
-acceptUsing :: [Pattern] -> TypeTest -> ParseRunner
+acceptUsing :: [SomePattern] -> TypeTest -> ParseRunner
 acceptUsing fromSuper test = \state -> case state.rest.sub of
-	(next:_) -> takeAs Comparison { sub = [next], super = fromSuper } () state{ PC.test = test }
+	(next:_) -> takeAs Comparison { sub = [next], super = fromSuper } () state{ test }
 	[] -> error $ "A pattern comparator attempted to accept " ++ show fromSuper ++ " from " ++
 		show state.rest.super ++ ", but no pattern remained in the sub to match it to!"
 
--- Accept the given patterns from the start of the "super" pattern to match with the next pattern from "sub".
-accept :: [Pattern] -> ParseRunner
+accept :: [SomePattern] -> ParseRunner
 accept fromSuper = \state -> acceptUsing fromSuper state.test state
 
 parseAll :: Parser -> Parser
 parseAll = (>\> const ()) . Parser.parseAllUsing takeAsNull
 
-parseWhile :: String -> (State -> Bool) -> Parser -> Parser
+parseWhile :: String -> (ComparatorState -> Bool) -> Parser -> Parser
 parseWhile desc checker pieceParser =
 	Parser.parseWhileUsing takeAsNull desc checker pieceParser >\> const ()
 
-internallySatisfies :: (State, Pattern) -> Pattern -> FallibleI Mismatch Parses
+internallySatisfies :: (ComparatorState, SomePattern) -> SomePattern -> FallibleI Mismatch Parses
 internallySatisfies (state, super) sub = swapSub [sub] (swapSuper [super] state) >>> comparator
 
 comparator :: Parser
 comparator = do
-	let comparator' ignoreOptional = "pattern comparator" @> \state -> do
-		let isNamedText = \case -- Seriously, is there no better way to do this?!
-			NamedText{} -> True
-			_ -> False
-		let isOr = \case
-			Or{} -> True
-			_ -> False
+	let comparator' = "pattern comparator" @> \state -> do
+		let isNamedText = maybe False (const True) . (TPattern.asPattern :: SomePattern -> Maybe NamedText)
+		let isOr = maybe False (const True) . (TPattern.asPattern :: SomePattern -> Maybe Or)
+		let asAnd = TPattern.asPattern :: SomePattern -> Maybe And
+		let asLiteral = TPattern.asPattern :: SomePattern -> Maybe Literal
 
-		-- TODO: check all other patterns before we typecheck arguments.
-		-- (Typechecks are exponentially inefficient!)
 		case (state.rest.super, state.rest.sub) of
 			([], []) -> acceptRest state
 			(super@(nextSuper:superLeft), []) ->
-				if all isOptional super
+				if all Pattern.isOptional super
 					then acceptRest state
-					-- `all` returns true for empty lists, so we can assume it's non-empty here.
 					else Error $ LeftoverSuper $ P.Populace nextSuper superLeft
-			(And{..}:superLeft, _) -> swapSuper (subpatterns.l ++ superLeft) state >>> comparator
-			(Or{..}:superLeft, sub) | null sub || not (isOr $ head sub) -> do
-				{- Ors in the super position need to be handled as subpatterns, but if this happens before
-					Or.compareFrom, then Or.compareFrom tries to match each of the sub Or's subpatterns to
-					ALL of the super Or's subpatterns when in reality, only ONE of the super Or's subpatterns
-					needs to satisfy each of the sub Or's subpatterns. -}
+			(nextSuper:superLeft, _) | Just (And subpatterns) <- asAnd nextSuper ->
+				swapSuper (subpatterns.l ++ superLeft) state >>> comparator
+			(nextSuper:superLeft, sub)
+				| Just (Or subpatterns) <- (TPattern.asPattern nextSuper :: Maybe Or)
+				, null sub || not (isOr $ head sub) -> do
 				let parserFor i option =
 					"possible super pattern " ++ show (i + 1) ++ "/" ++ show (length subpatterns) ++
-							" " ++ show option @> \state ->
-						swapSuper (option:superLeft) state >>> comparator
+							" " ++ show option @> \state' ->
+						swapSuper (option:superLeft) state' >>> comparator
 				state >>> (parseAny $ P2.toP1 $ P2.mapIndexed parserFor subpatterns)
-			(nt@NamedText{..}:superLeft, sub) | null sub || not (isNamedText $ head sub) -> do
-				{- Supers don't need to capture all the NamedTexts that the sub does.
-					But, if both are NamedTexts, they must be compared without "unnaming" because
-					while the super doesn't have to capture the same things, if it does, they need
-					to have the same name. -}
+			(nextSuper:superLeft, sub)
+				| Just nt@NamedText{} <- (TPattern.asPattern nextSuper :: Maybe NamedText)
+				, null sub || not (isNamedText $ head sub) ->
 				swapSuper (nt.subpattern:superLeft) state >>> comparator
-			(Literal "":superLeft, _) ->
-				{- Ignore empties entirely. If not for this case, it would tee off the empty as an optional,
-				   trying to parse with and without accepting the empty, which is just
-				   pointless, inefficient, and log-muddying. -}
+			(nextSuper:superLeft, _) | Just (Literal "") <- asLiteral nextSuper ->
 				swapSuper superLeft state >>> comparator
-			(nextSuper:superLeft, _) | isOptional nextSuper && not ignoreOptional -> do
-				let skipThenCompare = "skipping optional " ++ show nextSuper @> \state ->
-					swapSuper superLeft state >>> comparator
-				state >>> comparator' True >|> skipThenCompare
-			(_, nextSub:_) -> state >>> compareFrom nextSub
-	comparator' False
+			(_, nextSub:_) -> state >>> compareFromPattern nextSub
+	comparator'
