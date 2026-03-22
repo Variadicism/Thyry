@@ -43,6 +43,12 @@ compareFromOr self@(Or subpatterns) = show (length subpatterns) ++ " possible pa
 			sequence $ P2.map ((state, nextSuper) `internallySatisfies`) subpatterns
 			PC.accept [nextSuper] state
 
+instance Eq Or where
+	Or a == Or b = a == b
+
+instance Show Or where
+	show = TPattern.showPatternWith False
+
 instance Messagable Or where
 	msg = show
 

@@ -16,6 +16,7 @@ import qualified Beng.Parse.Parsers.PatternComparator as PC
 import Beng.Parse.Parsers.PatternComparator (comparator)
 import qualified Beng.Parse.Matches as Match
 import Beng.Types.Parse.Matches (Match)
+import Beng.Parse.Patterns (asPattern)
 import qualified Beng.Parse.Patterns as Pattern
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Patterns (
@@ -24,8 +25,7 @@ import Beng.Types.Parse.Patterns (
 	ComparatorState(..),
 	Mismatch(..),
 	NamedText(..),
-	SomePattern(..),
-	asPattern)
+	SomePattern(..))
 import Beng.Types.Things (Thing(NativeStringType), Thing(NativeStringValue))
 
 import qualified Data.Map as Map

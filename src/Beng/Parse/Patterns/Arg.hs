@@ -16,6 +16,7 @@ import {-# SOURCE #-} qualified Beng.Build.Ops as Op
 import Beng.Build.TypeTest (satisfiesDuring)
 import Beng.Errors (parseError)
 import Beng.Ops ()
+import {-# SOURCE #-} Beng.Parse.Patterns (asPattern)
 import Beng.Parse.Matches (Match(ArgM))
 import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/\>), (>-\>))
@@ -31,7 +32,7 @@ import qualified Beng.Types.Locations as Location
 import Beng.Types.Ops (Op(..))
 import Beng.Types.Ops.Declarations (Declaration(..))
 import qualified Beng.Types.Parse.Patterns as TPattern
-import Beng.Types.Parse.Patterns (ArgP(..), Argument(..), Comparison(..), ComparatorState(..), Mismatch(..), SomePattern(..), asPattern)
+import Beng.Types.Parse.Patterns (ArgP(..), Argument(..), Comparison(..), ComparatorState(..), Mismatch(..), SomePattern(..))
 import Beng.Types.Things (Thing, Thing(OpValue), Thing(PreOpType))
 
 import qualified Data.Map as Map

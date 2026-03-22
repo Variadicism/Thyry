@@ -20,7 +20,7 @@ import qualified Utils.Populace.Populace2 as P2
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>:>), (>|>), parseAny)
 import {-# SOURCE #-} qualified Beng.Parse.Parsers as Parser
 import Beng.Build.TypeTest (TypeTest)
-import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
+import {-# SOURCE #-} Beng.Parse.Patterns (asPattern, isOptional)
 import Beng.Types.Parse.Parsers.PatternComparator (Comparison(..), Parse, ParseRunner, Parser, Parses)
 import Beng.Types.Parse.Patterns (And(..), ComparatorState(..), Literal(..), Mismatch(..), NamedText(..), Or(..), SomePattern(..))
 import qualified Beng.Types.Parse.Patterns as TPattern
@@ -55,7 +55,7 @@ instance Show ComparatorState where
 	show ComparatorState{..} = show rest ++ " at depth " ++ show indentation
 
 flat :: SomePattern -> [SomePattern]
-flat pattern = case TPattern.asPattern pattern of
+flat pattern = case asPattern pattern of
 	Just (And subpatterns) -> subpatterns.l
 	Nothing -> [pattern]
 
@@ -127,21 +127,21 @@ internallySatisfies (state, super) sub = swapSub [sub] (swapSuper [super] state)
 comparator :: Parser
 comparator = do
 	let comparator' ignoreOptional = "pattern comparator" @> \state -> do
-		let isNamedText = maybe False (const True) . (TPattern.asPattern :: SomePattern -> Maybe NamedText)
-		let isOr = maybe False (const True) . (TPattern.asPattern :: SomePattern -> Maybe Or)
-		let asAnd = TPattern.asPattern :: SomePattern -> Maybe And
-		let asLiteral = TPattern.asPattern :: SomePattern -> Maybe Literal
+		let isNamedText = maybe False (const True) . (asPattern :: SomePattern -> Maybe NamedText)
+		let isOr = maybe False (const True) . (asPattern :: SomePattern -> Maybe Or)
+		let asAnd = asPattern :: SomePattern -> Maybe And
+		let asLiteral = asPattern :: SomePattern -> Maybe Literal
 
 		case (state.rest.super, state.rest.sub) of
 			([], []) -> acceptRest state
 			(super@(nextSuper:superLeft), []) ->
-				if all Pattern.isOptional super
+				if all isOptional super
 					then acceptRest state
 					else Error $ LeftoverSuper $ P.Populace nextSuper superLeft
 			(nextSuper:superLeft, _) | Just (And subpatterns) <- asAnd nextSuper ->
 				swapSuper (subpatterns.l ++ superLeft) state >>> comparator
 			(nextSuper:superLeft, sub)
-				| Just (Or subpatterns) <- (TPattern.asPattern nextSuper :: Maybe Or)
+				| Just (Or subpatterns) <- (asPattern nextSuper :: Maybe Or)
 				, null sub || not (isOr $ head sub) -> do
 				let parserFor i option =
 					"possible super pattern " ++ show (i + 1) ++ "/" ++ show (length subpatterns) ++
@@ -149,13 +149,13 @@ comparator = do
 						swapSuper (option:superLeft) state' >>> comparator
 				state >>> (parseAny $ P2.toP1 $ P2.mapIndexed parserFor subpatterns)
 			(nextSuper:superLeft, sub)
-				| Just nt@NamedText{} <- (TPattern.asPattern nextSuper :: Maybe NamedText)
+				| Just nt@NamedText{} <- (asPattern nextSuper :: Maybe NamedText)
 				, null sub || not (isNamedText $ head sub) ->
 				swapSuper (nt.subpattern:superLeft) state >>> comparator
 			(nextSuper:superLeft, _) | Just (Literal "") <- asLiteral nextSuper ->
 				swapSuper superLeft state >>> comparator
 			(nextSuper:superLeft, _)
-				| Pattern.isOptional nextSuper && not state.atStart && not ignoreOptional -> do
+				| isOptional nextSuper && not state.atStart && not ignoreOptional -> do
 				let skipThenCompare = "skipping optional " ++ show nextSuper @> \state' ->
 					swapSuper superLeft state' >>> comparator
 				state >>> comparator' True >|> skipThenCompare

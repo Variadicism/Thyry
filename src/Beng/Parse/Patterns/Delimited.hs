@@ -7,6 +7,7 @@ import Utils.Messaging (Messagable(..), msg)
 import qualified Utils.Maps.Ordered as OMap
 import qualified Utils.Populace as P
 
+import Beng.Parse.Patterns (asPattern)
 import qualified Beng.Parse.Patterns as Pattern
 import Beng.Parse.Matches (Match)
 import qualified Beng.Types.Parse.Matches as Match
@@ -22,8 +23,7 @@ import Beng.Types.Parse.Patterns (
 	ComparatorState(..),
 	Delimited(..),
 	Mismatch(..),
-	SomePattern(..),
-	asPattern)
+	SomePattern(..))
 import Beng.Types.Things (Thing(..))
 
 import Data.Map.Ordered ((<>|))
@@ -46,6 +46,12 @@ compareFromDelimited self@Delimited{..} = show delimitend ++ " by " ++ show deli
 				(state, nextSuper.delimiter) `internallySatisfies` delimiter]
 			PC.accept [next] state
 		nextSuper:superLeft -> Error $ Mismatch (SomePattern self) $ P.Populace nextSuper superLeft
+
+instance Eq Delimited where
+	a == b = a.delimiter == b.delimiter && a.delimitend == b.delimitend
+
+instance Show Delimited where
+	show = TPattern.showPatternWith False
 
 instance Messagable Delimited where
 	msg = show

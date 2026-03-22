@@ -49,13 +49,8 @@ class (Eq p, Show p, Messagable p, Typeable p) => Pattern p where
 	getArgsUsing :: (SomePattern -> Arguments) -> p -> Arguments
 	getArgsUsing _ _ = OMap.empty
 	getArgs :: p -> Arguments
-	getArgs = getArgsUsing getArgsOf
+	getArgs = getArgsUsing $ \(SomePattern p') -> getArgs p'
 	getNonStructuralArgs :: p -> Arguments
-	getNonStructuralArgs = getArgsUsing getNonStructuralArgsOf
+	getNonStructuralArgs = getArgsUsing $ \(SomePattern p') -> getNonStructuralArgs p'
 	getRequiredArgs :: p -> Arguments
-	getRequiredArgs = getArgsUsing getRequiredArgsOf
-
-asPattern :: Pattern p => SomePattern -> Maybe p
-getArgsOf :: SomePattern -> Arguments
-getNonStructuralArgsOf :: SomePattern -> Arguments
-getRequiredArgsOf :: SomePattern -> Arguments
+	getRequiredArgs = getArgsUsing $ \(SomePattern p') -> getRequiredArgs p'

@@ -23,7 +23,7 @@ import qualified Beng.Parse.Parsers.PatternComparator as PC
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Types.Parse.Matches (Match)
 import qualified Beng.Types.Parse.Matches as Match
-import {-# SOURCE #-} Beng.Parse.Patterns ()
+import {-# SOURCE #-} Beng.Parse.Patterns (asPattern)
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Patterns (
 	CharClass(..),
@@ -33,8 +33,7 @@ import Beng.Types.Parse.Patterns (
 	Literal(..),
 	Mismatch(..),
 	SomePattern(..),
-	Space(..),
-	asPattern)
+	Space(..))
 
 import Data.Char (isSpace)
 import Data.List (isPrefixOf, uncons)

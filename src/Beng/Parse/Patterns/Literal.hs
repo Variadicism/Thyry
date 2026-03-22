@@ -15,6 +15,7 @@ import Beng.Parse.Parsers.Code (PrefixState(..))
 import qualified Beng.Parse.Parsers.Code as Code
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import qualified Beng.Parse.Parsers.PatternComparator as PC
+import {-# SOURCE #-} Beng.Parse.Patterns (asPattern)
 import qualified Beng.Parse.Patterns.CharClass as CC
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Patterns (
@@ -24,8 +25,7 @@ import Beng.Types.Parse.Patterns (
 	Literal(..),
 	Mismatch(..),
 	SomePattern(..),
-	Space(..),
-	asPattern)
+	Space(..))
 
 import Data.Char (isSpace)
 import qualified Data.Text.Lazy as Text

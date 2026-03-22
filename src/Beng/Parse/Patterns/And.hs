@@ -8,6 +8,7 @@ import Utils.Messaging (Messagable(..), msg)
 import Utils.Populace.Populace2 (dualton)
 import qualified Utils.Populace.Populace2 as P2
 
+import Beng.Parse.Patterns (asPattern)
 import qualified Beng.Parse.Patterns as Pattern
 import Beng.Parse.Matches (Match)
 import qualified Beng.Types.Parse.Matches as Match
@@ -16,7 +17,7 @@ import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (comparator)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import qualified Beng.Types.Parse.Patterns as TPattern
-import Beng.Types.Parse.Patterns (And(..), Comparison(..), ComparatorState(..), Space(..), asPattern)
+import Beng.Types.Parse.Patterns (And(..), Comparison(..), ComparatorState(..), Space(..))
 
 parseAnd :: And -> Code.Parser Match
 parseAnd (And subpatterns) =
@@ -37,6 +38,12 @@ compareFromAnd :: And -> PatternComparator.Parser
 compareFromAnd (And subpatterns) =
 	show (length subpatterns) ++ " pattern comparator" @> \state ->
 		state{ rest = state.rest{ sub = subpatterns.l ++ tail state.rest.sub }} >>> comparator
+
+instance Eq And where
+	And a == And b = a == b
+
+instance Show And where
+	show = TPattern.showPatternWith False
 
 instance Messagable And where
 	msg = show

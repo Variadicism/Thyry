@@ -21,14 +21,10 @@ module Beng.Types.Parse.Patterns (
 	Delimited(..),
 	ArgP(..),
 	Arguments,
-	asPattern,
-	getArgsOf,
-	getNonStructuralArgsOf,
-	getRequiredArgsOf,
 	Pattern(..)
 ) where
 
-import Utils.Messaging (Messagable, msg)
+import Utils.Messaging (Messagable)
 import Utils.Populace (Populace)
 import qualified Utils.Populace as P
 import Utils.Populace.Populace2 (Populace2)
@@ -42,7 +38,7 @@ import qualified Beng.Types.Parse.Parsers as General
 
 import qualified Data.Map.Ordered as OMap
 import Data.Text.Lazy (Text)
-import Data.Typeable (Typeable, cast)
+import Data.Typeable (Typeable)
 
 data SomePattern = forall p. Pattern p => SomePattern p
 
@@ -60,6 +56,7 @@ data Comparison = Comparison {
 
 data ComparatorState = ComparatorState {
 	indentation :: Int,
+	-- Temporary comparator heuristic to distinguish leading optionals from interior ones.
 	atStart :: Bool,
 	rest :: Comparison,
 	checkArgTypes :: Bool,
@@ -81,12 +78,12 @@ data CharClass = CharClass { ranges :: Populace CharRange, negate :: Bool }
 
 data NamedText = NamedText { name :: String, subpattern :: SomePattern, decLoc :: Location }
 
-data Or = Or { subpatterns :: Populace2 SomePattern } deriving (Eq, Show)
+data Or = Or { subpatterns :: Populace2 SomePattern }
 
-data And = And { subpatterns :: Populace2 SomePattern } deriving (Eq, Show)
+data And = And { subpatterns :: Populace2 SomePattern }
 
 -- Yeah, I made up "delimitend" akin to "dividend" and "subtrahend". So?! Come at me! :P
-data Delimited = Delimited { delimiter :: SomePattern, delimitend :: SomePattern } deriving (Eq, Show)
+data Delimited = Delimited { delimiter :: SomePattern, delimitend :: SomePattern }
 
 data ArgP = ArgP Argument
 
@@ -112,31 +109,10 @@ class (Eq p, Show p, Messagable p, Typeable p) => Pattern p where
 	getArgsUsing _ _ = OMap.empty
 
 	getArgs :: p -> Arguments
-	getArgs = getArgsUsing getArgsOf
+	getArgs = getArgsUsing $ \(SomePattern p') -> getArgs p'
 
 	getNonStructuralArgs :: p -> Arguments
-	getNonStructuralArgs = getArgsUsing getNonStructuralArgsOf
+	getNonStructuralArgs = getArgsUsing $ \(SomePattern p') -> getNonStructuralArgs p'
 
 	getRequiredArgs :: p -> Arguments
-	getRequiredArgs = getArgsUsing getRequiredArgsOf
-
-instance Eq SomePattern where
-	SomePattern p1 == SomePattern p2 = maybe False (p1 ==) $ cast p2
-
-instance Show SomePattern where
-	show (SomePattern p) = '\\' : showPatternWith False p
-
-instance Messagable SomePattern where
-	msg (SomePattern p) = '\\' : showPatternWith True p
-
-getArgsOf :: SomePattern -> Arguments
-getArgsOf (SomePattern p) = getArgs p
-
-asPattern :: Pattern p => SomePattern -> Maybe p
-asPattern (SomePattern p) = cast p
-
-getNonStructuralArgsOf :: SomePattern -> Arguments
-getNonStructuralArgsOf (SomePattern p) = getNonStructuralArgs p
-
-getRequiredArgsOf :: SomePattern -> Arguments
-getRequiredArgsOf (SomePattern p) = getRequiredArgs p
+	getRequiredArgs = getArgsUsing $ \(SomePattern p') -> getRequiredArgs p'

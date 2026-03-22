@@ -1,5 +1,6 @@
 module Beng.Parse.Patterns (
 	specials,
+	asPattern,
 	parse,
 	getSubpatterns,
 	getArgs,
@@ -47,10 +48,7 @@ import Beng.Types.Parse.Patterns (
 	NamedText(..),
 	Or(..),
 	SomePattern(..),
-	Space(..),
-	getArgsOf,
-	getNonStructuralArgsOf,
-	getRequiredArgsOf)
+	Space(..))
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Parse.Parsers ((>>>))
 import qualified Beng.Parse.Parsers.Code as Code
@@ -63,8 +61,21 @@ import Beng.Types.Things (Thing(..))
 import Data.Map.Ordered (OMap)
 import qualified Data.Map.Ordered as OMap
 import qualified Data.Set as Set
+import Data.Typeable (cast)
 
 specials = ".{}[] "
+
+instance Eq SomePattern where
+	SomePattern p1 == SomePattern p2 = maybe False (p1 ==) $ cast p2
+
+instance Show SomePattern where
+	show (SomePattern p) = TPattern.showPatternWith False p
+
+instance Messagable SomePattern where
+	msg (SomePattern p) = TPattern.showPatternWith True p
+
+asPattern :: TPattern.Pattern p => SomePattern -> Maybe p
+asPattern (SomePattern p) = cast p
 
 patConcat :: [SomePattern] -> SomePattern
 patConcat = \case
@@ -141,6 +152,15 @@ instance Messagable Argument where
 	msg Argument{name,argType} = msgArg name argType
 
 type GetArgs = SomePattern -> OMap String Argument
+
+getArgsOf :: SomePattern -> OMap String Argument
+getArgsOf (SomePattern p) = TPattern.getArgs p
+
+getNonStructuralArgsOf :: SomePattern -> OMap String Argument
+getNonStructuralArgsOf (SomePattern p) = TPattern.getNonStructuralArgs p
+
+getRequiredArgsOf :: SomePattern -> OMap String Argument
+getRequiredArgsOf (SomePattern p) = TPattern.getRequiredArgs p
 
 getOrArgsUsing :: GetArgs -> Populace2 SomePattern -> OMap String (Argument, Bool)
 getOrArgsUsing getArgs subpatterns = do
