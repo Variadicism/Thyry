@@ -16,7 +16,6 @@ import Beng.Parse.Parsers ((@>), (@+>), (>\>), parseAny)
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
-import qualified Beng.Parse.Parsers.PatternComparator as PC
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Patterns (Comparison(..), ComparatorState(..), Mismatch(..), Or(..), SomePattern(..))
 
@@ -41,7 +40,7 @@ compareFromOr self@(Or subpatterns) = show (length subpatterns) ++ " possible pa
 		[] -> Error $ LeftoverSub $ P.singleton $ SomePattern self
 		nextSuper:_ -> do
 			sequence $ P2.map ((state, nextSuper) `internallySatisfies`) subpatterns
-			PC.accept [nextSuper] state
+			PatternComparator.accept [nextSuper] state
 
 instance Eq Or where
 	Or a == Or b = a == b

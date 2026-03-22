@@ -12,8 +12,8 @@ import Beng.Locations ()
 import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>\>), (>/\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
-import qualified Beng.Parse.Parsers.PatternComparator as PC
 import Beng.Parse.Parsers.PatternComparator (comparator)
+import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import qualified Beng.Parse.Matches as Match
 import Beng.Types.Parse.Matches (Match)
 import Beng.Parse.Patterns (asPattern)
@@ -25,7 +25,7 @@ import Beng.Types.Parse.Patterns (
 	ComparatorState(..),
 	Mismatch(..),
 	NamedText(..),
-	SomePattern(..))
+	SomePattern)
 import Beng.Types.Things (Thing(NativeStringType), Thing(NativeStringValue))
 
 import qualified Data.Map as Map
@@ -43,13 +43,13 @@ parseNamedText NamedText{..} = "named text " ++ wrap "\"" name @+>
 		s{ Code.arguments = Map.insert name argument s.arguments }) >\> \match ->
 	Match.NamedText { decLoc, name, match }
 
-compareFromNamedText :: NamedText -> PC.Parser
+compareFromNamedText :: NamedText -> PatternComparator.Parser
 compareFromNamedText NamedText{..} = "named text " ++ wrap "\"" name ++ " comparator" @> \state ->
 	case state.rest.super of
 		(next:superLeft) | Just nt@NamedText{} <- (asPattern next :: Maybe NamedText) ->
 			if nt.name == name then do
 				(state, nt.subpattern) `internallySatisfies` subpattern
-				PC.accept [next] state
+				PatternComparator.accept [next] state
 			else
 				Error $ Mismatch next $ P.Populace next superLeft
 		_ -> state{ rest = state.rest{ sub = subpattern : tail state.rest.sub }} >>> comparator

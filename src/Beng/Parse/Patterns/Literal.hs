@@ -14,7 +14,6 @@ import Beng.Parse.Parsers ((@>))
 import Beng.Parse.Parsers.Code (PrefixState(..))
 import qualified Beng.Parse.Parsers.Code as Code
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
-import qualified Beng.Parse.Parsers.PatternComparator as PC
 import {-# SOURCE #-} Beng.Parse.Patterns (asPattern)
 import qualified Beng.Parse.Patterns.CharClass as CC
 import qualified Beng.Types.Parse.Patterns as TPattern
@@ -43,7 +42,7 @@ parseLiteral (Literal literal) = "literal " ++ show literal @> \state ->
 compareFromLiteral :: Literal -> PatternComparator.Parser
 compareFromLiteral self@(Literal literal) = show literal ++ " comparator" @> \state ->
 	if Text.null literal then
-		PC.accept [] state
+		PatternComparator.accept [] state
 	else case state.rest.super of
 		[] -> Error $ LeftoverSub $ P.assume state.rest.sub
 		next:superLeft -> do
@@ -52,23 +51,23 @@ compareFromLiteral self@(Literal literal) = show literal ++ " comparator" @> \st
 			let swapSuper newSuper s = s{ rest = s.rest{ super = newSuper }}
 			case asPattern next :: Maybe Literal of
 				Just (Literal superLiteral) | superLiteral == literal ->
-					PC.accept [next] state
+					PatternComparator.accept [next] state
 				Just (Literal superLiteral) | literal `Text.isPrefixOf` superLiteral -> do
 					let remainingSuper = UtilsText.dropPrefix literal superLiteral
 					let splitSuper = [SomePattern self, SomePattern (Literal remainingSuper)] ++ superLeft
-					PC.accept [SomePattern self] $ swapSuper splitSuper state
+					PatternComparator.accept [SomePattern self] $ swapSuper splitSuper state
 				Just (Literal superLiteral) | superLiteral `Text.isPrefixOf` literal -> do
 					let remainingSub = UtilsText.dropPrefix superLiteral literal
 					let splitSub = next : SomePattern (Literal remainingSub) : tail state.rest.sub
-					PC.accept [next] $ swapSub splitSub state
+					PatternComparator.accept [next] $ swapSub splitSub state
 				_ -> case asPattern next :: Maybe CharClass of
 					Just CharClass{..} | CC.has (Text.head literal) ranges negate -> do
 						let splitSub = next : SomePattern (Literal (Text.tail literal)) : tail state.rest.sub
-						PC.accept [next] $ swapSub splitSub state
+						PatternComparator.accept [next] $ swapSub splitSub state
 					_ | maybe False (const True) (asPattern next :: Maybe Space)
 						&& maybe False (isSpace . fst) (Text.uncons literal) -> do
 							let splitSub = next : SomePattern (Literal (Text.dropWhile isSpace literal)) : tail state.rest.sub
-							PC.accept [next] $ swapSub splitSub state
+							PatternComparator.accept [next] $ swapSub splitSub state
 					_ -> Error $ Mismatch (SomePattern self) superP
 
 instance Messagable Literal where

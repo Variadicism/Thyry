@@ -23,7 +23,6 @@ import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/\>), (>-\>))
 import Beng.Parse.Parsers.Code (PrefixState(..), State(..))
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator ()
-import qualified Beng.Parse.Parsers.PatternComparator as PC
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Things (satisfies)
 import Beng.Types.Errors (Error(..), Fallible)
@@ -100,7 +99,7 @@ compareFromArg self@(ArgP Argument{..}) = msgArg name argType ++ " comparator" @
 				Just (ArgP arg) <- (asPattern nextSuper :: Maybe ArgP),
 				not (state.checkArgTypes &&
 					hasError ((state.test, argType) `satisfiesDuring` arg.argType)) ->
-			PC.accept [nextSuper] state
+			PatternComparator.accept [nextSuper] state
 		nextSuper:superLeft -> Error $ Mismatch (SomePattern self) $ P.Populace nextSuper superLeft
 
 instance Eq ArgP where

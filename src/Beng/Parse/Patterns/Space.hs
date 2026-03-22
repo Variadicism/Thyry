@@ -13,7 +13,6 @@ import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Parsers ((@>), (@+>), (>|>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
-import qualified Beng.Parse.Parsers.PatternComparator as PC
 import {-# SOURCE #-} Beng.Parse.Patterns (asPattern)
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Parsers.Code (PrefixState(..))
@@ -67,10 +66,10 @@ parseSpace _ = "space pattern" @+> parseBoundary >|> parseSpaces where
 compareFromSpace :: Space -> PatternComparator.Parser
 compareFromSpace _ = "space comparator" @> \state -> case state.rest.super of
 	[] -> case tail state.rest.sub of
-		[] -> PC.accept [] state
+		[] -> PatternComparator.accept [] state
 		_ -> Error $ Mismatch (SomePattern Space) $ P.assume state.rest.sub
 	(nextSuper:_) | maybe False (const True) (asPattern nextSuper :: Maybe Space) ->
-		PC.accept [SomePattern Space] state
+		PatternComparator.accept [SomePattern Space] state
 	nextSuper:superLeft -> Error $ Mismatch (SomePattern Space) $ P.Populace nextSuper superLeft
 
 instance Messagable Space where

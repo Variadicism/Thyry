@@ -19,7 +19,6 @@ import qualified Utils.Populace as P
 import Beng.Errors (parseError)
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>:>))
 import qualified Beng.Parse.Parsers.Code as Code
-import qualified Beng.Parse.Parsers.PatternComparator as PC
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Types.Parse.Matches (Match)
 import qualified Beng.Types.Parse.Matches as Match
@@ -83,16 +82,16 @@ compareFromCharClass self@CharClass{..} = showClass ranges negate ++ " comparato
 			case asPattern next :: Maybe CharClass of
 				Just cc ->
 					if Prelude.all (\c -> has c cc.ranges cc.negate) $ enumerate ranges
-						then PC.accept [next] state
+						then PatternComparator.accept [next] state
 						else Error $ Mismatch (SomePattern self) superP
 				Nothing -> case asPattern next :: Maybe Literal of
 					Just (Literal literal) | not (Text.null literal) && has (Text.head literal) ranges negate ->
-						PC.accept [next] state
+						PatternComparator.accept [next] state
 					Just (Literal literal) | Text.null literal ->
-						state >>> ("skip empty literal for " ++ showClass ranges negate @> PC.accept [next]) >:>
+						state >>> ("skip empty literal for " ++ showClass ranges negate @> PatternComparator.accept [next]) >:>
 							compareFromCharClass self >\> const ()
 					_ | maybe False (const True) (asPattern next :: Maybe Space) && any isSpace ranges negate ->
-						PC.accept [next] state
+						PatternComparator.accept [next] state
 					_ -> Error $ Mismatch (SomePattern self) superP
 
 instance Eq CharClass where

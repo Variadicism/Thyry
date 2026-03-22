@@ -14,7 +14,6 @@ import qualified Beng.Types.Parse.Matches as Match
 import Beng.Parse.Parsers ((@>), (@+>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
-import qualified Beng.Parse.Parsers.PatternComparator as PC
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Patterns (
@@ -44,7 +43,7 @@ compareFromDelimited self@Delimited{..} = show delimitend ++ " by " ++ show deli
 			sequence [
 				(state, nextSuper.delimitend) `internallySatisfies` delimitend,
 				(state, nextSuper.delimiter) `internallySatisfies` delimiter]
-			PC.accept [next] state
+			PatternComparator.accept [next] state
 		nextSuper:superLeft -> Error $ Mismatch (SomePattern self) $ P.Populace nextSuper superLeft
 
 instance Eq Delimited where
