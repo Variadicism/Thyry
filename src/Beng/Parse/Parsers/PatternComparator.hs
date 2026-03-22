@@ -17,7 +17,7 @@ import Utils.Messaging (Messagable, msg, msgList)
 import qualified Utils.Populace as P
 import qualified Utils.Populace.Populace2 as P2
 
-import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>:>), parseAny)
+import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>:>), (>|>), parseAny)
 import {-# SOURCE #-} qualified Beng.Parse.Parsers as Parser
 import Beng.Build.TypeTest (TypeTest)
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
@@ -72,7 +72,9 @@ takeAs1 parsed target state =
 		Parser.Parse {
 			parsed,
 			target,
-			state = state{ rest = Comparison{
+			state = state{
+				atStart = False,
+				rest = Comparison{
 				sub = drop (length parsed.sub) state.rest.sub,
 				super }}}
 
@@ -89,6 +91,7 @@ startState :: Bool -> TypeTest -> SomePattern -> SomePattern -> ComparatorState
 startState checkArgTypes test super sub =
 	ComparatorState {
 		indentation = 0,
+		atStart = True,
 		rest = Comparison { sub = flat sub, super = flat super },
 		checkArgTypes,
 		test }
@@ -123,7 +126,7 @@ internallySatisfies (state, super) sub = swapSub [sub] (swapSuper [super] state)
 
 comparator :: Parser
 comparator = do
-	let comparator' = "pattern comparator" @> \state -> do
+	let comparator' ignoreOptional = "pattern comparator" @> \state -> do
 		let isNamedText = maybe False (const True) . (TPattern.asPattern :: SomePattern -> Maybe NamedText)
 		let isOr = maybe False (const True) . (TPattern.asPattern :: SomePattern -> Maybe Or)
 		let asAnd = TPattern.asPattern :: SomePattern -> Maybe And
@@ -151,5 +154,10 @@ comparator = do
 				swapSuper (nt.subpattern:superLeft) state >>> comparator
 			(nextSuper:superLeft, _) | Just (Literal "") <- asLiteral nextSuper ->
 				swapSuper superLeft state >>> comparator
+			(nextSuper:superLeft, _)
+				| Pattern.isOptional nextSuper && not state.atStart && not ignoreOptional -> do
+				let skipThenCompare = "skipping optional " ++ show nextSuper @> \state' ->
+					swapSuper superLeft state' >>> comparator
+				state >>> comparator' True >|> skipThenCompare
 			(_, nextSub:_) -> state >>> compareFromPattern nextSub
-	comparator'
+	comparator' False

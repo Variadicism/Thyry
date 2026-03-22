@@ -60,6 +60,7 @@ data Comparison = Comparison {
 
 data ComparatorState = ComparatorState {
 	indentation :: Int,
+	atStart :: Bool,
 	rest :: Comparison,
 	checkArgTypes :: Bool,
 	test :: TypeTest }
