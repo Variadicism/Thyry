@@ -21,18 +21,20 @@ import Beng.Types.Parse.Patterns (Comparison(..), ComparatorState(..), Mismatch(
 
 import qualified Data.Map.Ordered as OrderedMap
 import Data.List (intercalate)
+import qualified Data.Set as Set
 
 parseOr :: Or -> Code.Parser Match
 parseOr (Or subpatterns) = show (length subpatterns) ++ " possible patterns" @+>
-	(parseAny $ P2.toP1 $ P2.mapIndexed parserForSubpattern subpatterns)
-	where
-		parserForSubpattern matchIndex pattern =
-			Pattern.parse pattern >\> \match -> do
-				let missedSubpatterns = removeAt matchIndex subpatterns.l
-				let misses = OMap.values $
-					OrderedMap.filter (\k _ -> k `OrderedMap.notMember` Match.getArgs match) $
-					OMap.concat $ map Pattern.getArgs missedSubpatterns
-				Match.Or { match, matchIndex, misses }
+	parseAny (P2.toP1 $ P2.mapIndexed (parserForSubpattern subpatterns) subpatterns)
+
+parserForSubpattern :: P2.Populace2 Pattern.SomePattern -> Int -> Pattern.SomePattern -> Code.Parser Match
+parserForSubpattern subpatterns matchIndex pattern =
+	Pattern.parse pattern >\> \match -> do
+		let missedSubpatterns = removeAt matchIndex subpatterns.l
+		let misses = OMap.values $
+			OrderedMap.filter (\k _ -> k `OrderedMap.notMember` Match.getArgs match) $
+			OMap.concat $ map Pattern.getArgs missedSubpatterns
+		Match.Or { match, matchIndex, misses }
 
 compareFromOr :: Or -> PatternComparator.Parser
 compareFromOr self@(Or subpatterns) = show (length subpatterns) ++ " possible pattern comparator" @> \state ->
@@ -61,6 +63,9 @@ instance TPattern.Pattern Or where
 	mustHaveSuffix (Or subpatterns) = all Pattern.mustHaveSuffix subpatterns.l
 	canHavePrefix (Or subpatterns) = any Pattern.canHavePrefix subpatterns.l
 	canHaveSuffix (Or subpatterns) = any Pattern.canHaveSuffix subpatterns.l
+	canMatchEmpty (Or subpatterns) = any Pattern.canMatchEmpty subpatterns.l
+	startingSpaceStates (Or subpatterns) =
+		foldl Set.union mempty $ map Pattern.startingSpaceStates subpatterns.l
 	isOptional (Or subpatterns) = any Pattern.isOptional subpatterns.l
 	getArgsUsing getArgs (Or subpatterns) = OMap.map fst $ Pattern.getOrArgsUsing getArgs subpatterns
 

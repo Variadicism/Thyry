@@ -20,12 +20,16 @@ import qualified Utils.Populace.Populace2 as P2
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>:>), (>|>), parseAny)
 import {-# SOURCE #-} qualified Beng.Parse.Parsers as Parser
 import Beng.Build.TypeTest (TypeTest)
-import {-# SOURCE #-} Beng.Parse.Patterns (asPattern, isOptional)
+import {-# SOURCE #-} Beng.Parse.Patterns (asPattern, isOptional, startingSpaceStates)
+import qualified Beng.Types.Parse.Parsers.Code as Code
 import Beng.Types.Parse.Parsers.PatternComparator (Comparison(..), Parse, ParseRunner, Parser, Parses)
-import Beng.Types.Parse.Patterns (And(..), ComparatorState(..), Literal(..), Mismatch(..), NamedText(..), Or(..), SomePattern(..))
+import Beng.Types.Parse.Patterns (And(..), ComparatorState(..), Literal(..), Mismatch(..), NamedText(..), Or(..), SomePattern(..), Space(..))
 import qualified Beng.Types.Parse.Patterns as TPattern
 
+import Control.Applicative ((<|>))
 import Data.List (isPrefixOf)
+import qualified Data.Set as Set
+import qualified Data.Text.Lazy as Text
 
 deriving instance Eq Comparison
 deriving instance Eq ComparatorState
@@ -54,6 +58,28 @@ instance Messagable ComparatorState where
 instance Show ComparatorState where
 	show ComparatorState{..} = show rest ++ " at depth " ++ show indentation
 
+spaceStateOfLiteral :: SomePattern -> Maybe Code.SpaceState
+spaceStateOfLiteral pattern = do
+	Literal literal <- asPattern pattern
+	if Text.null literal
+		then Nothing
+		else Just $ Code.spaceStateOfChar $ Text.last literal
+
+comparisonSpaceState :: Comparison -> Maybe Code.SpaceState
+comparisonSpaceState Comparison{..} = do
+	let ofPatterns patterns = foldl (\acc pattern -> acc <|> spaceStateOfLiteral pattern) Nothing $ reverse patterns
+	ofPatterns sub <|> ofPatterns super
+
+canSatisfyBoundaryBefore :: ComparatorState -> [SomePattern] -> Bool
+canSatisfyBoundaryBefore state = \case
+	next:_ -> do
+		let states = startingSpaceStates next
+		not (Set.null states) && all (Code.formsBoundary state.spaceState) states
+	[] -> False
+
+canConsumeWhitespace :: SomePattern -> Bool
+canConsumeWhitespace = Set.member Code.Space . startingSpaceStates
+
 flat :: SomePattern -> [SomePattern]
 flat pattern = case asPattern pattern of
 	Just (And subpatterns) -> subpatterns.l
@@ -74,6 +100,7 @@ takeAs1 parsed target state =
 			target,
 			state = state{
 				atStart = False,
+				spaceState = maybe state.spaceState id $ comparisonSpaceState parsed,
 				rest = Comparison{
 				sub = drop (length parsed.sub) state.rest.sub,
 				super }}}
@@ -92,6 +119,7 @@ startState checkArgTypes test super sub =
 	ComparatorState {
 		indentation = 0,
 		atStart = True,
+		spaceState = Code.Space,
 		rest = Comparison { sub = flat sub, super = flat super },
 		checkArgTypes,
 		test }
@@ -129,35 +157,57 @@ comparator = do
 	let comparator' ignoreOptional = "pattern comparator" @> \state -> do
 		let isNamedText = maybe False (const True) . (asPattern :: SomePattern -> Maybe NamedText)
 		let isOr = maybe False (const True) . (asPattern :: SomePattern -> Maybe Or)
+		let isSpacePattern = maybe False (const True) . (asPattern :: SomePattern -> Maybe Space)
 		let asAnd = asPattern :: SomePattern -> Maybe And
 		let asLiteral = asPattern :: SomePattern -> Maybe Literal
-
-		case (state.rest.super, state.rest.sub) of
-			([], []) -> acceptRest state
-			(super@(nextSuper:superLeft), []) ->
-				if all isOptional super
-					then acceptRest state
-					else Error $ LeftoverSuper $ P.Populace nextSuper superLeft
-			(nextSuper:superLeft, _) | Just (And subpatterns) <- asAnd nextSuper ->
-				swapSuper (subpatterns.l ++ superLeft) state >>> comparator
-			(nextSuper:superLeft, sub)
-				| Just (Or subpatterns) <- (asPattern nextSuper :: Maybe Or)
-				, null sub || not (isOr $ head sub) -> do
-				let parserFor i option =
-					"possible super pattern " ++ show (i + 1) ++ "/" ++ show (length subpatterns) ++
-							" " ++ show option @> \state' ->
-						swapSuper (option:superLeft) state' >>> comparator
-				state >>> (parseAny $ P2.toP1 $ P2.mapIndexed parserFor subpatterns)
-			(nextSuper:superLeft, sub)
-				| Just nt@NamedText{} <- (asPattern nextSuper :: Maybe NamedText)
-				, null sub || not (isNamedText $ head sub) ->
-				swapSuper (nt.subpattern:superLeft) state >>> comparator
-			(nextSuper:superLeft, _) | Just (Literal "") <- asLiteral nextSuper ->
-				swapSuper superLeft state >>> comparator
-			(nextSuper:superLeft, _)
-				| isOptional nextSuper && not state.atStart && not ignoreOptional -> do
+		let continueOrCompare nextSuper superLeft = if isOptional nextSuper && not state.atStart && not ignoreOptional then do
 				let skipThenCompare = "skipping optional " ++ show nextSuper @> \state' ->
 					swapSuper superLeft state' >>> comparator
 				state >>> comparator' True >|> skipThenCompare
+			else case state.rest.sub of
+				nextSub:_ -> state >>> compareFromPattern nextSub
+				[] -> error "Pattern comparator reached continueOrCompare without a remaining subpattern."
+
+		case (state.rest.super, state.rest.sub) of
+			([], []) -> acceptRest state
+			(super@(nextSuper:superLeft), []) -> if all isOptional super then
+				acceptRest state
+			else
+				Error $ LeftoverSuper $ P.Populace nextSuper superLeft
+			(nextSuper:superLeft, sub) -> case asAnd nextSuper of
+				Just (And subpatterns) ->
+					swapSuper (subpatterns.l ++ superLeft) state >>> comparator
+				Nothing -> case asPattern nextSuper :: Maybe Or of
+					Just (Or subpatterns) -> if null sub || not (isOr $ head sub) then do
+							let parserFor i option =
+								"possible super pattern " ++ show (i + 1) ++ "/" ++ show (length subpatterns) ++
+										" " ++ show option @> \state' ->
+									swapSuper (option:superLeft) state' >>> comparator
+							state >>> parseAny (P2.toP1 $ P2.mapIndexed parserFor subpatterns)
+						else
+							state >>> compareFromPattern (head sub)
+					Nothing -> case asPattern nextSuper :: Maybe NamedText of
+						Just nt@NamedText{} -> if null sub || not (isNamedText $ head sub) then
+							swapSuper (nt.subpattern:superLeft) state >>> comparator
+						else
+							state >>> compareFromPattern (head sub)
+						Nothing -> case asLiteral nextSuper of
+							Just (Literal "") -> swapSuper superLeft state >>> comparator
+							_ -> case asPattern nextSuper :: Maybe Space of
+								Just Space -> do
+									let headSubIsSpace = not (null sub) && isSpacePattern (head sub)
+									let headSubConsumesWhitespace = not (null sub) && canConsumeWhitespace (head sub)
+									let canConsumeBoundary =
+										not headSubIsSpace &&
+										not headSubConsumesWhitespace &&
+										not state.atStart &&
+										canSatisfyBoundaryBefore state superLeft
+									if canConsumeBoundary then
+										state >>> ("consume boundary super Space" @>
+												takeAs Comparison { sub = [], super = [nextSuper] } ()) >:>
+											comparator >\> const ()
+									else
+										continueOrCompare nextSuper superLeft
+								Nothing -> continueOrCompare nextSuper superLeft
 			(_, nextSub:_) -> state >>> compareFromPattern nextSub
 	comparator' False

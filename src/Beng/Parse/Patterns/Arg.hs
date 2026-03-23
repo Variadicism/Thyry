@@ -30,6 +30,7 @@ import Beng.Types.Locations (Location)
 import qualified Beng.Types.Locations as Location
 import Beng.Types.Ops (Op(..))
 import Beng.Types.Ops.Declarations (Declaration(..))
+import qualified Beng.Types.Parse.Parsers.Code as SpaceState
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Patterns (ArgP(..), Argument(..), Comparison(..), ComparatorState(..), Mismatch(..), SomePattern(..))
 import Beng.Types.Things (Thing, Thing(OpValue), Thing(PreOpType))
@@ -39,6 +40,7 @@ import qualified Data.Map.Ordered as OMap
 import Data.Char (toLower)
 import Data.List.Extra (dropPrefix)
 import Control.Monad (when)
+import qualified Data.Set as Set
 
 showArg :: String -> Thing -> Location -> String
 showArg name argType decLoc = show decLoc ++ ":" ++ msgArg name argType
@@ -95,12 +97,13 @@ compareFromArg :: ArgP -> PatternComparator.Parser
 compareFromArg self@(ArgP Argument{..}) = msgArg name argType ++ " comparator" @> \state -> do
 	case state.rest.super of
 		[] -> Error $ LeftoverSub $ P.assume state.rest.sub
-		(nextSuper:_) |
-				Just (ArgP arg) <- (asPattern nextSuper :: Maybe ArgP),
-				not (state.checkArgTypes &&
-					hasError ((state.test, argType) `satisfiesDuring` arg.argType)) ->
-			PatternComparator.accept [nextSuper] state
-		nextSuper:superLeft -> Error $ Mismatch (SomePattern self) $ P.Populace nextSuper superLeft
+		nextSuper:superLeft -> case asPattern nextSuper :: Maybe ArgP of
+			Just (ArgP arg) -> if state.checkArgTypes &&
+					hasError ((state.test, argType) `satisfiesDuring` arg.argType) then
+				Error $ Mismatch (SomePattern self) $ P.Populace nextSuper superLeft
+			else
+				PatternComparator.accept [nextSuper] state
+			Nothing -> Error $ Mismatch (SomePattern self) $ P.Populace nextSuper superLeft
 
 instance Eq ArgP where
 	ArgP a1 == ArgP a2 = a1 == a2
@@ -121,6 +124,8 @@ instance TPattern.Pattern ArgP where
 	mustHaveSuffix _ = False
 	canHavePrefix _ = False
 	canHaveSuffix _ = False
+	canMatchEmpty _ = False
+	startingSpaceStates _ = Set.fromList [SpaceState.Word, SpaceState.Space, SpaceState.Punctuation]
 	isOptional _ = False
 	getArgsUsing _ (ArgP arg) = OMap.singleton (arg.name, arg)
 

@@ -5,11 +5,13 @@ import Utils.Messaging (Messagable)
 import Utils.Populace (Populace)
 
 import Beng.Types.Parse.Matches (Match)
+import qualified Beng.Types.Parse.Parsers.Code as Code
 import Beng.Types.Parse.Parsers.Code (Parser)
 import Beng.Types.Parse.Patterns (Argument, CharRange, Mismatch, Pattern, SomePattern)
 import Beng.Types.Build.TypeTest (TypeTest)
 
 import Data.Map.Ordered (OMap)
+import Data.Set (Set)
 
 instance Eq Mismatch
 instance Show Mismatch
@@ -39,5 +41,7 @@ canHavePrefix :: SomePattern -> Bool
 canHaveSuffix :: SomePattern -> Bool
 mustHavePrefix :: SomePattern -> Bool
 mustHaveSuffix :: SomePattern -> Bool
+canMatchEmpty :: SomePattern -> Bool
+startingSpaceStates :: SomePattern -> Set Code.SpaceState
 isOptional :: SomePattern -> Bool
 satisfies :: (TypeTest, SomePattern) -> SomePattern -> FallibleI Mismatch ()

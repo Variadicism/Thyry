@@ -32,7 +32,7 @@ import qualified Data.Map as Map
 import qualified Data.Map.Ordered as OMap
 
 canBeEmpty :: SomePattern -> Bool
-canBeEmpty = Pattern.isOptional
+canBeEmpty = Pattern.canMatchEmpty
 
 parseNamedText :: NamedText -> Code.Parser Match
 parseNamedText NamedText{..} = "named text " ++ wrap "\"" name @+>
@@ -46,12 +46,13 @@ parseNamedText NamedText{..} = "named text " ++ wrap "\"" name @+>
 compareFromNamedText :: NamedText -> PatternComparator.Parser
 compareFromNamedText NamedText{..} = "named text " ++ wrap "\"" name ++ " comparator" @> \state ->
 	case state.rest.super of
-		(next:superLeft) | Just nt@NamedText{} <- (asPattern next :: Maybe NamedText) ->
-			if nt.name == name then do
-				(state, nt.subpattern) `internallySatisfies` subpattern
-				PatternComparator.accept [next] state
-			else
-				Error $ Mismatch next $ P.Populace next superLeft
+		next:superLeft -> case asPattern next :: Maybe NamedText of
+			Just nt@NamedText{} -> if nt.name == name then do
+					(state, nt.subpattern) `internallySatisfies` subpattern
+					PatternComparator.accept [next] state
+				else
+					Error $ Mismatch next $ P.Populace next superLeft
+			Nothing -> state{ rest = state.rest{ sub = subpattern : tail state.rest.sub }} >>> comparator
 		_ -> state{ rest = state.rest{ sub = subpattern : tail state.rest.sub }} >>> comparator
 
 instance Eq NamedText where
@@ -72,6 +73,8 @@ instance TPattern.Pattern NamedText where
 	mustHaveSuffix = TPattern.mustHavePrefix
 	canHavePrefix _ = True
 	canHaveSuffix _ = True
+	canMatchEmpty NamedText{..} = Pattern.canMatchEmpty subpattern
+	startingSpaceStates NamedText{..} = Pattern.startingSpaceStates subpattern
 	isOptional NamedText{..} = Pattern.isOptional subpattern
 	getSubpatterns NamedText{..} = P.singleton subpattern
 	getArgsUsing getArgs NamedText{..} =

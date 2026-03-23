@@ -2,6 +2,8 @@
 
 This is the interpreter for the work in progress programming language, \English (pronounced "backslash English", nicknamed "Beng", pronounced like "bang").
 
+Project-specific agent and style guidance lives in `AGENTS.md`.
+
 ## Installation
 
 This program can be compiled with the [Glasgow Haskell Compiler (GHC)](https://www.haskell.org/ghc/).

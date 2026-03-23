@@ -34,8 +34,9 @@ import Beng.Types.Parse.Patterns (
 	SomePattern(..),
 	Space(..))
 
-import Data.Char (isSpace)
+import Data.Char (isAlphaNum, isSpace)
 import Data.List (isPrefixOf, uncons)
+import qualified Data.Set as Set
 import qualified Data.Text.Lazy as Text
 
 specials = "{}]-"
@@ -63,15 +64,16 @@ showClass ranges negate = do
 	"[" ++ (if negate then "^" else "") ++ contentsEscaped ++ "]"
 
 parseCharClass :: CharClass -> Code.Parser Match
-parseCharClass CharClass{..} = "parse " ++ shown @> \state ->
-	case Text.uncons state.rest of
-		Nothing -> Error $ parseError state $ shown ++ " was expected, but the end was reached!"
-		Just (firstChar, _) ->
-			if has firstChar ranges negate
-				then Code.takeAs (Text.singleton firstChar) (Match.CharClass firstChar) state
-				else Error $ parseError state $
+parseCharClass CharClass{..} = do
+	let shown = showClass ranges negate
+	"parse " ++ shown @> \state ->
+		case Text.uncons state.rest of
+			Nothing -> Error $ parseError state $ shown ++ " was expected, but the end was reached!"
+			Just (firstChar, _) -> if has firstChar ranges negate then
+				Code.takeAs (Text.singleton firstChar) (Match.CharClass firstChar) state
+			else
+				Error $ parseError state $
 					shown ++ " was expected, but '" ++ [firstChar] ++ "' was found!"
-	where shown = showClass ranges negate
 
 compareFromCharClass :: CharClass -> PatternComparator.Parser
 compareFromCharClass self@CharClass{..} = showClass ranges negate ++ " comparator" @> \state -> do
@@ -79,20 +81,25 @@ compareFromCharClass self@CharClass{..} = showClass ranges negate ++ " comparato
 		Nothing -> Error $ LeftoverSub $ P.assume state.rest.sub
 		Just (next, superLeft) -> do
 			let superP = P.Populace next superLeft
+			let compareAgainstSpace = case asPattern next :: Maybe Space of
+				Just Space -> if any isSpace ranges negate
+					then PatternComparator.accept [next] state
+					else Error $ Mismatch (SomePattern self) superP
+				Nothing -> Error $ Mismatch (SomePattern self) superP
 			case asPattern next :: Maybe CharClass of
-				Just cc ->
-					if Prelude.all (\c -> has c cc.ranges cc.negate) $ enumerate ranges
-						then PatternComparator.accept [next] state
-						else Error $ Mismatch (SomePattern self) superP
+				Just cc -> if Prelude.all (\c -> has c cc.ranges cc.negate) $ enumerate ranges then
+					PatternComparator.accept [next] state
+				else
+					Error $ Mismatch (SomePattern self) superP
 				Nothing -> case asPattern next :: Maybe Literal of
-					Just (Literal literal) | not (Text.null literal) && has (Text.head literal) ranges negate ->
-						PatternComparator.accept [next] state
-					Just (Literal literal) | Text.null literal ->
+					Just (Literal literal) -> if Text.null literal then
 						state >>> ("skip empty literal for " ++ showClass ranges negate @> PatternComparator.accept [next]) >:>
 							compareFromCharClass self >\> const ()
-					_ | maybe False (const True) (asPattern next :: Maybe Space) && any isSpace ranges negate ->
+					else if has (Text.head literal) ranges negate then
 						PatternComparator.accept [next] state
-					_ -> Error $ Mismatch (SomePattern self) superP
+					else
+						compareAgainstSpace
+					Nothing -> compareAgainstSpace
 
 instance Eq CharClass where
 	a == b = a.ranges == b.ranges && a.negate == b.negate
@@ -111,7 +118,18 @@ instance TPattern.Pattern CharClass where
 	mustHaveSuffix _ = True
 	canHavePrefix _ = True
 	canHaveSuffix _ = True
+	canMatchEmpty _ = False
+	startingSpaceStates CharClass{..} = do
+		let values = enumerate ranges
+		Set.fromList $
+			Prelude.filter (\state -> Prelude.any (hasState state) values) [Code.Space, Code.Word, Code.Punctuation]
 	isOptional _ = False
 
 parse :: CharClass -> Code.Parser Match
 parse = parseCharClass
+
+hasState :: Code.SpaceState -> Char -> Bool
+hasState state c = case state of
+	Code.Space -> isSpace c
+	Code.Word -> isAlphaNum c
+	Code.Punctuation -> not (isSpace c || isAlphaNum c)

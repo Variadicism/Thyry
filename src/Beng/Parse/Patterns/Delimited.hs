@@ -39,12 +39,13 @@ compareFromDelimited :: Delimited -> PatternComparator.Parser
 compareFromDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter ++ " comparator" @> \state -> do
 	case state.rest.super of
 		[] -> Error $ LeftoverSub $ P.assume state.rest.sub
-		(next:_) | Just nextSuper@Delimited{} <- (asPattern next :: Maybe Delimited) -> do
-			sequence [
-				(state, nextSuper.delimitend) `internallySatisfies` delimitend,
-				(state, nextSuper.delimiter) `internallySatisfies` delimiter]
-			PatternComparator.accept [next] state
-		nextSuper:superLeft -> Error $ Mismatch (SomePattern self) $ P.Populace nextSuper superLeft
+		next:superLeft -> case asPattern next :: Maybe Delimited of
+			Just nextSuper@Delimited{} -> do
+				sequence [
+					(state, nextSuper.delimitend) `internallySatisfies` delimitend,
+					(state, nextSuper.delimiter) `internallySatisfies` delimiter]
+				PatternComparator.accept [next] state
+			Nothing -> Error $ Mismatch (SomePattern self) $ P.Populace next superLeft
 
 instance Eq Delimited where
 	a == b = a.delimiter == b.delimiter && a.delimitend == b.delimitend
@@ -66,10 +67,12 @@ instance TPattern.Pattern Delimited where
 	mustHaveSuffix Delimited{..} = Pattern.mustHaveSuffix delimitend
 	canHavePrefix Delimited{..} = Pattern.canHavePrefix delimiter || Pattern.canHavePrefix delimitend
 	canHaveSuffix Delimited{..} = Pattern.canHaveSuffix delimiter || Pattern.canHaveSuffix delimitend
+	canMatchEmpty Delimited{..} = Pattern.canMatchEmpty delimitend
+	startingSpaceStates Delimited{..} = Pattern.startingSpaceStates delimitend
 	isOptional Delimited{..} = Pattern.isOptional delimitend
-	getArgsUsing getArgs Delimited{..} =
+	getArgsUsing getArgs Delimited{..} = do
 		let wrapTypes wrapper = OMap.map (\p -> p{ argType = wrapper p.argType })
-		in wrapTypes NativeSomeType (getArgs delimiter) <>| wrapTypes NativeListType (getArgs delimitend)
+		wrapTypes NativeSomeType (getArgs delimiter) <>| wrapTypes NativeListType (getArgs delimitend)
 
 parse :: Delimited -> Code.Parser Match
 parse = parseDelimited

@@ -12,6 +12,8 @@ module Beng.Parse.Patterns (
 	mustHaveSuffix,
 	canHavePrefix,
 	canHaveSuffix,
+	canMatchEmpty,
+	startingSpaceStates,
 	isOptional,
 	satisfies,
 	module Beng.Types.Parse.Patterns
@@ -61,6 +63,7 @@ import Beng.Types.Things (Thing(..))
 import Data.Map.Ordered (OMap)
 import qualified Data.Map.Ordered as OMap
 import qualified Data.Set as Set
+import Data.Set (Set)
 import Data.Typeable (cast)
 
 specials = ".{}[] "
@@ -226,6 +229,12 @@ canHavePrefix (SomePattern p) = TPattern.canHavePrefix p
 
 canHaveSuffix :: SomePattern -> Bool
 canHaveSuffix (SomePattern p) = TPattern.canHaveSuffix p
+
+canMatchEmpty :: SomePattern -> Bool
+canMatchEmpty (SomePattern p) = TPattern.canMatchEmpty p
+
+startingSpaceStates :: SomePattern -> Set Code.SpaceState
+startingSpaceStates (SomePattern p) = TPattern.startingSpaceStates p
 
 isOptional :: SomePattern -> Bool
 isOptional (SomePattern p) = TPattern.isOptional p

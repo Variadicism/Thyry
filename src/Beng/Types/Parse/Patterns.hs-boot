@@ -8,6 +8,7 @@ import Utils.Populace (Populace)
 import qualified Utils.Populace as P
 
 import qualified Data.Map.Ordered as OMap
+import Data.Set (Set)
 import Data.Typeable (Typeable)
 import Beng.Types.Parse.Matches (Match)
 import Beng.Types.Parse.PatternArguments (Arguments)
@@ -43,6 +44,9 @@ class (Eq p, Show p, Messagable p, Typeable p) => Pattern p where
 	mustHaveSuffix :: p -> Bool
 	canHavePrefix :: p -> Bool
 	canHaveSuffix :: p -> Bool
+	canMatchEmpty :: p -> Bool
+	startingSpaceStates :: p -> Set Code.SpaceState
+	startingSpaceStates _ = mempty
 	isOptional :: p -> Bool
 	hasArgs :: p -> Bool
 	hasArgs = not . OMap.null . getArgs

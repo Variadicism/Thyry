@@ -33,10 +33,12 @@ import Beng.Types.Locations (Location)
 import Beng.Types.Parse.Matches (Match)
 import Beng.Types.Parse.PatternArguments (Argument(..), Arguments)
 import qualified Beng.Types.Parse.Parsers.Code as Code
+import Beng.Types.Parse.Parsers.Code (SpaceState)
 import Beng.Types.Build.TypeTest (TypeTest)
 import qualified Beng.Types.Parse.Parsers as General
 
 import qualified Data.Map.Ordered as OMap
+import Data.Set (Set)
 import Data.Text.Lazy (Text)
 import Data.Typeable (Typeable)
 
@@ -58,6 +60,7 @@ data ComparatorState = ComparatorState {
 	indentation :: Int,
 	-- Temporary comparator heuristic to distinguish leading optionals from interior ones.
 	atStart :: Bool,
+	spaceState :: SpaceState,
 	rest :: Comparison,
 	checkArgTypes :: Bool,
 	test :: TypeTest }
@@ -100,6 +103,9 @@ class (Eq p, Show p, Messagable p, Typeable p) => Pattern p where
 	mustHaveSuffix :: p -> Bool
 	canHavePrefix :: p -> Bool
 	canHaveSuffix :: p -> Bool
+	canMatchEmpty :: p -> Bool
+	startingSpaceStates :: p -> Set Code.SpaceState
+	startingSpaceStates _ = mempty
 	isOptional :: p -> Bool
 
 	hasArgs :: p -> Bool

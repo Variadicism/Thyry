@@ -6,8 +6,7 @@ import Utils.Testing
 
 import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, assertDoesNotSatisfy)
 
-import Beng.Build.Context.Builders (c, cr, e, l, optional, patConcat)
-import Beng.Types.Parse.Patterns (SomePattern(..), Space(..))
+import Beng.Build.Context.Builders (c, cr, e, l, s, optional, patConcat)
 
 testLiteral :: TestCategory
 testLiteral = TestCategories "Literal sub" [
@@ -23,14 +22,19 @@ testLiteral = TestCategories "Literal sub" [
 		("satisfies", c [cr 'a' 'b'] `assertSatisfies` l "a"),
 		("does not satisfy", c [cr '0' '9'] `assertDoesNotSatisfy` l "a") ],
 	PureTests "Space super" [
-		("satisfies", patConcat [SomePattern Space, l "test"] `assertSatisfies` l " test"),
-		("err does not satisfy", patConcat [SomePattern Space, l "test"] `assertDoesNotSatisfy` l "test") ],
+		("satisfies", patConcat [s, l "test"] `assertSatisfies` l " test"),
+		("err does not satisfy", patConcat [s, l "test"] `assertDoesNotSatisfy` l "test") ],
 	PureTests "optional super sequence" [
 		("skips optional middle", patConcat [l "a", optional (l "b"), l "c"] `assertSatisfies` l "ac"),
 		("matches optional middle", patConcat [l "a", optional (l "b"), l "c"] `assertSatisfies` l "abc") ],
 	PureTests "direct optional super sequence" [
-		-- TODO: The test below SHOULD FAIL!! We found this in a refactor, but it's a preexisting issue. Fix!
-		("Space middle", patConcat [l "a", SomePattern Space, l "c"] `assertSatisfies` l "ac"),
+		("Space middle", patConcat [l "a", s, l "c"] `assertDoesNotSatisfy` l "ac"),
+		("Space boundary and whitespace",
+			patConcat [l "a", s, l "/", s, l "c"] `assertSatisfies` l "a /c"),
+		("Space boundary before letters CharClass",
+			patConcat [l "a", s, l "/", s, c [cr 'a' 'z', cr 'A' 'Z']] `assertSatisfies` l "a /c"),
+		("Space boundary before mixed CharClass",
+			patConcat [l "a", s, l "/", s, c [cr 'a' 'z', cr 'A' 'Z', cr '-' '-']] `assertDoesNotSatisfy` l "a /c"),
 		("empty Literal middle", patConcat [l "a", e, l "c"] `assertSatisfies` l "ac") ],
 	PureTests "disparate" [
-		("Space", assertDoesNotSatisfy (SomePattern Space) (l "if")) ]]]
+		("Space", assertDoesNotSatisfy s (l "if")) ]]]

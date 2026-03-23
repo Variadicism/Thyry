@@ -1,6 +1,8 @@
 module Beng.Types.Parse.Parsers.Code (
 	PrefixState(..),
 	SpaceState(..),
+	spaceStateOfChar,
+	formsBoundary,
 	State(..),
 	-- I can't import the general types' fields without importing the types themselves and creating ambiguity.
 	-- So, I'll have to import and re-export all fields for these types aliases one by one. >:(
@@ -20,6 +22,7 @@ import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Parse.Parsers hiding (Parse, Parses, ParseRunner, Parser, State)
 import qualified Beng.Types.Parse.Parsers as General
 
+import Data.Char (isAlphaNum, isSpace)
 import Data.Map as Map
 import Data.Text.Lazy (Text)
 
@@ -37,7 +40,17 @@ data PrefixState = Needed | Unneeded | AvoidingFor { firstArg :: Op }
    - a whitespace character (satisfying the parse already), or
    - a non-word non-space character (requiring a word character next).  -}
 data SpaceState = Word | Space | Punctuation
-	deriving (Eq, Show)
+	deriving (Eq, Ord, Show)
+
+spaceStateOfChar :: Char -> SpaceState
+spaceStateOfChar c
+	| isSpace c = Space
+	| isAlphaNum c = Word
+	| otherwise = Punctuation
+
+formsBoundary :: SpaceState -> SpaceState -> Bool
+formsBoundary prevState nextState =
+	prevState == Space || (prevState == Word) /= (nextState == Word)
 
 data State = State {
 	location :: FileLocation,
