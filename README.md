@@ -1,6 +1,7 @@
 # BengI
 
 `BengI` is an interpreter for Thyrym, formerly called Beng: a pure functional programming language with some unusual characteristics:
+
 * a context-aware grammar
 * a statically duck-typed type system
 * types as first-class objects
@@ -20,7 +21,7 @@ This repository is still a work in progress. The current interpreter already dem
 
 - [GHC](https://www.haskell.org/ghc/)
 - [cabal-install](https://www.haskell.org/cabal/)
-- A local checkout of the unpublished `Utils` package used by this repository
+- A local checkout of the unpublished [`Utils` package](https://bitbucket.org/Variadicism/haskell-utils/src/main/) used by this repository
 
 ## Setup
 
@@ -28,36 +29,23 @@ This project depends on an unpublished `Utils` package, so cloning this reposito
 
 1. Clone this repository.
 1. Clone the `Utils` repository somewhere on the same machine.
-1. Create a `cabal.project` file in this repository if you do not already have one.
-1. Add both the `Utils` checkout and this repository to `packages:`.
+1. Add the path to `Utils` and the current path (`.`) to the list of packages in your `cabal.project` file in the project root directory. (If you do not have one, create it.)
 
 Example:
 
 ```cabal
 packages:
   .
-  ../Utils
+  ../Variadilib/Utils
 ```
 
-Adjust `../Utils` to the actual path of your local `Utils` checkout.
-
 ## Build
-
-Use standard Cabal commands:
 
 ```bash
 cabal build
 ```
 
-If you want the executable specifically:
-
-```bash
-cabal build exe:BengI
-```
-
 ## Test
-
-Use standard Cabal test commands:
 
 ```bash
 cabal test
@@ -69,7 +57,7 @@ The Cabal file currently defines these test suites:
 - `build-test`
 - `run-test`
 
-You can also run one suite at a time, for example:
+You can run one suite at a time like this:
 
 ```bash
 cabal test parse-test
