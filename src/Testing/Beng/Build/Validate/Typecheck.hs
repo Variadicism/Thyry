@@ -203,9 +203,11 @@ testTypecheck = TestCategories "typecheck" do
 		milleniumBabyDef,
 		milleniumBaby ]
 
-	let assertSatisfies super sub = mapError msg $ (context, super) `satisfies` sub
-	let assertDoesNotSatisfy super sub =
-		assertSatisfies super sub `hasErrorElse` "This should not have been satisfied!"
+	let assertSatisfies candidate requirement =
+		mapError msg $ (context, candidate) `satisfies` requirement
+	let assertDoesNotSatisfy candidate requirement =
+		assertSatisfies candidate requirement `hasErrorElse`
+			"This should not have been satisfied!"
 
 	[
 		PureTests "equal" [

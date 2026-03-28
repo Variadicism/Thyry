@@ -53,8 +53,8 @@ data Mismatch =
 	CompoundMismatch { context :: String, compound :: Populace Mismatch }
 
 data Comparison = Comparison {
-	sub :: [SomePattern],
-	super :: [SomePattern] }
+	candidate :: [SomePattern],
+	requirement :: [SomePattern] }
 
 data ComparatorState = ComparatorState {
 	indentation :: Int,

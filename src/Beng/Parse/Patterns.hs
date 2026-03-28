@@ -240,13 +240,18 @@ isOptional :: SomePattern -> Bool
 isOptional (SomePattern p) = TPattern.isOptional p
 
 satisfies :: (TypeTest, SomePattern) -> SomePattern -> FallibleI Mismatch ()
-(test, super) `satisfies` sub = do
+(test, requirement) `satisfies` candidate = do
 	let rejectIncompleteParses :: PC.Parses -> FallibleI Mismatch () = \parses -> do
-		let errIfIncomplete = \parseResult -> case (parseResult.state.rest.sub, parseResult.state.rest.super) of
+		let errIfIncomplete = \parseResult -> case
+			(parseResult.state.rest.candidate, parseResult.state.rest.requirement)
+			of
 			([], []) -> Falue ()
-			(nextSub:subLeft, []) -> Error $ LeftoverSub $ P.Populace nextSub subLeft
-			([], nextSuper:superLeft) -> Error $ LeftoverSuper $ P.Populace nextSuper superLeft
-			(nextSub:_, nextSuper:superLeft) -> Error $ Mismatch nextSub $ P.Populace nextSuper superLeft
+			(nextCandidate:candidateLeft, []) ->
+				Error $ LeftoverSub $ P.Populace nextCandidate candidateLeft
+			([], nextRequirement:requirementLeft) ->
+				Error $ LeftoverSuper $ P.Populace nextRequirement requirementLeft
+			(nextCandidate:_, nextRequirement:requirementLeft) ->
+				Error $ Mismatch nextCandidate $ P.Populace nextRequirement requirementLeft
 
 		let errorOfIncompletion = sequenceAny $ map errIfIncomplete parses.parses.l
 		case (errorOfIncompletion, parses.bestError) of
@@ -254,13 +259,14 @@ satisfies :: (TypeTest, SomePattern) -> SomePattern -> FallibleI Mismatch ()
 			(Error _, Just bestError) -> Error bestError
 			(Error incomplete, Nothing) -> Error incomplete
 
-	debugM $ "Testing pattern STRUCTURE:\n\tSuper: " ++ msg super ++ "\n\tSub: " ++ msg sub
-	let structuralStartState = PatternComparator.startState False test super sub
+	debugM $ "Testing pattern STRUCTURE:\n\tRequirement: " ++ msg requirement ++
+		"\n\tCandidate: " ++ msg candidate
+	let structuralStartState = PatternComparator.startState False test requirement candidate
 	structuralParses <- structuralStartState >>> PatternComparator.comparator
 	rejectIncompleteParses structuralParses
 
-	debugM $ "Satisfied pattern STRUCTURE; testing pattern ARG TYPES:\n\tSuper: " ++ msg super ++
-		"\n\tSub: " ++ msg sub
-	let argTypesCheckStartState = PatternComparator.startState True test super sub
+	debugM $ "Satisfied pattern STRUCTURE; testing pattern ARG TYPES:\n\tRequirement: " ++
+		msg requirement ++ "\n\tCandidate: " ++ msg candidate
+	let argTypesCheckStartState = PatternComparator.startState True test requirement candidate
 	argTypesParses <- argTypesCheckStartState >>> PatternComparator.comparator
 	rejectIncompleteParses argTypesParses

@@ -78,8 +78,8 @@ parseCharClass CharClass{..} = do
 
 compareAsSubCharClass :: CharClass -> PatternComparator.Parser
 compareAsSubCharClass self@CharClass{..} = showClass ranges negate ++ " comparator" @> \state -> do
-	case uncons state.rest.super of
-		Nothing -> Error $ LeftoverSub $ P.assume state.rest.sub
+	case uncons state.rest.requirement of
+		Nothing -> Error $ LeftoverSub $ P.assume state.rest.candidate
 		Just (next, superLeft) -> do
 			let superP = P.Populace next superLeft
 			let compareAgainstSpace = case asPattern next :: Maybe Space of

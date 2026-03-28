@@ -46,12 +46,12 @@ compareAsSubLiteral :: Literal -> PatternComparator.Parser
 compareAsSubLiteral self@(Literal literal) = show literal ++ " comparator" @> \state ->
 	if Text.null literal then
 		PatternComparator.accept [] state
-	else case state.rest.super of
-		[] -> Error $ LeftoverSub $ P.assume state.rest.sub
+	else case state.rest.requirement of
+		[] -> Error $ LeftoverSub $ P.assume state.rest.candidate
 		next:superLeft -> do
 			let superP = P.Populace next superLeft
-			let swapSub newSub s = s{ rest = s.rest{ sub = newSub }}
-			let swapSuper newSuper s = s{ rest = s.rest{ super = newSuper }}
+			let swapSub newSub s = s{ rest = s.rest{ candidate = newSub }}
+			let swapSuper newSuper s = s{ rest = s.rest{ requirement = newSuper }}
 			case asPattern next :: Maybe Literal of
 				Just (Literal superLiteral) -> if superLiteral == literal then
 					PatternComparator.accept [next] state
@@ -61,7 +61,8 @@ compareAsSubLiteral self@(Literal literal) = show literal ++ " comparator" @> \s
 					PatternComparator.accept [SomePattern self] $ swapSuper splitSuper state
 				else if superLiteral `Text.isPrefixOf` literal then do
 					let remainingSub = UtilsText.dropPrefix superLiteral literal
-					let splitSub = next : SomePattern (Literal remainingSub) : tail state.rest.sub
+					let splitSub = next : SomePattern (Literal remainingSub) :
+						tail state.rest.candidate
 					PatternComparator.accept [next] $ swapSub splitSub state
 				else
 					compareAgainstNonLiteral self literal next state superP swapSub
@@ -70,9 +71,9 @@ compareAsSubLiteral self@(Literal literal) = show literal ++ " comparator" @> \s
 compareAsSuperLiteral :: Literal -> PatternComparator.Parser
 compareAsSuperLiteral self@(Literal literal) = show literal ++ " super comparator" @> \state ->
 	if Text.null literal then
-		case state.rest.super of
+		case state.rest.requirement of
 			_:superLeft -> PatternComparator.swapSuper superLeft state >>> PatternComparator.comparator
-			[] -> case state.rest.sub of
+			[] -> case state.rest.candidate of
 				nextSub:subLeft -> Error $ LeftoverSub $ P.Populace nextSub subLeft
 				[] -> PatternComparator.acceptRest state
 	else
@@ -112,7 +113,8 @@ compareAgainstNonLiteral
 compareAgainstNonLiteral self literal next state superP swapSub =
 	case asPattern next :: Maybe CharClass of
 		Just CharClass{..} -> if CC.has (Text.head literal) ranges negate then do
-			let splitSub = next : SomePattern (Literal (Text.tail literal)) : tail state.rest.sub
+			let splitSub = next : SomePattern (Literal (Text.tail literal)) :
+				tail state.rest.candidate
 			PatternComparator.accept [next] $ swapSub splitSub state
 		else
 			compareAgainstSpace self literal next state superP swapSub
@@ -129,7 +131,8 @@ compareAgainstSpace
 compareAgainstSpace self literal next state superP swapSub =
 	case (asPattern next :: Maybe Space, Text.uncons literal) of
 		(Just Space, Just (firstChar, _)) -> if isSpace firstChar then do
-			let splitSub = next : SomePattern (Literal (Text.dropWhile isSpace literal)) : tail state.rest.sub
+			let splitSub = next : SomePattern (Literal (Text.dropWhile isSpace literal)) :
+				tail state.rest.candidate
 			PatternComparator.accept [next] $ swapSub splitSub state{ spaceState = SpaceState.Space }
 		else
 			Error $ Mismatch (SomePattern self) superP

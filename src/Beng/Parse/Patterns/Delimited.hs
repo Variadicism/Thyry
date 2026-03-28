@@ -38,8 +38,8 @@ parseDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter 
 
 compareAsSubDelimited :: Delimited -> PatternComparator.Parser
 compareAsSubDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter ++ " comparator" @> \state -> do
-	case state.rest.super of
-		[] -> Error $ LeftoverSub $ P.assume state.rest.sub
+	case state.rest.requirement of
+		[] -> Error $ LeftoverSub $ P.assume state.rest.candidate
 		next:superLeft -> case asPattern next :: Maybe Delimited of
 			Just nextSuper@Delimited{} -> do
 				sequence [

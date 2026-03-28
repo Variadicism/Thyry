@@ -41,18 +41,20 @@ parseAsP p = case p.tailTail of
 compareAsSubAnd :: And -> PatternComparator.Parser
 compareAsSubAnd self@(And subpatterns) =
 	show (length subpatterns) ++ " pattern comparator" @> \state ->
-		case state.rest.sub of
-			_:subLeft -> state{ rest = state.rest{ sub = subpatterns.l ++ subLeft }} >>> comparator
-			[] -> case state.rest.super of
+		case state.rest.candidate of
+			_:subLeft ->
+				state{ rest = state.rest{ candidate = subpatterns.l ++ subLeft }} >>> comparator
+			[] -> case state.rest.requirement of
 				next:superLeft -> Error $ Mismatch (Pattern.SomePattern self) $ P.Populace next superLeft
 				[] -> PatternComparator.acceptRest state
 
 compareAsSuperAnd :: And -> PatternComparator.Parser
 compareAsSuperAnd (And subpatterns) =
 	show (length subpatterns) ++ " super comparator" @> \state ->
-		case state.rest.super of
-			_:superLeft -> state{ rest = state.rest{ super = subpatterns.l ++ superLeft }} >>> comparator
-			[] -> case state.rest.sub of
+		case state.rest.requirement of
+			_:superLeft ->
+				state{ rest = state.rest{ requirement = subpatterns.l ++ superLeft }} >>> comparator
+			[] -> case state.rest.candidate of
 				nextSub:subLeft -> Error $ LeftoverSub $ P.Populace nextSub subLeft
 				[] -> PatternComparator.acceptRest state
 

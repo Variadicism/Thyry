@@ -45,17 +45,17 @@ parseNamedText NamedText{..} = "named text " ++ wrap "\"" name @+>
 
 compareAsSubNamedText :: NamedText -> PatternComparator.Parser
 compareAsSubNamedText NamedText{..} = "named text " ++ wrap "\"" name ++ " comparator" @> \state ->
-	case state.rest.sub of
-		_:subLeft -> case state.rest.super of
+	case state.rest.candidate of
+		_:subLeft -> case state.rest.requirement of
 			next:superLeft -> case asPattern next :: Maybe NamedText of
 				Just nt@NamedText{} -> if nt.name == name then do
 						(state, nt.subpattern) `internallySatisfies` subpattern
 						PatternComparator.accept [next] state
 					else
 						Error $ Mismatch next $ P.Populace next superLeft
-				Nothing -> state{ rest = state.rest{ sub = subpattern : subLeft }} >>> comparator
-			_ -> state{ rest = state.rest{ sub = subpattern : subLeft }} >>> comparator
-		[] -> case state.rest.super of
+				Nothing -> state{ rest = state.rest{ candidate = subpattern : subLeft }} >>> comparator
+			_ -> state{ rest = state.rest{ candidate = subpattern : subLeft }} >>> comparator
+		[] -> case state.rest.requirement of
 			next:superLeft -> do
 				let self = NamedText { name, subpattern, decLoc }
 				Error $ Mismatch (SomePattern self) $ P.Populace next superLeft
@@ -63,7 +63,7 @@ compareAsSubNamedText NamedText{..} = "named text " ++ wrap "\"" name ++ " compa
 
 compareAsSuperNamedText :: NamedText -> PatternComparator.Parser
 compareAsSuperNamedText nt@NamedText{..} = "named text " ++ wrap "\"" name ++ " super comparator" @> \state ->
-	case state.rest.sub of
+	case state.rest.candidate of
 		nextSub:_ -> case asPattern nextSub :: Maybe NamedText of
 			Just NamedText{} -> dispatchCurrentSub nextSub state
 			Nothing -> exposeSubpattern nt state
@@ -72,9 +72,10 @@ compareAsSuperNamedText nt@NamedText{..} = "named text " ++ wrap "\"" name ++ " 
 		dispatchCurrentSub (SomePattern pattern) state =
 			state >>> TPattern.compareAsSub pattern >:> comparator >\> const ()
 
-		exposeSubpattern NamedText{..} state = case state.rest.super of
-			_:superLeft -> state{ rest = state.rest{ super = subpattern:superLeft }} >>> comparator
-			[] -> case state.rest.sub of
+		exposeSubpattern NamedText{..} state = case state.rest.requirement of
+			_:superLeft ->
+				state{ rest = state.rest{ requirement = subpattern:superLeft }} >>> comparator
+			[] -> case state.rest.candidate of
 				nextSub:subLeft -> Error $ LeftoverSub $ P.Populace nextSub subLeft
 				[] -> PatternComparator.acceptRest state
 

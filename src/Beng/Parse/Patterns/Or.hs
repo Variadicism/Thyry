@@ -38,7 +38,7 @@ parserForSubpattern subpatterns matchIndex pattern =
 
 compareAsSubOr :: Or -> PatternComparator.Parser
 compareAsSubOr self@(Or subpatterns) = show (length subpatterns) ++ " possible pattern comparator" @> \state ->
-	case state.rest.super of
+	case state.rest.requirement of
 		[] -> Error $ LeftoverSub $ P.singleton $ SomePattern self
 		nextSuper:_ -> do
 			sequence $ P2.map ((state, nextSuper) `internallySatisfies`) subpatterns
@@ -46,7 +46,7 @@ compareAsSubOr self@(Or subpatterns) = show (length subpatterns) ++ " possible p
 
 compareAsSuperOr :: Or -> PatternComparator.Parser
 compareAsSuperOr (Or subpatterns) = show (length subpatterns) ++ " possible super comparator" @> \state ->
-	case state.rest.sub of
+	case state.rest.candidate of
 		nextSub:_ -> case Pattern.asPattern nextSub :: Maybe Or of
 			Just Or{} -> dispatchCurrentSub nextSub state
 			Nothing -> branchOptions state
@@ -56,14 +56,14 @@ compareAsSuperOr (Or subpatterns) = show (length subpatterns) ++ " possible supe
 			state >>> TPattern.compareAsSub pattern >:> PatternComparator.comparator >\> const ()
 
 		branchOptions state = do
-			case state.rest.super of
+			case state.rest.requirement of
 				_:superLeft -> do
 					let parserFor i option =
 							"possible super pattern " ++ show (i + 1) ++ "/" ++ show (length subpatterns) ++
 								" " ++ show option @> \state' ->
 									PatternComparator.swapSuper (option:superLeft) state' >>> PatternComparator.comparator
 					state >>> parseAny (P2.toP1 $ P2.mapIndexed parserFor subpatterns)
-				[] -> case state.rest.sub of
+				[] -> case state.rest.candidate of
 					nextSub:subLeft -> Error $ LeftoverSub $ P.Populace nextSub subLeft
 					[] -> PatternComparator.acceptRest state
 

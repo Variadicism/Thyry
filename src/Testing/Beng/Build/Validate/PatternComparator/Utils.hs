@@ -17,9 +17,10 @@ import Beng.Types.Things (Thing(One))
 type Pattern = SomePattern
 
 assertSatisfies :: Pattern -> Pattern -> Fallible ()
-assertSatisfies super sub = do
+assertSatisfies requirement candidate = do
 	 let test = TypeTest.fromContext mockNothing One One
-	 mapError msg $ (test, super) `satisfies` sub
+	 mapError msg $ (test, requirement) `satisfies` candidate
 
 assertDoesNotSatisfy :: Pattern -> Pattern -> Fallible ()
-assertDoesNotSatisfy super sub = assertSatisfies super sub `hasErrorElse` "This should not have passed!"
+assertDoesNotSatisfy requirement candidate =
+	assertSatisfies requirement candidate `hasErrorElse` "This should not have passed!"

@@ -26,14 +26,14 @@ import qualified Data.Set as Set
 -- private
 
 satisfiesProps :: (TypeTest, Thing) -> (Thing -> [Card]) -> FallibleI Mismatch ()
-satisfiesProps (test, super) propsWith = do
+satisfiesProps (test, candidate) propsWith = do
 	let checkProp prop = do
 		debugM $ "Testing satisfaction of prop: " ++ show prop ++ "..."
 
 		let propTest :: TypeTest = case prop of
 			DefCard _ -> do
 				-- Definitions can only fail if one of the other props obscures them.
-				let propsContext = C.fromThings [test.current.super]
+				let propsContext = C.fromThings [test.current.candidate]
 				debug ("Restricing test context to props for definition prop: " ++ show propsContext)
 					test{ ST.context = propsContext }
 			DecCard _ -> test
@@ -65,14 +65,15 @@ satisfiesProps (test, super) propsWith = do
 	   with its own type, not _all_ of the sub's type, e.g., if number declares
 	   'one' + 'one' as a property, int only needs to define 'int' + 'int' to satisfy
 	   number's type, not 'number' + 'number'. -}
-	void $ sequence $ map checkProp $ propsWith super
+	void $ sequence $ map checkProp $ propsWith candidate
 
 showContestUsing :: Bool -> Contest -> String
 showContestUsing useMsg Contest{..} = do
 	let nameOrPlain maybeName value = case maybeName of
 		Nothing -> show' value
 		Just name -> name ++ " := " ++ show' value
-	nameOrPlain superName super ++ " satisfies? " ++ nameOrPlain subName sub
+	nameOrPlain candidateName candidate ++ " satisfies? " ++
+		nameOrPlain requirementName requirement
 	where show' = if useMsg then msg else show
 
 showContestMultilineUsing :: String -> Bool -> Contest -> String
@@ -80,8 +81,8 @@ showContestMultilineUsing indent useMsg Contest{..} = do
 	let nameOrPlain maybeName value = case maybeName of
 		Nothing -> show' value
 		Just name -> name ++ " := " ++ show' value
-	"\n" ++ indent ++ "Super: " ++ nameOrPlain superName super ++
-		"\n" ++ indent ++ "Sub: " ++ nameOrPlain subName sub
+	"\n" ++ indent ++ "Candidate: " ++ nameOrPlain candidateName candidate ++
+		"\n" ++ indent ++ "Requirement: " ++ nameOrPlain requirementName requirement
 	where show' = if useMsg then msg else show
 
 showTestUsing :: Bool -> TypeTest -> String
@@ -97,7 +98,7 @@ showTestUsing useMsg TypeTest{..} = do
 -- instances
 
 instance Eq Contest where
-	(==) c1 c2 = c1.super == c2.super && c1.sub == c2.sub
+	(==) c1 c2 = c1.candidate == c2.candidate && c1.requirement == c2.requirement
 
 instance Show Contest where
 	show = showContestUsing False
@@ -116,17 +117,25 @@ instance Messagable TypeTest where
 -- exported
 
 fromContext :: Context -> Thing -> Thing -> TypeTest
-fromContext context super sub = TypeTest {
+fromContext context candidate requirement = TypeTest {
 	context,
 	ongoing = [],
-	current = Contest { super, sub, superName = Nothing, subName = Nothing } }
+	current = Contest {
+		candidate,
+		requirement,
+		candidateName = Nothing,
+		requirementName = Nothing } }
 
 satisfiesDuring :: (TypeTest, Thing) -> Thing -> TypeTestResult
-satisfiesDuring (test, super) sub = do
-	let contest = Contest { super, sub, superName = Nothing, subName = Nothing }
+satisfiesDuring (test, candidate) requirement = do
+	let contest = Contest {
+		candidate,
+		requirement,
+		candidateName = Nothing,
+		requirementName = Nothing }
 	if contest == test.current || contest `elem` test.ongoing then do
 		debugM $ "UNSATISFIED " ++ show contest ++ " due to tautology!"
-		Error $ Tautology super sub
+		Error $ Tautology candidate requirement
 	else do
 		debugM $ "Pushing new contest:" ++ showContestMultilineUsing "\t" True contest
 		runTest TypeTest {
@@ -160,7 +169,7 @@ runTest test = do
 				void $ sequence $ zipWith elementSatisfied supers subs
 		let testListLikeType elementType values =
 			void $ sequence $ map (\v -> (test, v) `satisfiesDuring` elementType) values
-		case (test.current.super, test.current.sub) of
+		case (test.current.candidate, test.current.requirement) of
 			-- congruent types
 			(super, sub) | super == sub -> do
 				debugM $ "SATISFIED due to equality: " ++ show super ++ " = " ++
@@ -218,10 +227,14 @@ runTest test = do
 				void $ sequence $ map ((test, super) `satisfiesDuring`) sub.things.l
 			(super@NamedThing{..}, _) -> do
 				debugM $ "Deconstructing named super value: \"" ++ name ++ "\""
-				runTest' test{ ST.current = test.current{ super = super.value, superName = Just name }}
+				runTest' test{
+					ST.current = test.current{ candidate = super.value, candidateName = Just name }}
 			(_, sub@NamedThing{..}) -> do
 				debugM $ "Deconstructing named sub value: \"" ++ name ++ "\""
-				runTest' test{ ST.current = test.current{ sub = sub.value, subName = Just name }}
+				runTest' test{
+					ST.current = test.current{
+						requirement = sub.value,
+						requirementName = Just name }}
 			-- TODO: when native types satisfy language-level types: (super@NativeType{}, sub)
 			(super@NativeListType{}, sub@NativeSomeType{}) ->
 				(test, super.elementType) `satisfiesDuring` sub.elementType

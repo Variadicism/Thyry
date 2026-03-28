@@ -67,10 +67,10 @@ parseSingleSpace = "parse whitespace" @> \state ->
 
 compareAsSubSpace :: Space -> PatternComparator.Parser
 compareAsSubSpace _ = "space comparator" @> \state ->
-	case state.rest.super of
-		[] -> case state.rest.sub of
+	case state.rest.requirement of
+		[] -> case state.rest.candidate of
 			[_] -> PatternComparator.accept [] state
-			_ -> Error $ Mismatch (SomePattern Space) $ P.assume state.rest.sub
+			_ -> Error $ Mismatch (SomePattern Space) $ P.assume state.rest.candidate
 		nextSuper:superLeft -> do
 			let nextIsSpace = maybe False (const True) (asPattern nextSuper :: Maybe Space)
 			let states = startingSpaceStates nextSuper
@@ -87,12 +87,12 @@ compareAsSubSpace _ = "space comparator" @> \state ->
 
 compareAsSuperSpace :: Space -> PatternComparator.Parser
 compareAsSuperSpace _ = "space super comparator" @> \state -> do
-	case state.rest.super of
+	case state.rest.requirement of
 		nextSuper:superLeft -> do
-			let headSubIsSpace = case state.rest.sub of
+			let headSubIsSpace = case state.rest.candidate of
 				nextSub:_ -> maybe False (const True) (asPattern nextSub :: Maybe Space)
 				[] -> False
-			let headSubConsumesWhitespace = case state.rest.sub of
+			let headSubConsumesWhitespace = case state.rest.candidate of
 				nextSub:_ -> Set.member Code.Space $ startingSpaceStates nextSub
 				[] -> False
 			let canConsumeBoundary =
@@ -109,10 +109,10 @@ compareAsSuperSpace _ = "space super comparator" @> \state -> do
 						PatternComparator.acceptSuperOnly [nextSuper]) >:>
 					PatternComparator.comparator >\> const ()
 			else
-				case state.rest.sub of
+				case state.rest.candidate of
 					nextSub:_ -> dispatchCurrentSub nextSub state
 					[] -> Error $ LeftoverSuper $ P.Populace nextSuper superLeft
-		[] -> case state.rest.sub of
+		[] -> case state.rest.candidate of
 			nextSub:subLeft -> Error $ LeftoverSub $ P.Populace nextSub subLeft
 			[] -> PatternComparator.acceptRest state
 	where

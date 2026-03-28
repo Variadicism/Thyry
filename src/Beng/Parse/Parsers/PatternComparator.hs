@@ -41,16 +41,20 @@ instance Parser.State Comparison ComparatorState where
 	outdent s = s{ indentation = s.indentation - 1 }
 
 instance Messagable Comparison where
-	msg Comparison{..} = msgList sub ++ " in? " ++ msgList super
+	msg Comparison{..} = msgList candidate ++ " in? " ++ msgList requirement
 
 instance Show Comparison where
-	show Comparison{..} = show sub ++ " in? " ++ show super
+	show Comparison{..} = show candidate ++ " in? " ++ show requirement
 
 instance Ord Comparison where
-	compare c1 c2 = compare (length c1.sub) (length c1.sub) <> compare (length c2.super) (length c2.super)
+	compare c1 c2 =
+		compare (length c1.candidate) (length c2.candidate) <>
+			compare (length c1.requirement) (length c2.requirement)
 
 instance Semigroup Comparison where
-	a <> b = Comparison { sub = a.sub ++ b.sub, super = a.super ++ b.super }
+	a <> b = Comparison {
+		candidate = a.candidate ++ b.candidate,
+		requirement = a.requirement ++ b.requirement }
 
 instance Messagable ComparatorState where
 	msg ComparatorState{..} = msg rest
@@ -68,7 +72,7 @@ spaceStateOfLiteral pattern = do
 comparisonSpaceState :: Comparison -> Maybe Code.SpaceState
 comparisonSpaceState Comparison{..} = do
 	let ofPatterns patterns = foldl (\acc pattern -> acc <|> spaceStateOfLiteral pattern) Nothing $ reverse patterns
-	ofPatterns sub <|> ofPatterns super
+	ofPatterns candidate <|> ofPatterns requirement
 
 flat :: SomePattern -> [SomePattern]
 flat pattern = case asPattern pattern of
@@ -77,14 +81,17 @@ flat pattern = case asPattern pattern of
 
 takeAs1 :: Comparison -> t -> ComparatorState -> Parser.Parse Comparison ComparatorState t
 takeAs1 parsed target state =
-	if not $ parsed.sub `isPrefixOf` state.rest.sub && parsed.super `isPrefixOf` state.rest.super then
-		error $ "A pattern comparator illegally requested that " ++ show parsed.sub ++
-			" should be accepted from " ++ show state.rest.sub ++ " (sub) and " ++ show parsed.super ++
-			" from " ++ show state.rest.super ++ " (super)!"
+	if not $
+		parsed.candidate `isPrefixOf` state.rest.candidate &&
+			parsed.requirement `isPrefixOf` state.rest.requirement
+	then
+		error $ "A pattern comparator illegally requested that " ++ show parsed.candidate ++
+			" should be accepted from " ++ show state.rest.candidate ++ " (candidate) and " ++
+				show parsed.requirement ++ " from " ++ show state.rest.requirement ++ " (requirement)!"
 	else do
-		let super = case drop (length parsed.super) state.rest.super of
-			nextSuper:superLeft -> flat nextSuper ++ superLeft
-			newSuper -> newSuper
+		let requirement = case drop (length parsed.requirement) state.rest.requirement of
+			nextRequirement:requirementLeft -> flat nextRequirement ++ requirementLeft
+			newRequirement -> newRequirement
 		Parser.Parse {
 			parsed,
 			target,
@@ -92,14 +99,14 @@ takeAs1 parsed target state =
 				atStart = False,
 				spaceState = maybe state.spaceState id $ comparisonSpaceState parsed,
 				rest = Comparison{
-				sub = drop (length parsed.sub) state.rest.sub,
-				super }}}
+				candidate = drop (length parsed.candidate) state.rest.candidate,
+				requirement }}}
 
 takeAs :: Show t => Comparison -> t -> Parser.ParseRunner Mismatch Comparison ComparatorState t
 takeAs = Parser.takeAsUsing takeAs1
 
 takeAsNull :: Show t => t -> Parser.ParseRunner Mismatch Comparison ComparatorState t
-takeAsNull = takeAs Comparison { sub = [], super = [] }
+takeAsNull = takeAs Comparison { candidate = [], requirement = [] }
 
 compareAsSubPattern :: SomePattern -> Parser
 compareAsSubPattern (SomePattern pattern) = TPattern.compareAsSub pattern >:> comparator >\> const ()
@@ -108,32 +115,37 @@ compareAsSuperPattern :: SomePattern -> Parser
 compareAsSuperPattern (SomePattern pattern) = TPattern.compareAsSuper pattern >:> comparator >\> const ()
 
 startState :: Bool -> TypeTest -> SomePattern -> SomePattern -> ComparatorState
-startState checkArgTypes test super sub =
+startState checkArgTypes test requirement candidate =
 	ComparatorState {
 		indentation = 0,
 		atStart = True,
 		spaceState = Code.Space,
-		rest = Comparison { sub = flat sub, super = flat super },
+		rest = Comparison { candidate = flat candidate, requirement = flat requirement },
 		checkArgTypes,
 		test }
 
 swapSub :: [SomePattern] -> ComparatorState -> ComparatorState
-swapSub newSub s = s{ rest = s.rest{ sub = newSub }}
+swapSub newCandidate s = s{ rest = s.rest{ candidate = newCandidate }}
 
 swapSuper :: [SomePattern] -> ComparatorState -> ComparatorState
-swapSuper newSuper s = s{ rest = s.rest{ super = newSuper }}
+swapSuper newRequirement s = s{ rest = s.rest{ requirement = newRequirement }}
 
 acceptRest :: ParseRunner
 acceptRest state = takeAs state.rest () state
 
 acceptSuperOnly :: [SomePattern] -> ParseRunner
-acceptSuperOnly fromSuper = takeAs Comparison { sub = [], super = fromSuper } ()
+acceptSuperOnly fromRequirement = takeAs Comparison {
+	candidate = [],
+	requirement = fromRequirement } ()
 
 acceptUsing :: [SomePattern] -> TypeTest -> ParseRunner
-acceptUsing fromSuper test = \state -> case state.rest.sub of
-	(next:_) -> takeAs Comparison { sub = [next], super = fromSuper } () state{ test }
-	[] -> error $ "A pattern comparator attempted to accept " ++ show fromSuper ++ " from " ++
-		show state.rest.super ++ ", but no pattern remained in the sub to match it to!"
+acceptUsing fromRequirement test = \state -> case state.rest.candidate of
+	(next:_) -> takeAs Comparison {
+		candidate = [next],
+		requirement = fromRequirement } () state{ test }
+	[] -> error $ "A pattern comparator attempted to accept " ++ show fromRequirement ++ " from " ++
+		show state.rest.requirement ++
+			", but no pattern remained in the candidate to match it to!"
 
 accept :: [SomePattern] -> ParseRunner
 accept fromSuper = \state -> acceptUsing fromSuper state.test state
@@ -150,28 +162,28 @@ internallySatisfies (state, super) sub = swapSub [sub] (swapSuper [super] state)
 
 compareAsSuperDefault :: SomePattern -> Parser
 compareAsSuperDefault self = "default super comparator for " ++ show self @> \state ->
-	case state.rest.super of
-		nextSuper:superLeft ->
-			if isOptional nextSuper && not state.atStart then do
-				let skipThenCompare = "skipping optional " ++ show nextSuper @> \state' ->
-					swapSuper superLeft state' >>> comparator
+	case state.rest.requirement of
+		nextRequirement:requirementLeft ->
+			if isOptional nextRequirement && not state.atStart then do
+				let skipThenCompare = "skipping optional " ++ show nextRequirement @> \state' ->
+					swapSuper requirementLeft state' >>> comparator
 				state >>> compareAsSuperDefault self >|> skipThenCompare
-			else case state.rest.sub of
+			else case state.rest.candidate of
 				nextSub:_ -> state >>> compareAsSubPattern nextSub
-				[] -> Error $ LeftoverSuper $ P.Populace nextSuper superLeft
-		[] -> case state.rest.sub of
+				[] -> Error $ LeftoverSuper $ P.Populace nextRequirement requirementLeft
+		[] -> case state.rest.candidate of
 			nextSub:subLeft -> Error $ LeftoverSub $ P.Populace nextSub subLeft
 			[] -> acceptRest state
 
 comparator :: Parser
 comparator = do
 	"pattern comparator" @> \state -> do
-		case (state.rest.super, state.rest.sub) of
+		case (state.rest.requirement, state.rest.candidate) of
 			([], []) -> acceptRest state
-			(super@(nextSuper:superLeft), []) ->
-				if all isOptional super then
+			(requirement@(nextRequirement:requirementLeft), []) ->
+				if all isOptional requirement then
 					acceptRest state
 				else
-					Error $ LeftoverSuper $ P.Populace nextSuper superLeft
+					Error $ LeftoverSuper $ P.Populace nextRequirement requirementLeft
 			(nextSuper:_, _) -> state >>> compareAsSuperPattern nextSuper
 			([], nextSub:_) -> state >>> compareAsSubPattern nextSub

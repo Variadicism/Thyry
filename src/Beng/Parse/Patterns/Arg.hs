@@ -96,8 +96,8 @@ parseArg (ArgP Argument{..}) = msgArg name argType @> \state -> do
 
 compareAsSubArg :: ArgP -> PatternComparator.Parser
 compareAsSubArg self@(ArgP Argument{..}) = msgArg name argType ++ " comparator" @> \state -> do
-	case state.rest.super of
-		[] -> Error $ LeftoverSub $ P.assume state.rest.sub
+	case state.rest.requirement of
+		[] -> Error $ LeftoverSub $ P.assume state.rest.candidate
 		nextSuper:superLeft -> case asPattern nextSuper :: Maybe ArgP of
 			Just (ArgP arg) -> if state.checkArgTypes &&
 					hasError ((state.test, argType) `satisfiesDuring` arg.argType) then
