@@ -19,6 +19,7 @@ import qualified Utils.Populace as P
 import Beng.Errors (parseError)
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>:>))
 import qualified Beng.Parse.Parsers.Code as Code
+import Beng.Parse.Parsers.PatternComparator (compareAsSuperDefault)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Types.Parse.Matches (Match)
 import qualified Beng.Types.Parse.Matches as Match
@@ -75,8 +76,8 @@ parseCharClass CharClass{..} = do
 				Error $ parseError state $
 					shown ++ " was expected, but '" ++ [firstChar] ++ "' was found!"
 
-compareFromCharClass :: CharClass -> PatternComparator.Parser
-compareFromCharClass self@CharClass{..} = showClass ranges negate ++ " comparator" @> \state -> do
+compareAsSubCharClass :: CharClass -> PatternComparator.Parser
+compareAsSubCharClass self@CharClass{..} = showClass ranges negate ++ " comparator" @> \state -> do
 	case uncons state.rest.super of
 		Nothing -> Error $ LeftoverSub $ P.assume state.rest.sub
 		Just (next, superLeft) -> do
@@ -94,7 +95,7 @@ compareFromCharClass self@CharClass{..} = showClass ranges negate ++ " comparato
 				Nothing -> case asPattern next :: Maybe Literal of
 					Just (Literal literal) -> if Text.null literal then
 						state >>> ("skip empty literal for " ++ showClass ranges negate @> PatternComparator.accept [next]) >:>
-							compareFromCharClass self >\> const ()
+							compareAsSubCharClass self >\> const ()
 					else if has (Text.head literal) ranges negate then
 						PatternComparator.accept [next] state
 					else
@@ -112,7 +113,8 @@ instance Messagable CharClass where
 
 instance TPattern.Pattern CharClass where
 	parse = parseCharClass
-	compareFrom = compareFromCharClass
+	compareAsSub = compareAsSubCharClass
+	compareAsSuper self = compareAsSuperDefault (SomePattern self)
 	showPatternWith _ CharClass{..} = showClass ranges negate
 	mustHavePrefix _ = True
 	mustHaveSuffix _ = True

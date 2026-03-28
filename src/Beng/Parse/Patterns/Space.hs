@@ -10,7 +10,7 @@ import qualified Utils.Populace as P
 import Beng.Errors (Fallible, parseError)
 import Beng.Parse.Matches (Match)
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers ((@>), (@+>), (>|>), (>:>), (>\>))
+import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>|>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import {-# SOURCE #-} Beng.Parse.Patterns (asPattern, startingSpaceStates)
@@ -65,11 +65,11 @@ parseSingleSpace = "parse whitespace" @> \state ->
 		Nothing -> Error $ parseError state
 			"The end of the text was reached while trying to parse whitespace!"
 
-compareFromSpace :: Space -> PatternComparator.Parser
-compareFromSpace _ = "space comparator" @> \state ->
+compareAsSubSpace :: Space -> PatternComparator.Parser
+compareAsSubSpace _ = "space comparator" @> \state ->
 	case state.rest.super of
-		[] -> case tail state.rest.sub of
-			[] -> PatternComparator.accept [] state
+		[] -> case state.rest.sub of
+			[_] -> PatternComparator.accept [] state
 			_ -> Error $ Mismatch (SomePattern Space) $ P.assume state.rest.sub
 		nextSuper:superLeft -> do
 			let nextIsSpace = maybe False (const True) (asPattern nextSuper :: Maybe Space)
@@ -85,12 +85,47 @@ compareFromSpace _ = "space comparator" @> \state ->
 			else
 				Error $ Mismatch (SomePattern Space) $ P.Populace nextSuper superLeft
 
+compareAsSuperSpace :: Space -> PatternComparator.Parser
+compareAsSuperSpace _ = "space super comparator" @> \state -> do
+	case state.rest.super of
+		nextSuper:superLeft -> do
+			let headSubIsSpace = case state.rest.sub of
+				nextSub:_ -> maybe False (const True) (asPattern nextSub :: Maybe Space)
+				[] -> False
+			let headSubConsumesWhitespace = case state.rest.sub of
+				nextSub:_ -> Set.member Code.Space $ startingSpaceStates nextSub
+				[] -> False
+			let canConsumeBoundary =
+				not headSubIsSpace &&
+				not headSubConsumesWhitespace &&
+				not state.atStart &&
+				case superLeft of
+					next:_ -> do
+						let states = startingSpaceStates next
+						not (Set.null states) && all (TCode.formsBoundary state.spaceState) states
+					[] -> False
+			if canConsumeBoundary then
+				state >>> ("consume boundary super Space" @>
+						PatternComparator.acceptSuperOnly [nextSuper]) >:>
+					PatternComparator.comparator >\> const ()
+			else
+				case state.rest.sub of
+					nextSub:_ -> dispatchCurrentSub nextSub state
+					[] -> Error $ LeftoverSuper $ P.Populace nextSuper superLeft
+		[] -> case state.rest.sub of
+			nextSub:subLeft -> Error $ LeftoverSub $ P.Populace nextSub subLeft
+			[] -> PatternComparator.acceptRest state
+	where
+		dispatchCurrentSub (SomePattern pattern) state =
+			state >>> TPattern.compareAsSub pattern >:> PatternComparator.comparator >\> const ()
+
 instance Messagable Space where
 	msg = show
 
 instance TPattern.Pattern Space where
 	parse = parseSpace
-	compareFrom = compareFromSpace
+	compareAsSub = compareAsSubSpace
+	compareAsSuper = compareAsSuperSpace
 	showPatternWith _ _ = " "
 	mustHavePrefix _ = False
 	mustHaveSuffix _ = False

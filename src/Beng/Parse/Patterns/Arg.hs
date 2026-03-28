@@ -22,6 +22,7 @@ import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/\>), (>-\>))
 import Beng.Parse.Parsers.Code (PrefixState(..), State(..))
 import qualified Beng.Parse.Parsers.Code as Code
+import Beng.Parse.Parsers.PatternComparator (compareAsSuperDefault)
 import Beng.Parse.Parsers.PatternComparator ()
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Things (satisfies)
@@ -93,8 +94,8 @@ parseArg (ArgP Argument{..}) = msgArg name argType @> \state -> do
 					>-\> (\op -> checkSatisfiesArgType op >> return op)
 					>\> \op -> ArgM Match.Argument { decLoc, name, argType, value = OpValue op }
 
-compareFromArg :: ArgP -> PatternComparator.Parser
-compareFromArg self@(ArgP Argument{..}) = msgArg name argType ++ " comparator" @> \state -> do
+compareAsSubArg :: ArgP -> PatternComparator.Parser
+compareAsSubArg self@(ArgP Argument{..}) = msgArg name argType ++ " comparator" @> \state -> do
 	case state.rest.super of
 		[] -> Error $ LeftoverSub $ P.assume state.rest.sub
 		nextSuper:superLeft -> case asPattern nextSuper :: Maybe ArgP of
@@ -116,7 +117,8 @@ instance Messagable ArgP where
 
 instance TPattern.Pattern ArgP where
 	parse = parseArg
-	compareFrom = compareFromArg
+	compareAsSub = compareAsSubArg
+	compareAsSuper self = compareAsSuperDefault (SomePattern self)
 	showPatternWith useMsg (ArgP Argument{name,argType,decLoc}) = if useMsg
 		then msgArg name argType
 		else showArg name argType decLoc

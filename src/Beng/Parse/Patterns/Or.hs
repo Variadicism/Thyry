@@ -12,7 +12,7 @@ import qualified Utils.Populace.Populace2 as P2
 import qualified Beng.Parse.Patterns as Pattern
 import Beng.Types.Parse.Matches (Match)
 import qualified Beng.Parse.Matches as Match
-import Beng.Parse.Parsers ((@>), (@+>), (>\>), parseAny)
+import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>:>), (>\>), parseAny)
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
@@ -36,13 +36,36 @@ parserForSubpattern subpatterns matchIndex pattern =
 			OMap.concat $ map Pattern.getArgs missedSubpatterns
 		Match.Or { match, matchIndex, misses }
 
-compareFromOr :: Or -> PatternComparator.Parser
-compareFromOr self@(Or subpatterns) = show (length subpatterns) ++ " possible pattern comparator" @> \state ->
+compareAsSubOr :: Or -> PatternComparator.Parser
+compareAsSubOr self@(Or subpatterns) = show (length subpatterns) ++ " possible pattern comparator" @> \state ->
 	case state.rest.super of
 		[] -> Error $ LeftoverSub $ P.singleton $ SomePattern self
 		nextSuper:_ -> do
 			sequence $ P2.map ((state, nextSuper) `internallySatisfies`) subpatterns
 			PatternComparator.accept [nextSuper] state
+
+compareAsSuperOr :: Or -> PatternComparator.Parser
+compareAsSuperOr (Or subpatterns) = show (length subpatterns) ++ " possible super comparator" @> \state ->
+	case state.rest.sub of
+		nextSub:_ -> case Pattern.asPattern nextSub :: Maybe Or of
+			Just Or{} -> dispatchCurrentSub nextSub state
+			Nothing -> branchOptions state
+		[] -> branchOptions state
+	where
+		dispatchCurrentSub (SomePattern pattern) state =
+			state >>> TPattern.compareAsSub pattern >:> PatternComparator.comparator >\> const ()
+
+		branchOptions state = do
+			case state.rest.super of
+				_:superLeft -> do
+					let parserFor i option =
+							"possible super pattern " ++ show (i + 1) ++ "/" ++ show (length subpatterns) ++
+								" " ++ show option @> \state' ->
+									PatternComparator.swapSuper (option:superLeft) state' >>> PatternComparator.comparator
+					state >>> parseAny (P2.toP1 $ P2.mapIndexed parserFor subpatterns)
+				[] -> case state.rest.sub of
+					nextSub:subLeft -> Error $ LeftoverSub $ P.Populace nextSub subLeft
+					[] -> PatternComparator.acceptRest state
 
 instance Eq Or where
 	Or a == Or b = a == b
@@ -55,7 +78,8 @@ instance Messagable Or where
 
 instance TPattern.Pattern Or where
 	parse = parseOr
-	compareFrom = compareFromOr
+	compareAsSub = compareAsSubOr
+	compareAsSuper = compareAsSuperOr
 	showPatternWith useMsg (Or subpatterns) =
 		"(" ++ intercalate "|" (map (\p -> if useMsg then msg p else show p) subpatterns.l) ++ ")"
 	getSubpatterns (Or subpatterns) = subpatterns.p1

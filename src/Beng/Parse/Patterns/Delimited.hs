@@ -13,6 +13,7 @@ import Beng.Parse.Matches (Match)
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Parse.Parsers ((@>), (@+>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
+import Beng.Parse.Parsers.PatternComparator (compareAsSuperDefault)
 import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import qualified Beng.Types.Parse.Patterns as TPattern
@@ -35,8 +36,8 @@ parseDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter 
 		firstMatch:matchTail -> Match.DelimitedTailMatch $ P.Populace firstMatch matchTail) >\>
 	uncurry Match.Delimited
 
-compareFromDelimited :: Delimited -> PatternComparator.Parser
-compareFromDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter ++ " comparator" @> \state -> do
+compareAsSubDelimited :: Delimited -> PatternComparator.Parser
+compareAsSubDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter ++ " comparator" @> \state -> do
 	case state.rest.super of
 		[] -> Error $ LeftoverSub $ P.assume state.rest.sub
 		next:superLeft -> case asPattern next :: Maybe Delimited of
@@ -58,7 +59,8 @@ instance Messagable Delimited where
 
 instance TPattern.Pattern Delimited where
 	parse = parseDelimited
-	compareFrom = compareFromDelimited
+	compareAsSub = compareAsSubDelimited
+	compareAsSuper self = compareAsSuperDefault (SomePattern self)
 	showPatternWith useMsg Delimited{..} =
 		"(" ++ (if useMsg then msg delimitend else show delimitend) ++ "){" ++
 			(if useMsg then msg delimiter else show delimiter) ++ "}"

@@ -36,7 +36,8 @@ data ArgP
 
 class (Eq p, Show p, Messagable p, Typeable p) => Pattern p where
 	parse :: p -> Code.Parser Match
-	compareFrom :: p -> Comparator
+	compareAsSub :: p -> Comparator
+	compareAsSuper :: p -> Comparator
 	showPatternWith :: Bool -> p -> String
 	getSubpatterns :: p -> Populace SomePattern
 	getSubpatterns = P.singleton . SomePattern

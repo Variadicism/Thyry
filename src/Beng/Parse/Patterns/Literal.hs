@@ -10,9 +10,10 @@ import qualified Utils.Text as UtilsText
 import Beng.Errors (parseError)
 import Beng.Parse.Matches (Match)
 import qualified Beng.Types.Parse.Matches as Match
-import Beng.Parse.Parsers ((@>))
+import Beng.Parse.Parsers ((@>), (>>>))
 import Beng.Parse.Parsers.Code (PrefixState(..))
 import qualified Beng.Parse.Parsers.Code as Code
+import Beng.Parse.Parsers.PatternComparator (compareAsSuperDefault)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import {-# SOURCE #-} Beng.Parse.Patterns (asPattern)
 import qualified Beng.Parse.Patterns.CharClass as CC
@@ -41,8 +42,8 @@ parseLiteral (Literal literal) = "literal " ++ show literal @> \state ->
 		_ -> Code.takeAs literal (Match.Literal literal)
 			state{ Code.prefixState = Unneeded }
 
-compareFromLiteral :: Literal -> PatternComparator.Parser
-compareFromLiteral self@(Literal literal) = show literal ++ " comparator" @> \state ->
+compareAsSubLiteral :: Literal -> PatternComparator.Parser
+compareAsSubLiteral self@(Literal literal) = show literal ++ " comparator" @> \state ->
 	if Text.null literal then
 		PatternComparator.accept [] state
 	else case state.rest.super of
@@ -66,12 +67,24 @@ compareFromLiteral self@(Literal literal) = show literal ++ " comparator" @> \st
 					compareAgainstNonLiteral self literal next state superP swapSub
 				Nothing -> compareAgainstNonLiteral self literal next state superP swapSub
 
+compareAsSuperLiteral :: Literal -> PatternComparator.Parser
+compareAsSuperLiteral self@(Literal literal) = show literal ++ " super comparator" @> \state ->
+	if Text.null literal then
+		case state.rest.super of
+			_:superLeft -> PatternComparator.swapSuper superLeft state >>> PatternComparator.comparator
+			[] -> case state.rest.sub of
+				nextSub:subLeft -> Error $ LeftoverSub $ P.Populace nextSub subLeft
+				[] -> PatternComparator.acceptRest state
+	else
+		state >>> compareAsSuperDefault (SomePattern self)
+
 instance Messagable Literal where
 	msg = show
 
 instance TPattern.Pattern Literal where
 	parse = parseLiteral
-	compareFrom = compareFromLiteral
+	compareAsSub = compareAsSubLiteral
+	compareAsSuper = compareAsSuperLiteral
 	showPatternWith _ (Literal literal) = Text.unpack literal
 	mustHavePrefix (Literal literal) = not $ Text.null literal
 	mustHaveSuffix (Literal literal) = not $ Text.null literal

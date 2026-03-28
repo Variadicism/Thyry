@@ -2,9 +2,11 @@ module Beng.Parse.Patterns.And (
 	parse
 ) where
 
+import Utils.Fallible
 import Utils.Lists (takeUntilIncl)
 import qualified Utils.Maps.Ordered as OMap
 import Utils.Messaging (Messagable(..), msg)
+import qualified Utils.Populace as P
 import Utils.Populace.Populace2 (dualton)
 import qualified Utils.Populace.Populace2 as P2
 
@@ -16,7 +18,7 @@ import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (comparator)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import qualified Beng.Types.Parse.Patterns as TPattern
-import Beng.Types.Parse.Patterns (And(..), Comparison(..), ComparatorState(..))
+import Beng.Types.Parse.Patterns (And(..), Comparison(..), ComparatorState(..), Mismatch(..))
 
 import qualified Data.Set as Set
 
@@ -36,10 +38,23 @@ parseAsP p = case p.tailTail of
 		parseAsP (P2.Populace2 p.next tailTailHead tailTailTail) >\>
 		uncurry P2.cons
 
-compareFromAnd :: And -> PatternComparator.Parser
-compareFromAnd (And subpatterns) =
+compareAsSubAnd :: And -> PatternComparator.Parser
+compareAsSubAnd self@(And subpatterns) =
 	show (length subpatterns) ++ " pattern comparator" @> \state ->
-		state{ rest = state.rest{ sub = subpatterns.l ++ tail state.rest.sub }} >>> comparator
+		case state.rest.sub of
+			_:subLeft -> state{ rest = state.rest{ sub = subpatterns.l ++ subLeft }} >>> comparator
+			[] -> case state.rest.super of
+				next:superLeft -> Error $ Mismatch (Pattern.SomePattern self) $ P.Populace next superLeft
+				[] -> PatternComparator.acceptRest state
+
+compareAsSuperAnd :: And -> PatternComparator.Parser
+compareAsSuperAnd (And subpatterns) =
+	show (length subpatterns) ++ " super comparator" @> \state ->
+		case state.rest.super of
+			_:superLeft -> state{ rest = state.rest{ super = subpatterns.l ++ superLeft }} >>> comparator
+			[] -> case state.rest.sub of
+				nextSub:subLeft -> Error $ LeftoverSub $ P.Populace nextSub subLeft
+				[] -> PatternComparator.acceptRest state
 
 instance Eq And where
 	And a == And b = a == b
@@ -52,7 +67,8 @@ instance Messagable And where
 
 instance TPattern.Pattern And where
 	parse = parseAnd
-	compareFrom = compareFromAnd
+	compareAsSub = compareAsSubAnd
+	compareAsSuper = compareAsSuperAnd
 	showPatternWith useMsg (And subpatterns) =
 		concatMap (\p -> if useMsg then msg p else show p) subpatterns.l
 	getSubpatterns (And subpatterns) = subpatterns.p1
