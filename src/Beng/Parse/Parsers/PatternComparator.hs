@@ -21,7 +21,7 @@ import qualified Utils.Populace as P
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>:>), (>|>))
 import {-# SOURCE #-} qualified Beng.Parse.Parsers as Parser
 import Beng.Build.TypeTest (TypeTest)
-import {-# SOURCE #-} Beng.Parse.Patterns (asPattern, isOptional)
+import {-# SOURCE #-} Beng.Parse.Patterns (isOptional)
 import qualified Beng.Types.Parse.Parsers.Code as Code
 import Beng.Types.Parse.Parsers.PatternComparator (Comparison(..), Parse, ParseRunner, Parser, Parses)
 import Beng.Types.Parse.Patterns (And(..), ComparatorState(..), Literal(..), Mismatch(..), SomePattern(..))
@@ -30,6 +30,7 @@ import qualified Beng.Types.Parse.Patterns as TPattern
 import Control.Applicative ((<|>))
 import Data.List (isPrefixOf)
 import qualified Data.Text.Lazy as Text
+import Data.Typeable (cast)
 
 deriving instance Eq Comparison
 deriving instance Eq ComparatorState
@@ -64,7 +65,8 @@ instance Show ComparatorState where
 
 spaceStateOfLiteral :: SomePattern -> Maybe Code.SpaceState
 spaceStateOfLiteral pattern = do
-	Literal literal <- asPattern pattern
+	SomePattern somePattern <- return pattern
+	Literal literal <- cast somePattern
 	if Text.null literal
 		then Nothing
 		else Just $ Code.spaceStateOfChar $ Text.last literal
@@ -75,7 +77,7 @@ comparisonSpaceState Comparison{..} = do
 	ofPatterns candidate <|> ofPatterns requirement
 
 flat :: SomePattern -> [SomePattern]
-flat pattern = case asPattern pattern of
+flat pattern@(SomePattern somePattern) = case cast somePattern of
 	Just (And subpatterns) -> subpatterns.l
 	Nothing -> [pattern]
 

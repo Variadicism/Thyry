@@ -1,33 +1,22 @@
-module Beng.Ops.Declarations (
+module Beng.Operators.Declarations (
 	ArgContextBuilder,
 	Associativity(..),
 	Declaration(..),
 	PrecedenceBound(..),
-	isReturnTypeMismatch,
-	isNullary,
-	canHavePrefix,
-	canHaveSuffix,
-	mustHavePrefix,
-	mustHaveSuffix,
-	nameAsValue,
-	satisfies
+	isReturnTypeMismatch
 ) where
 
 import Utils.Fallible
-import Utils.Messaging (Messagable, debugM, msg)
+import Utils.Messaging (Messagable, msg)
 import qualified Utils.Populace as P
 
 import {-# SOURCE #-} Beng.Errors (compoundErrorsUsing, showCompoundErrorsUsing)
 import Beng.Locations ()
-import {-# SOURCE #-} qualified Beng.Build.TypeTest as ST
 import Beng.Types.Build.Context (PrecedenceBound(..))
-import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Types.Parse.Patterns (Literal(..), SomePattern(..))
 import {-# SOURCE #-} Beng.Things ()
-import Beng.Types.Ops.Declarations (ArgContextBuilder, Associativity(..), Declaration(..), Mismatch(..))
-import Beng.Types.Build.TypeTest (TypeTest)
+import Beng.Types.Operators.Declarations (ArgContextBuilder, Associativity(..), Declaration(..), Mismatch(..))
 
-import Control.Exception.Extra (Partial)
 import Data.Text.Lazy (unpack)
 import Data.Typeable (cast)
 import GHC.Records (HasField, getField)
@@ -89,7 +78,10 @@ instance Ord Declaration where
 	compare d1 d2 = compare d1.location d2.location
 
 instance HasField "name" Declaration String where
-	getField = nameAsValue
+	getField Declaration{pattern} = case pattern of
+		SomePattern namedPattern -> case cast namedPattern of
+			Just (Literal name) -> unpack name
+			Nothing -> error "Expected literal declaration pattern"
 
 -- exported
 
@@ -98,54 +90,3 @@ isReturnTypeMismatch = \case
 	ReturnTypeMismatch _ -> True
 	PatternMismatch _ -> False
 	CompoundMismatch{..} -> all isReturnTypeMismatch compound
-
-isNullary :: (Declaration -> Bool)
-isNullary = not . Pattern.hasArgs . pattern
-
-canHavePrefix :: Declaration -> Bool
-canHavePrefix = Pattern.canHavePrefix . pattern
-
-canHaveSuffix :: Declaration -> Bool
-canHaveSuffix = Pattern.canHaveSuffix . pattern
-
-mustHavePrefix :: Declaration -> Bool
-mustHavePrefix = Pattern.mustHavePrefix . pattern
-
-mustHaveSuffix :: Declaration -> Bool
-mustHaveSuffix = Pattern.mustHaveSuffix . pattern
-
-nameAsValue :: Partial => Declaration -> String
-nameAsValue declaration = case declaration.pattern of
-	SomePattern pattern -> case cast pattern of
-		Just (Literal name) -> unpack name
-		Nothing -> error "Expected literal declaration pattern"
-
-satisfies :: (TypeTest, Declaration) -> Declaration -> FallibleI Mismatch ()
-satisfies (test, super) sub = do
-	debugM $ "Testing satisfaction of declaration:\n" ++
-		"\tSuper: " ++ show super ++ "\n\tSub: " ++ show sub
-	if super == sub then do
-		debugM $ "Satisfies because the declarations are equal"
-		Falue ()
-	else do
-		let patternResult = mapError PatternMismatch $
-			(test, super.pattern) `Pattern.satisfies` sub.pattern
-		case patternResult of
-			Falue _ -> do
-				debugM $ "Satisfied PATTERN of declaration:\n\t✓ Super" ++ show super.pattern ++
-					"\n\t✓ Sub: " ++ show sub.pattern ++
-					"\nComparing return types next:\n\t? Super:" ++ show super.returnType  ++
-					"\n\t? Sub: "
-				let returnTypeResult = mapError ReturnTypeMismatch $
-					(test, sub.returnType) `ST.satisfiesDuring` super.returnType
-				case returnTypeResult of
-					Falue _ -> debugM $ "SATISFIED declaration:\n\t✓ Super:" ++ show super.returnType ++
-						"\n\t✓ Sub: " ++ show sub.returnType
-					Error returnTypeError -> debugM $ "UNsatisfied RETURN TYPE of declaration:\n\t╳ Super:" ++
-						show super.returnType ++ "\n\t╳ Sub: " ++ show sub.returnType ++
-						"\n\tReason: " ++ show returnTypeError
-				returnTypeResult
-			Error patternError -> do
-				debugM $ "UNSATISFIED declaration by pattern mismatch:\n\t╳ Super: " ++ show super.pattern ++
-					"\n\t╳ Sub: " ++ show sub.pattern ++ "\n\tReason: " ++ show patternError
-				Error patternError

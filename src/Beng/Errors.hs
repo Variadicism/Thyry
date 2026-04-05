@@ -15,15 +15,14 @@ import Utils.Messaging (Messagable, TerminalColor(..), msg, tColor)
 import Utils.Populace (Populace)
 import qualified Utils.Populace as P
 
-import Beng.Build.Cards ()
+import Beng.Operators ()
 import Beng.Locations (FileLocation(..), Location)
 import qualified Beng.Locations as Location
-import {-# SOURCE #-} Beng.Ops ()
-import Beng.Ops.Declarations ()
+import {-# SOURCE #-} Beng.Invocations ()
+import Beng.Operators.Declarations ()
 import Beng.Types.Parse.Parsers.Code (State(..))
 import Beng.Types.Errors
-import Beng.Types.Ops (Op(..))
-import Beng.Types.Ops.Declarations (Declaration(pattern))
+import Beng.Types.Invocations (SomeInvocation(..), Invocation(..))
 import qualified Beng.Types.Errors as Error
 
 import Data.List (nub)
@@ -35,7 +34,7 @@ printErrorBodyAt :: Int -> (Error -> String)
 printErrorBodyAt indentLevel = \case
 	ParseError{..} -> details
 	TypeError{..} ->
-		"in '" ++ argName ++ "' of " ++ msg attemptedCaller.declaration.pattern ++ ",\n" ++
+		"in '" ++ argName ++ "' of " ++ msg attemptedCaller.pattern ++ ",\n" ++
 			indentFor (indentLevel+1) ++ msg cause
 	ue@UndefinedError{} -> msg ue
 	CompoundError{..} -> do
@@ -68,7 +67,6 @@ instance Eq Error where
 		p1.details == p2.details &&
 		p1.location == p2.location
 	(==) u1@UndefinedError{} u2@UndefinedError{} =
-		u1.declaration == u2.declaration &&
 		u1.caller == u2.caller
 	(==) c1@CompoundError{} c2@CompoundError{} =
 		c1.contexts == c2.contexts &&
@@ -79,7 +77,8 @@ instance Show Error where
 	show = \case
 		ParseError{details,fileLocation=FileLocation{..}} ->
 			concatMap (++":") [file, show line, show column] ++ " " ++ show details
-		UndefinedError{..} -> show declaration ++ " in " ++ show caller
+		UndefinedError{caller=SomeInvocation invocation} ->
+			show invocation.operator ++ " in " ++ show invocation
 		TypeError{..} -> "at " ++ show fileLocation ++
 			" for " ++ argName ++
 			" in " ++ show attemptedCaller ++ ": " ++
@@ -90,8 +89,8 @@ instance Show Error where
 instance Messagable Error where
 	msg = \case
 		ParseError{..} -> msg fileLocation ++ " " ++ msg details
-		UndefinedError{..} -> msg declaration ++
-			" in " ++ msg caller ++
+		UndefinedError{caller=SomeInvocation invocation} -> msg invocation.operator ++
+			" in " ++ msg invocation ++
 			" cannot run before it is defined!"
 		TypeError{..} -> "at " ++ msg fileLocation ++
 			" for " ++ argName ++
@@ -148,7 +147,7 @@ parseError state message = ParseError {
 getLocation :: Error -> Location
 getLocation = \case
 	ParseError{fileLocation} -> Location.Code fileLocation
-	UndefinedError{caller=Op{location}} -> location
+	UndefinedError{caller=SomeInvocation invocation} -> invocation.location
 	TypeError{fileLocation} -> Location.Code fileLocation
 	CompoundError{compound} -> compound.head.location
 

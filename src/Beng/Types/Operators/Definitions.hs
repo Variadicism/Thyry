@@ -1,9 +1,9 @@
-module Beng.Types.Ops.Definitions (
+module Beng.Types.Operators.Definitions (
 	Definition(..),
 	Runner
 ) where
 
-import Beng.Types.Ops.Declarations (Declaration)
+import Beng.Types.Operators.Declarations (Declaration)
 import Beng.Types.Errors (Fallible)
 import Beng.Types.Locations (Location)
 import Beng.Types.Things (Thing)

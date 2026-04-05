@@ -10,12 +10,12 @@ import Utils.Lists (wrap)
 import qualified Utils.Populace as P
 import Utils.Strings (pluralCount)
 
-import Beng.Build.Cards ()
-import Beng.Build.Context (pushCard)
-import {-# SOURCE #-} qualified Beng.Build.Ops as Op
+import Beng.Operators ()
+import Beng.Build.Context (push)
+import {-# SOURCE #-} qualified Beng.Build.Invocations as Op
 import Beng.Build.TypeTest (satisfiesDuring)
 import Beng.Errors (parseError)
-import Beng.Ops ()
+import Beng.Invocations ()
 import {-# SOURCE #-} Beng.Parse.Patterns (asPattern)
 import Beng.Parse.Matches (Match(ArgM))
 import qualified Beng.Parse.Matches as Match
@@ -29,12 +29,11 @@ import Beng.Things (satisfies)
 import Beng.Types.Errors (Error(..), Fallible)
 import Beng.Types.Locations (Location)
 import qualified Beng.Types.Locations as Location
-import Beng.Types.Ops (Op(..))
-import Beng.Types.Ops.Declarations (Declaration(..))
+import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import qualified Beng.Types.Parse.Parsers.Code as SpaceState
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Patterns (ArgP(..), Argument(..), Comparison(..), ComparatorState(..), Mismatch(..), SomePattern(..))
-import Beng.Types.Things (Thing, Thing(OpValue), Thing(PreOpType))
+import Beng.Types.Things (Thing, Thing(InvValue), Thing(PreOpType))
 
 import qualified Data.Map as Map
 import qualified Data.Map.Ordered as OMap
@@ -60,39 +59,40 @@ parseArg (ArgP Argument{..}) = msgArg name argType @> \state -> do
 	let typeToSatisfy = case argType of
 		PreOpType resolvedType -> resolvedType
 		rawType -> rawType
-	let checkSatisfiesArgType :: Op -> Fallible () = \op -> do
-		let (Location.Code opLocation) = op.location
+	let checkSatisfiesArgType :: SomeInvocation -> Fallible () = \(SomeInvocation invocation) -> do
+		let (Location.Code opLocation) = invocation.location
 		let contextualizeError cause = TypeError {
 			attemptedCaller = parent,
 			argName = name,
 			fileLocation = opLocation,
 			cause }
-		mapError contextualizeError $ (state.context, op.returnType) `satisfies` typeToSatisfy
+		mapError contextualizeError $ (state.context, invocation.returnType) `satisfies` typeToSatisfy
 
-	let argOf op = ArgM Match.Argument { decLoc, name, argType, value = OpValue op }
-	let putArg op state' = do
-		let newArg = Match.Argument { name, decLoc, argType, value = OpValue op }
+	let argOf invocation = ArgM Match.Argument { decLoc, name, argType, value = InvValue invocation }
+	let putArg invocation state' = do
+		let newArg = Match.Argument { name, decLoc, argType, value = InvValue invocation }
 		state' { arguments = Map.insert name newArg state'.arguments }
 	case state.prefixState of
-		AvoidingFor op -> do
-			checkSatisfiesArgType op
-			Code.takeAs "" (argOf op) $ putArg op $ state{ prefixState = Unneeded }
+		AvoidingFor invocation -> do
+			checkSatisfiesArgType invocation
+			Code.takeAs "" (argOf invocation) $ putArg invocation $ state{ prefixState = Unneeded }
 		Needed -> Error $ parseError state $
 			"An op prefix was needed, but " ++ show parent ++ " had none!"
 		Unneeded -> prependToError ("in '" ++ name ++ "' of " ++ msg parent ++ ", ") do
 			argContext <- prependToError
 					("There was an error attempting to build a context to parse the preop for " ++
 						wrap "'" name ++ ": ") $
-				parent.declaration.contextualize name state.arguments (Location.Code state.location)
+				parent.contextualize name state.arguments (Location.Code state.location)
 			when (not $ null argContext) $ debugM $
-				pluralCount (length argContext) "contextual card" ++ " generated for '" ++
-				name ++ "': " ++ show argContext
+				pluralCount (length argContext) "contextual operator" ++ " generated for '" ++
+					name ++ "': " ++ show argContext
 
-			state{ Code.context = foldl (flip pushCard) state.context argContext } >>>
+			state{ Code.context = foldl (flip push) state.context argContext } >>>
 				Op.build (wrap "'" name)
-					>/\> (\s op -> putArg op s{ Code.context = state.context })
-					>-\> (\op -> checkSatisfiesArgType op >> return op)
-					>\> \op -> ArgM Match.Argument { decLoc, name, argType, value = OpValue op }
+					>/\> (\s invocation -> putArg invocation s{ Code.context = state.context })
+					>-\> (\invocation -> checkSatisfiesArgType invocation >> return invocation)
+					>\> \invocation ->
+						ArgM Match.Argument { decLoc, name, argType, value = InvValue invocation }
 
 compareAsSubArg :: ArgP -> PatternComparator.Parser
 compareAsSubArg self@(ArgP Argument{..}) = msgArg name argType ++ " comparator" @> \state -> do

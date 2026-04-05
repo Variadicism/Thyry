@@ -7,12 +7,11 @@ module Beng.Build.TypeTest (
 
 import Utils.Fallible
 import Utils.Lists (mapIndexed)
-import Utils.Messaging (Messagable, debug, debugM, msg)
+import Utils.Messaging (Messagable, debugM, msg)
 
+import qualified Beng.Types.Operators as Ops
 import Beng.Build.Context (Context)
-import qualified Beng.Build.Context as C
-import Beng.Ops.Declarations (isReturnTypeMismatch)
-import Beng.Types.Build.Cards (Card(..))
+import Beng.Types.Operators (SomeOperator(..))
 import Beng.Types.Build.TypeTest
 import qualified Beng.Types.Build.TypeTest as ST
 import Beng.Types.Things (Mismatch(..), Thing(..))
@@ -25,43 +24,14 @@ import qualified Data.Set as Set
 
 -- private
 
-satisfiesProps :: (TypeTest, Thing) -> (Thing -> [Card]) -> FallibleI Mismatch ()
+satisfiesProps :: (TypeTest, Thing) -> (Thing -> [SomeOperator]) -> FallibleI Mismatch ()
 satisfiesProps (test, candidate) propsWith = do
 	let checkProp prop = do
 		debugM $ "Testing satisfaction of prop: " ++ show prop ++ "..."
+		case prop of
+			SomeOperator op -> Ops.hasProp test op
 
-		let propTest :: TypeTest = case prop of
-			DefCard _ -> do
-				-- Definitions can only fail if one of the other props obscures them.
-				let propsContext = C.fromThings [test.current.candidate]
-				debug ("Restricing test context to props for definition prop: " ++ show propsContext)
-					test{ ST.context = propsContext }
-			DecCard _ -> test
-
-		void $ case (prop, propTest `C.has` prop.declaration) of
-			(_, Falue _) -> do
-				debugM $ "SATISFIED prop: " ++ show prop
-				Falue ()
-			{- The satisfaction check is only necessary for definition props at all in case a card
-				satisfies the pattern, but not the return type, which would obscure the prop needed.
-				(Any attempt to call the prop needed would instead call the card with the wrong type.) -}
-			-- TODO: what if the prop is partially obscured?
-			(prop, Error e) | isReturnTypeMismatch e -> do
-				let obscureError = ObscuredProperty prop e
-				debugM $ "UNSATISFIED prop due to obscuring: " ++ show obscureError
-				Error obscureError
-			{- Pattern mismatches are okay on definition props (but not declaration props) because the
-				definition prop can be satisfied by the prop itself (since it has a definition). -}
-			(DefCard _, Error _) -> do
-				debugM $ "SATISFIED definition prop by itself (no match in context, " ++
-					"but no obscuring card): " ++ show prop
-				Falue ()
-			(DecCard decProp, Error e) -> do
-				let unsatisfiedError = UnsatisfiedProperty decProp e
-				debugM $ "UNSATISFIED declaration prop: " ++ show unsatisfiedError
-				Error unsatisfiedError
-
-	{- Fill sub's properties with super because super only needs to satisfy cards
+	{- Fill sub's properties with super because super only needs to satisfy operators
 	   with its own type, not _all_ of the sub's type, e.g., if number declares
 	   'one' + 'one' as a property, int only needs to define 'int' + 'int' to satisfy
 	   number's type, not 'number' + 'number'. -}

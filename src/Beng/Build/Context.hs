@@ -5,11 +5,9 @@ module Beng.Build.Context (
 	hasPrecedence,
 	comparePrecedence,
 	showPrecedence,
-	pushCard,
-	pushDec,
-	pushDef,
+	push,
 	concat,
-	fromCards,
+	fromOps,
 	fromThings,
 	has
 ) where
@@ -20,14 +18,14 @@ import Utils.Fallible hiding (fromMaybe)
 import Utils.Lists (insertAt, showWithAnd, updateAt)
 import Utils.Messaging (Messagable, debug, msg)
 
-import Beng.Build.Cards (Card(..))
-import Beng.Ops.Declarations (Declaration(..), isReturnTypeMismatch, satisfies)
-import Beng.Ops.Definitions (Definition(..))
-import {-# SOURCE #-} Beng.Things (cardsOf)
+import qualified Beng.Operators as Ops
+import Beng.Operators (Operator, SomeOperator(..))
+import Beng.Operators.Declarations (isReturnTypeMismatch)
+import {-# SOURCE #-} Beng.Things (propsOf)
 import Beng.Types.Build.Context (Context(..), PrecedenceBound(..))
 import Beng.Types.Build.TypeTest (TypeTest(..))
 import Beng.Types.Things (Thing)
-import qualified Beng.Types.Ops.Declarations as Declaration
+import qualified Beng.Types.Operators.Declarations as Declaration
 
 import Data.List (findIndex)
 import Data.Maybe (fromMaybe, isJust)
@@ -41,31 +39,27 @@ import qualified Data.Set as Set
    ops can situate their precedence between two others ops with different precedents arbitrarily.
    So, the precedence list adds and loses items as the definitions stack pushes and pops.
    So, precedence's raw value means nothing except to compare two from the same context. -}
-findPrecedenceWith :: (Card -> Bool) -> Context -> Maybe Int
+findPrecedenceWith :: (SomeOperator -> Bool) -> Context -> Maybe Int
 findPrecedenceWith matches Context{..} = do
-	cardIndex <- findIndex matches deck
-	let precedenceIndex = length deck - 1 - cardIndex
+	opIndex <- findIndex matches deck
+	let precedenceIndex = length deck - 1 - opIndex
 	findIndex (precedenceIndex `Set.member`) precedence
 
-findDecPrecedence :: Context -> Declaration -> Maybe Int
-findDecPrecedence context dec =
-	findPrecedenceWith (\c -> c.declaration == dec) context
-
-findPrecedence :: Context -> Card -> Maybe Int
-findPrecedence context card =
-	findPrecedenceWith (==card) context
+findPrecedence :: Operator op => Context -> op -> Maybe Int
+findPrecedence context op =
+	findPrecedenceWith (\candidate -> candidate.decLoc == Ops.decLoc op) context
 
 -- I wrote this tail recursion because Fallible.sequenceAny still runs _all_ Fallibles before
--- checking the results for any, causing every single card to be checked even after a match is found.
-hasIn :: [Card] -> TypeTest -> Declaration -> FallibleI Declaration.Mismatch ()
+-- checking the results for any, causing every single operator to be checked even after a match is found.
+hasIn :: Operator op => [SomeOperator] -> TypeTest -> op -> FallibleI Declaration.Mismatch ()
 hasIn [] _ _ = Falue ()
-hasIn [card] test dec = (test, card.declaration) `satisfies` dec
-hasIn (card:rest) test dec = case (test, card.declaration) `satisfies` dec of
-	{- If a card satisfies the declaration's pattern, it will be the one called. So, even if another card deeper
+hasIn [op] test requirement = (test, op) `Ops.satisfies` requirement
+hasIn (op:rest) test requirement = case (test, op) `Ops.satisfies` requirement of
+	{- If an operator satisfies the declaration's pattern, it will be the one called. So, even if another op deeper
 		in the context stack can satisfy the declaration with pattern and return type, it doesn't matter: the
 		one with the wrong return type will be called, so the declaration cannot be satisfied. -}
 	Error e | isReturnTypeMismatch e -> Error e
-	Error e1 -> case hasIn rest test dec of
+	Error e1 -> case hasIn rest test requirement of
 		Error e2 -> Error $ e1 <!> e2
 		Falue _ -> Falue ()
 	Falue _ -> Falue ()
@@ -77,12 +71,12 @@ deriving instance Eq Context
 instance Show Context where
 	show context@Context{..} = concatMap showDec deck
 		where
-			showDec :: Card -> String
-			showDec card = do
-				let precedenceNote = case findPrecedence context card of
+			showDec :: SomeOperator -> String
+			showDec op = do
+				let precedenceNote = case findPrecedence context op of
 					Nothing -> ""
 					Just precedence -> "P@" ++ show precedence ++ " "
-				"\n\t" ++ precedenceNote ++ show card
+				"\n\t" ++ precedenceNote ++ show op
 
 instance Messagable Context where
 	msg Context{..} = showWithAnd $ map msg deck
@@ -92,30 +86,31 @@ instance Messagable Context where
 empty :: Context
 empty = Context { precedence = [], deck = [] }
 
-hasPrecedence :: Context -> (Declaration -> Bool)
-hasPrecedence context = isJust . findDecPrecedence context
+hasPrecedence :: Operator op => Context -> op -> Bool
+hasPrecedence context = isJust . findPrecedence context
 
-comparePrecedence :: Context -> Card -> Card -> Maybe Ordering
+comparePrecedence :: (Operator op1, Operator op2) => Context -> op1 -> op2 -> Maybe Ordering
 comparePrecedence context a b = do
 	aPredecence <- findPrecedence context a
 	bPrecedence <- findPrecedence context b
 	return $ compare aPredecence bPrecedence
 
-showPrecedence :: Context -> Card -> Maybe String
-showPrecedence context card = do
-	precedence <- findPrecedence context card
-	return $ [head (show card.declaration.associativity)] ++ show precedence
+showPrecedence :: Operator op => Context -> op -> Maybe String
+showPrecedence context op = do
+	precedence <- findPrecedence context op
+	return $ [head $ show $ Ops.associativity op] ++ show precedence
 
-pushCard :: Card -> Context -> Context
-pushCard card context = do
-	let forcePrecedence :: Context -> Declaration -> Int = \context comparative -> do
+push :: Operator op => op -> Context -> Context
+push op context = do
+	let someOp = SomeOperator op
+	let forcePrecedence = \context comparative -> do
 		let errorMessage = "The precedence of " ++ show comparative ++
-			" was not available to push the precedence of " ++ show card ++ "!"
-		fromMaybe (error errorMessage) $ findDecPrecedence context comparative
+			" was not available to push the precedence of " ++ show op ++ "!"
+		fromMaybe (error errorMessage) $ findPrecedence context comparative
 
 	let decIndex = length context.deck
 	let updatePrec :: ([Set Int] -> [Set Int]) =
-		case card.declaration.precedence of
+		case Ops.precedence op of
 			Above minimum -> do
 				let precIndex = forcePrecedence context minimum
 				if precIndex == length context.precedence - 1
@@ -144,27 +139,21 @@ pushCard card context = do
 					then const [Set.singleton decIndex]
 					else updateAt (length context.precedence - 1) (Set.insert decIndex)
 			None -> id
-	debug ("Pushing " ++ show card ++ " to context...") context{
-		deck = card:context.deck,
+	debug ("Pushing " ++ show op ++ " to context...") context{
+		deck = someOp:context.deck,
 		precedence = updatePrec context.precedence }
 
-pushDec :: Declaration -> (Context -> Context)
-pushDec declaration = pushCard (DecCard declaration)
-
-pushDef :: Definition -> (Context -> Context)
-pushDef definition = pushCard (DefCard definition)
-
-fromCards :: ([Card] -> Context)
-fromCards = foldl (flip pushCard) empty
+fromOps :: ([SomeOperator] -> Context)
+fromOps = foldl (flip push) empty
 
 concat :: [Context] -> Context
 concat [] = empty
 concat [c] = c
-concat (c1:rest) = foldl (flip pushCard) c1 $ concatMap deck rest
+concat (c1:rest) = foldl (flip push) c1 $ concatMap deck rest
 
 fromThings :: ([Thing] -> Context)
-fromThings = fromCards . concatMap cardsOf
+fromThings = fromOps . concatMap propsOf
 
-has :: TypeTest -> (Declaration -> FallibleI Declaration.Mismatch ())
+has :: Operator op => TypeTest -> op -> FallibleI Declaration.Mismatch ()
 -- TODO: don't let `hasIn` be called with an empty context or it will accept anything.
 has test = hasIn test.context.deck test

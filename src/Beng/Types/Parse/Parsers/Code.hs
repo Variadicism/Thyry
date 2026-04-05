@@ -13,11 +13,11 @@ module Beng.Types.Parse.Parsers.Code (
 	module Beng.Types.Parse.Parsers
 ) where
 
-import Beng.Types.Build.Cards (Card)
-import Beng.Types.Build.Context (Context)
-import Beng.Types.Errors (Error)
+import {-# SOURCE #-} Beng.Types.Operators (SomeOperator)
+import {-# SOURCE #-} Beng.Types.Build.Context (Context)
+import {-# SOURCE #-} Beng.Types.Errors (Error)
 import Beng.Types.Locations (FileLocation)
-import Beng.Types.Ops (Op)
+import {-# SOURCE #-} Beng.Types.Invocations (SomeInvocation)
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Parse.Parsers hiding (Parse, Parses, ParseRunner, Parser, State)
 import qualified Beng.Types.Parse.Parsers as General
@@ -32,7 +32,7 @@ import Data.Text.Lazy (Text)
    - parsing a prefixed op's prefix
    - parsing any op after the prefix or first argument is captured
    - parsing a non-prefixed op's first argument -}
-data PrefixState = Needed | Unneeded | AvoidingFor { firstArg :: Op }
+data PrefixState = Needed | Unneeded | AvoidingFor { firstArg :: SomeInvocation }
 
 {- The Space Pattern does more than parse whitespace; it can also accept word boundaries.
    So, the parser needs to keep track of whether the last character parsed is, respectively,...
@@ -55,8 +55,8 @@ formsBoundary prevState nextState =
 data State = State {
 	location :: FileLocation,
 	context :: Context,
-	parent :: Maybe Card,  -- TODO: turn into a stack of op arguments for debugging
-	maxPrecedence :: Maybe Card,
+	parent :: Maybe SomeOperator,  -- TODO: turn into a stack of op arguments for debugging
+	maxPrecedence :: Maybe SomeOperator,
 	arguments :: Map String Match.Argument,
 	indentation :: Int,
 	rest :: Text,

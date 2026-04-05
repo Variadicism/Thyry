@@ -12,12 +12,12 @@ import Testing.Beng.Utils.Mocks (a, assertNegate, assertNot, mockABCD)
 import Testing.Beng.Utils.Ops ()
 import Testing.Beng.Utils.Parsers (assertRest)
 
-import Beng.Ops (Op)
 import Beng.Parse.Parsers.Code (Parse, target)
+import Beng.Types.Invocations (SomeInvocation)
 
 import Data.Text.Lazy (Text)
 
-build :: Text -> Fallible [Parse Op]
+build :: Text -> Fallible [Parse SomeInvocation]
 build mockCode =
 	prependToError
 		("An unexpected error occurred while building the mock code, " ++ show mockCode ++ "!") $

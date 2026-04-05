@@ -10,14 +10,14 @@ import Testing.Beng.Utils.Mocks (a, b, assertDiv, mockABCD)
 import Testing.Beng.Utils.Ops ()
 
 import Beng.Build (buildCodeUsing)
-import Beng.Types.Ops (Op)
+import Beng.Types.Invocations (SomeInvocation)
 
 import Control.Monad (void)
 import Data.Text.Lazy (Text, unpack)
 
 -- private
 
-build :: Text -> Fallible [Op]
+build :: Text -> Fallible [SomeInvocation]
 build mockCode = fmap P.toList $ buildCodeUsing mockABCD (unpack mockCode) mockCode
 
 noBuild :: Text -> Fallible ()

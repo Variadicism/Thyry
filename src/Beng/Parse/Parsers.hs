@@ -35,7 +35,7 @@ import Utils.Messaging (debugM)
 import Utils.Populace (Populace(..))
 import qualified Utils.Populace as P
 
-import Beng.Ops ()
+import Beng.Invocations ()
 import Beng.Types.Parse.Parsers (Parse(..), Parses(..), Parser(..), ParseRunner, State(..))
 
 import Control.Monad (when)

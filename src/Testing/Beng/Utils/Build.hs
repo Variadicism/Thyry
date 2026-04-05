@@ -6,12 +6,11 @@ import qualified Utils.Populace as P
 
 import Testing.Beng.Utils.Parsers ((!>>>), MockParser)
 
-import qualified Beng.Build.Ops as Op
+import qualified Beng.Build.Invocations as Inv
+import Beng.Invocations (toCode)
 import Beng.Types.Build.Context (Context)
-import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Parsers.Code (Parse, target)
-import Beng.Types.Ops (Op)
-import qualified Beng.Types.Ops as Op
+import Beng.Types.Invocations (SomeInvocation)
 
 import Data.Text.Lazy (unpack)
 import qualified Data.Text.Lazy as Text
@@ -19,16 +18,16 @@ import GHC.Int (Int64)
 
 -- private
 
-sortParses :: Parse Op -> Parse Op -> Ordering
+sortParses :: Parse SomeInvocation -> Parse SomeInvocation -> Ordering
 sortParses r1 r2 = compare (getTextLength r1) (getTextLength r2)
 	where
-		getTextLength :: Parse Op -> Int64
-		getTextLength = Text.length . Match.toCode . Op.match . target
+		getTextLength :: Parse SomeInvocation -> Int64
+		getTextLength = Text.length . toCode . target
 
 -- exported
 
-build :: Context -> MockParser Op
+build :: Context -> MockParser SomeInvocation
 build mockContext = \mockCode ->
 	fmap (P.sortBy sortParses) $
-		(mockContext !>>> Op.build (unpack mockCode))
+		(mockContext !>>> Inv.build (unpack mockCode))
 		mockCode

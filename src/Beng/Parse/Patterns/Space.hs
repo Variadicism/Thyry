@@ -1,5 +1,6 @@
 module Beng.Parse.Patterns.Space (
-	parse
+	parse,
+	parseSpace
 ) where
 
 import Utils.Fallible hiding (Fallible)
@@ -25,8 +26,8 @@ import qualified Data.Set as Set
 import Data.Text.Lazy (pack)
 import qualified Data.Text.Lazy as T
 
-parseSpace :: Space -> Code.Parser Match
-parseSpace _ = "space pattern" @+> parseBoundary >|> parseSpaces
+parseSpace :: Code.Parser Match
+parseSpace = "space pattern" @+> parseBoundary >|> parseSpaces
 
 parseBoundary :: Code.Parser Match
 parseBoundary = "parse word boundary" @> \state ->
@@ -123,7 +124,7 @@ instance Messagable Space where
 	msg = show
 
 instance TPattern.Pattern Space where
-	parse = parseSpace
+	parse _ = parseSpace
 	compareAsSub = compareAsSubSpace
 	compareAsSuper = compareAsSuperSpace
 	showPatternWith _ _ = " "
@@ -136,4 +137,4 @@ instance TPattern.Pattern Space where
 	isOptional _ = False
 
 parse :: Space -> Code.Parser Match
-parse = parseSpace
+parse _ = parseSpace

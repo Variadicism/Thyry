@@ -16,8 +16,8 @@ module Beng.Build.Context.Builders (
 	patConcat,
 	bitType,
 	intType,
-	asOp,
-	asOpOf,
+	asInv,
+	asInvOf,
 	asNativeString,
 	asBits,
 	bitsValue,
@@ -42,12 +42,12 @@ import Utils.Fallible (FallibleI(..))
 import qualified Utils.Populace as P
 import qualified Utils.Populace.Populace2 as P2
 
-import Beng.Build.Context (Context(..), pushDef)
+import Beng.Build.Context (Context(..), push)
 import qualified Beng.Build.Context as Context
-import Beng.Types.Ops (Op)
-import Beng.Ops.Declarations (ArgContextBuilder, Associativity(..), Declaration(..), PrecedenceBound(..))
-import Beng.Ops.Definitions (Definition(..), Runner)
-import qualified Beng.Ops.Definitions as Definition
+import Beng.Types.Invocations (SomeInvocation)
+import Beng.Operators.Declarations (ArgContextBuilder, Associativity(..), Declaration(..), PrecedenceBound(..))
+import Beng.Operators.Definitions (Definition(..), Runner)
+import qualified Beng.Operators.Definitions as Definition
 import {-# SOURCE #-} Beng.Parse.Patterns.And ()
 import {-# SOURCE #-} Beng.Parse.Patterns.Arg ()
 import {-# SOURCE #-} Beng.Parse.Patterns.CharClass ()
@@ -140,23 +140,23 @@ stringType = NativeStringType  -- TODO: replace with language-level string type 
 
 stringValue = NativeStringValue
 
-asOp :: (Thing -> Op)
-asOp = \case
-	OpValue op -> op
+asInv :: (Thing -> SomeInvocation)
+asInv = \case
+	InvValue op -> op
 	value -> error $
-		"A builtin op assumed that an arg was returning a OpValue, " ++
+		"A builtin invocation assumed that an arg was returning an InvValue, " ++
 		"but it actually captured a(n) " ++ show value ++ "!"
 
-asOpOf :: String -> (Thing -> Fallible a) -> Thing -> Fallible a
-asOpOf expectedDesc get = \case
-	OpValue op -> run op >>= get
+asInvOf :: String -> (Thing -> Fallible a) -> Thing -> Fallible a
+asInvOf expectedDesc get = \case
+	InvValue op -> run op >>= get
 	other -> error $ "A(n) " ++ expectedDesc ++
-		" or op of such was expected, but instead, it's a(n) " ++ show other ++ "!"
+		" or invocation of such was expected, but instead, it's a(n) " ++ show other ++ "!"
 
 asNativeString :: Thing -> Fallible Text
 asNativeString = \case
 	NativeStringValue text -> return text
-	other -> asOpOf "native string" asNativeString other
+	other -> asInvOf "native string" asNativeString other
 
 asBits :: Int -> (Thing -> Fallible ByteString)
 asBits size = \case
@@ -167,7 +167,7 @@ asBits size = \case
 		else error $ show size ++ "b was expected, but " ++
 			show (BS.length bytestring) ++ "B (" ++ show (BS.length bytestring * 8) ++
 			"b) were found instead: " ++ show bitsValue
-	other -> asOpOf (show size ++ "b") (asBits size) other
+	other -> asInvOf (show size ++ "b") (asBits size) other
 
 asInt :: Thing -> Fallible Int32
 asInt value = do  -- TODO TEMPORARY
@@ -224,5 +224,5 @@ declarationOf = Definition.declaration .* definitionOf
 
 buildContextFrom :: Enum e => (e -> Location -> Definition) -> (e -> Context)
 buildContextFrom hangingDefinitionOf =
-	foldl (flip pushDef) Context.empty .
+	foldl (flip push) Context.empty .
 		map (definitionOf hangingDefinitionOf) . enumFrom

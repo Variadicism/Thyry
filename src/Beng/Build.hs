@@ -18,14 +18,13 @@ import qualified Utils.Populace as P
 import Utils.Strings (parenthesize)
 
 import qualified Beng.Build.Context.Builtin as Builtin
-import qualified Beng.Build.Ops as Op
+import qualified Beng.Build.Invocations as Inv
 import Beng.Types.Build.Context (Context)
 import Beng.Errors (printError)
 import qualified Beng.Parse.Parsers.Code as Parser
 import Beng.Parse.Parsers.Code ((@+>), (<<<), (>:>), (>\>), State(..), fileStartState, parseWhile, target)
-import qualified Beng.Parse.Patterns.Space as Space
-import qualified Beng.Types.Parse.Patterns as Pattern
-import Beng.Types.Ops (Op)
+import Beng.Parse.Patterns.Space (parseSpace)
+import Beng.Types.Invocations (SomeInvocation)
 
 import Control.Monad (when)
 import Data.Char (isSpace)
@@ -37,7 +36,7 @@ import System.IO (IOMode(ReadMode), openFile)
 
 -- exports
 
-buildCodeUsing :: Context -> FilePath -> Text -> FallibleI String (Populace Op)
+buildCodeUsing :: Context -> FilePath -> Text -> FallibleI String (Populace SomeInvocation)
 buildCodeUsing context filePath code = do
 	let initialState = fileStartState filePath context code
 
@@ -47,11 +46,11 @@ buildCodeUsing context filePath code = do
 				filePath ++ " at " ++ show state ++ "...") $
 			Text.any (not . isSpace) state.rest
 	let parser = "build code in " ++ filePath @+>
-		parseWhile "text remains" hasText (Space.parse Pattern.Space >:> Op.build filePath >\> snd)
+		parseWhile "text remains" hasText (parseSpace >:> Inv.build filePath >\> snd)
 
 	parses <- fmap Parser.parses $ mapError printError (parser <<< initialState)
 
-	let opsLists :: Populace [Op] = P.map target parses
+	let opsLists :: Populace [SomeInvocation] = P.map target parses
 	let assertOpsPresent = flip P.assert "Is it just me or is there no code in here?"
 	opPopuli <- P.sequenceAny $ P.map assertOpsPresent opsLists
 
@@ -63,10 +62,10 @@ buildCodeUsing context filePath code = do
 
 	return opPopuli.head
 
-buildCode :: (FilePath -> Text -> FallibleI String (Populace Op))
+buildCode :: (FilePath -> Text -> FallibleI String (Populace SomeInvocation))
 buildCode = buildCodeUsing Builtin.context
 
-buildFile :: FilePath -> IOFallible (Populace Op)
+buildFile :: FilePath -> IOFallible (Populace SomeInvocation)
 buildFile path = do
 	file <- tryIO $ openFile path ReadMode
 	code <- tryIO $ Text.hGetContents file

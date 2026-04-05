@@ -12,8 +12,7 @@ import Testing.Beng.Utils.Parsers (MockParser, assertState)
 import Beng.Parse.Matches (Match(text))
 import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Parsers.Code ((>>>), (>\>), Parse, SpaceState(..), State(..), fileStartState, parsed, parses, target)
-import qualified Beng.Parse.Patterns.Space as Space
-import qualified Beng.Types.Parse.Patterns as Pattern
+import Beng.Parse.Patterns.Space (parseSpace)
 
 import Data.Bifunctor (bimap)
 import Data.Text.Lazy (Text)
@@ -23,7 +22,7 @@ import Data.Text.Lazy (Text)
 parse :: SpaceState -> MockParser Text
 parse spaceState text = bimap msg parses (
 	(fileStartState "Space test" mockNothing text){ spaceState } >>>
-	Space.parse Pattern.Space >\>
+	parseSpace >\>
 	\Match.Space{text} -> text)
 
 assertMatch :: Text -> Parse Text -> Fallible ()

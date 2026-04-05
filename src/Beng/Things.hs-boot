@@ -3,10 +3,10 @@ module Beng.Things where
 import Utils.Fallible (FallibleI, IsError)
 import Utils.Messaging (Messagable)
 
-import Beng.Types.Build.Cards (Card)
+import Beng.Types.Operators (SomeOperator)
 import Beng.Types.Build.Context (Context)
-import Beng.Types.Ops.Declarations (Declaration)
-import Beng.Types.Ops.Definitions (Definition)
+import Beng.Types.Operators.Declarations (Declaration)
+import Beng.Types.Operators.Definitions (Definition)
 import Beng.Types.Build.TypeTest (TypeTestResult)
 import Beng.Types.Things (Mismatch, Thing, Undefined, Thing)
 
@@ -32,7 +32,7 @@ toCode :: Thing -> Text
 
 undefined :: Declaration -> FallibleI Undefined Thing
 
-cardsOf :: Thing -> [Card]
+propsOf :: Thing -> [SomeOperator]
 
 defsOf :: Thing -> [Definition]
 

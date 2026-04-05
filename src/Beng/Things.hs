@@ -2,7 +2,7 @@ module Beng.Things (
 	thing,
 	toCode,
 	undefined,
-	cardsOf,
+	propsOf,
 	defsOf,
 	satisfies,
 	module Beng.Types.Things
@@ -18,15 +18,15 @@ import qualified Utils.Populace.Populace2 ()
 import Utils.Strings (aOrAn, parenthesize)
 import Utils.Tuples (mapFst2, toList2)
 
-import Beng.Build.Cards (filterDefs)
+import Beng.Operators (filterDefs)
 import Beng.Errors (compoundErrorsUsing, showCompoundErrorsUsing)
-import Beng.Ops ()
-import qualified Beng.Ops as Op
+import Beng.Invocations ()
+import qualified Beng.Invocations as Inv
 import qualified Beng.Build.TypeTest as ST
-import Beng.Types.Build.Cards (Card(..))
+import Beng.Types.Operators (SomeOperator(..))
 import Beng.Types.Build.Context (Context)
-import Beng.Types.Ops.Declarations (Declaration)
-import Beng.Types.Ops.Definitions (Definition)
+import Beng.Types.Operators.Declarations (Declaration)
+import Beng.Types.Operators.Definitions (Definition)
 import Beng.Types.Build.TypeTest (TypeTestResult)
 import Beng.Types.Things (Mismatch(..), Undefined(..), Thing(..), Thing(..))
 import qualified Beng.Types.Things as Mismatch
@@ -59,7 +59,7 @@ showMismatchUsing useMsg = \case
 	MissingArgument{..} -> showArg name (show' sub) ++ " was not found in " ++ showArgsUsing show' superArgs
 	ExtraArgument{..} -> showArg name (show' super) ++ " was not expected; only " ++
 		showArgsUsing show' subArgs ++ " were!"
-	UnsatisfiedProperty{..} -> "it did not satisfy " ++ show' declaration ++ ": " ++ show' decMismatch
+	UnsatisfiedProperty{..} -> "it did not satisfy " ++ show' property ++ ": " ++ show' decMismatch
 	ObscuredProperty{..} -> "it obscured " ++ show' property ++ ": " ++ show' decMismatch
 	UnsatisfiedParent{..} ->
 		show' super ++ " does not satisfy its parent, " ++ show' parent ++ ": " ++ show' cause
@@ -122,7 +122,7 @@ instance Eq Thing where
 	(==) t1@NativeType{} t2@NativeType{} = t1.properties One `equalsIgnoreOrder` t2.properties One
 	-- /\ This needed custom implementation since properties is a function and can't `==`.
 	-- \/ These COULD HAVE BEEN derived, but I can't "partailly derive", so... :|
-	(==) (OpValue o1) (OpValue o2) = o1 == o2
+	(==) (InvValue o1) (InvValue o2) = o1 == o2
 	(==) (DefinitionValue d1) (DefinitionValue d2) = d1 == d2
 	(==) (DeclarationValue d1) (DeclarationValue d2) = d1 == d2
 	(==) (PatternValue p1) (PatternValue p2) = p1 == p2
@@ -153,7 +153,7 @@ instance Eq Thing where
 
 instance Show Thing where
 	show = \case
-		OpValue op -> show op
+		InvValue inv -> show inv
 		DefinitionValue def -> show def
 		DeclarationValue dec -> show dec
 		PatternValue pattern -> show pattern
@@ -193,7 +193,7 @@ instance Show Thing where
 
 instance Messagable Thing where
 	msg = \case
-		OpValue op -> msg op
+		InvValue inv -> msg inv
 		DefinitionValue def -> msg def
 		DeclarationValue dec -> msg dec
 		PatternValue pat -> msg pat
@@ -221,7 +221,7 @@ instance Messagable Thing where
 toCode :: Thing -> Text
 toCode = \case
 	-- TODO: replace most "pack $ show"s with their own toCodes (and probably a class).
-	OpValue op -> Op.toCode op
+	InvValue invocation -> Inv.toCode invocation
 	DefinitionValue def -> pack $ show def
 	DeclarationValue dec -> pack $ show dec
 	PatternValue pat -> pack $ show pat
@@ -244,20 +244,20 @@ toCode = \case
 undefined :: Declaration -> FallibleI Undefined Thing
 undefined declaration = Error $ Undefined [("", declaration)]
 
-cardsWithOf :: Thing -> Thing -> [Card]
-cardsWithOf one = \case
-	CombinedThings{..} -> concatMap (cardsWithOf one) things -- TODO: filter out polysemy
-	DefinitionValue def -> [DefCard def]
-	DeclarationValue dec -> [DecCard dec]
-	nt@NamedThing{..} -> cardsWithOf one nt.value -- TODO: add type names as ops
+propsWithOf :: Thing -> Thing -> [SomeOperator]
+propsWithOf one = \case
+	CombinedThings{..} -> concatMap (propsWithOf one) things -- TODO: filter out polysemy
+	DefinitionValue def -> [SomeOperator def]
+	DeclarationValue dec -> [SomeOperator dec]
+	nt@NamedThing{..} -> propsWithOf one nt.value -- TODO: add type names as ops
 	NativeType{..} -> properties one
 	_ -> []
 
-cardsOf :: Thing -> [Card]
-cardsOf one = cardsWithOf one one
+propsOf :: Thing -> [SomeOperator]
+propsOf one = propsWithOf one one
 
 defsOf :: Thing -> [Definition]
-defsOf = filterDefs . cardsOf
+defsOf = filterDefs . propsOf
 
 {- This is NOT meant to be used recursively!
    Try the TypeTest instead as it can avoid infinite recursions from tautologies.

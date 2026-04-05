@@ -13,7 +13,7 @@ import Utils.Tuples (mapSnd2)
 import Testing.Beng.Utils.Mocks (ABCD(Divide), argOf, divide, locationOf, mockABCD)
 import Testing.Beng.Utils.Parsers (MockParser, assertRest)
 
-import Beng.Types.Build.Cards (Card(..))
+import Beng.Types.Operators (SomeOperator(..))
 import Beng.Build.Context.Builders (cr2, intType, l, s)
 import qualified Beng.Parse.Matches as Match
 import Beng.Parse.Parsers.Code ((>>>), (>\>), Parse, PrefixState(..), State(..), fileStartState, parses, target)
@@ -42,7 +42,7 @@ a name = argOf Divide name intType
 parse :: Pattern -> MockParser Text
 parse pattern = \code -> bimap msg parses $
 	((fileStartState "NamedText test" mockABCD code){
-		parent = Just $ DefCard divide,
+		parent = Just $ SomeOperator divide,
 		prefixState = Unneeded } >>>
 	NamedText.parse NamedText { name = "Dividend Text", subpattern = pattern, decLoc = argLoc } >\>
 	Match.toCode)

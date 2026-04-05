@@ -6,14 +6,14 @@ import Prelude hiding (subtract)
 
 import qualified Utils.Populace.Populace2 as P2
 
+import Beng.Types.Operators (SomeOperator(..))
 import Beng.Build.Context (Context(..), PrecedenceBound(..))
-import Beng.Build.Context.Builders (c, cr, e, nc, s, l, multi, argAt, asBits, asInt, asNativeString, asOp, bitType, bitValue, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf, intType, intValue, stringType, stringValue, textAt)
-import Beng.Types.Build.Cards (Card(DefCard))
+import Beng.Build.Context.Builders (c, cr, e, nc, s, l, multi, argAt, asBits, asInt, asNativeString, asInv, bitType, bitValue, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf, intType, intValue, stringType, stringValue, textAt)
 import Beng.Types.Parse.Matches (value)
 import Beng.Types.Parse.Patterns (And(..), Delimited(..), Or(..), SomePattern(..))
 import Beng.Run (run, runWhileOp)
-import Beng.Types.Ops.Declarations (Associativity(..), Declaration)
-import Beng.Types.Ops.Definitions (Definition(..))
+import Beng.Types.Operators.Declarations (Associativity(..), Declaration)
+import Beng.Types.Operators.Definitions (Definition(..))
 import Beng.Types.Locations (Location(..))
 import Beng.Types.Things (Thing(..))
 
@@ -108,7 +108,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 			addend <- asInt $ args ! "Addend"
 			return $ intValue $ augend + addend)
 		location
-	Subtract -> define (At $ dec Add)
+	Subtract -> define (At $ SomeOperator $ dec Add)
 		[a "Minuend" intType, s, l "-", s, a "Subtrahend" intType]
 		intType
 		(\args -> do
@@ -116,7 +116,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 			subtrahend <- asInt $ args ! "Subtrahend"
 			return $ intValue $ minuend - subtrahend)
 		location
-	StartsWith -> define (Below $ dec Add)
+	StartsWith -> define (Below $ SomeOperator $ dec Add)
 		[a "Target" stringType, s, l "starts", s, l "with", s, a "Prefix" stringType]
 		bitType
 		(\args -> do
@@ -124,18 +124,18 @@ hangingDefinitionOf opEnum location = case opEnum of
 			prefix <- asNativeString $ args ! "Prefix"
 			return $ bitValue $ prefix `Text.isPrefixOf` target)
 		location
-	DefineValue -> defineUsing (Below $ dec Add) Righty
+	DefineValue -> defineUsing (Below $ SomeOperator $ dec Add) Righty
 		[t "Name" valueName, s, l ":=", s, a "Thing" intType, s, a "Scope" (PreOpType intType)]
 		intType
 		(\name args location -> case name of
 			"Scope" -> do
 				name <- asNativeString $ (args ! "Name").value
 				let value = (args ! "Thing").value
-				return [DefCard $ defineLiteral name intType value location]
+				return [SomeOperator $ defineLiteral name intType value location]
 			_ -> return [])
-		(\args -> run $ asOp $ args ! "Scope")
+		(\args -> run $ asInv $ args ! "Scope")
 		location
-	If -> define (Below $ dec DefineValue)
+	If -> define (Below $ SomeOperator $ dec DefineValue)
 		[l "if", s, a "Condition" (NativeBitsType 1), l ",",
 			s, a "Y" intType, s,
 			l "else", s, a "N" intType]

@@ -8,9 +8,9 @@ import qualified Utils.Populace.Populace2 as P2
 import Utils.Testing
 
 import qualified Beng.Build.Context as Context
+import Beng.Types.Operators (SomeOperator(..))
 import Beng.Build.Context.Builders (argOfBuiltin, bitType, bitValue, declare, define, intType, intValue, l, s)
 import Beng.Things (Thing(..), satisfies, thing)
-import Beng.Types.Build.Cards (Card(..))
 import Beng.Types.Build.Context (PrecedenceBound(..))
 import Beng.Types.Locations (Location(..))
 
@@ -94,7 +94,7 @@ testTypecheck = TestCategories "typecheck" do
 		defConstantForProp i j (yellSubpatternsFor i) (NativeStringValue result)
 	
 	let animal = NamedThing "an animal" $ NativeType
-		\one -> [DecCard $ declareYellPropFor 0 0 one]
+		\one -> [SomeOperator $ declareYellPropFor 0 0 one]
 	let animalDef = DefinitionValue $ defNamedForOp 0 "an animal" animal
 
 	let killSubpatternsFor i one =
@@ -103,7 +103,7 @@ testTypecheck = TestCategories "typecheck" do
 
 	let cat = NamedThing "a cat" $ CombinedThings $ P2.dualton
 		animal $
-		NativeType \one -> [DecCard $ declareKillFor 1 0 one]
+		NativeType \one -> [SomeOperator $ declareKillFor 1 0 one]
 	let catDef = DefinitionValue $ defNamedForOp 1 "a cat" cat
 	let yowlDef = DefinitionValue $ defineYellForOp 2 "yowl" cat
 
@@ -114,8 +114,8 @@ testTypecheck = TestCategories "typecheck" do
 	let dog = NamedThing "a dog" $ CombinedThings $ P2.dualton
 		animal $
 		NativeType \one -> [
-			DecCard $ declareFetchForProp 3 0 one,
-			DefCard $ defineYellForProp 3 1 "bark" one]
+			SomeOperator $ declareFetchForProp 3 0 one,
+			SomeOperator $ defineYellForProp 3 1 "bark" one]
 	let dogDef = DefinitionValue $ defNamedForOp 3 "a dog" dog
 
 	let birthYearSubpatternsFor i one = [l "Birth Year for ", a i "One" one]
@@ -134,39 +134,39 @@ testTypecheck = TestCategories "typecheck" do
 	let human = NamedThing "a human" $ CombinedThings $ P2.dualton
 		animal $
 		NativeType \one -> [
-			DefCard $ defineYellForProp 4 0 "shout" one,
-			DecCard $ declareBirthYearFor 4 1 one,
-			DefCard $ defineGoodPortraitFor 4 2 True one,
-			DefCard $ defForProp 4 3 (philosophizeSubpatternsFor 4) NativeStringType
+			SomeOperator $ defineYellForProp 4 0 "shout" one,
+			SomeOperator $ declareBirthYearFor 4 1 one,
+			SomeOperator $ defineGoodPortraitFor 4 2 True one,
+			SomeOperator $ defForProp 4 3 (philosophizeSubpatternsFor 4) NativeStringType
 				(const $ return $ NativeStringValue "To be or not to be?") one]
 	let humanDef = DefinitionValue $ defNamedForOp 4 "a human" human
 
 	let parisHilton = NamedThing "Paris Hilton" $ NativeType \one -> [
-		DefCard $ defineYellForProp 5 0 "shout" one,
-		DefCard $ defineBirthYearFor 5 1 1981 one,
-		DefCard $ defineGoodPortraitFor 5 2 True one,
-		DefCard $ definePhilosophizeFor 5 3 "Life is too short to blend in." one]
+		SomeOperator $ defineYellForProp 5 0 "shout" one,
+		SomeOperator $ defineBirthYearFor 5 1 1981 one,
+		SomeOperator $ defineGoodPortraitFor 5 2 True one,
+		SomeOperator $ definePhilosophizeFor 5 3 "Life is too short to blend in." one]
 	let parisHiltonDef = DefinitionValue $ defNamedForOp 5 "Paris Hilton" parisHilton
 
 	let reneDescartes = NamedThing "Rene Descartes" $ CombinedThings $ P2.dualton
 		human $
 		NativeType \one -> [
-			DefCard $ defineBirthYearFor 6 0 1596 one,
-			DefCard $ definePhilosophizeFor 6 1 "I think, there I am." one]
+			SomeOperator $ defineBirthYearFor 6 0 1596 one,
+			SomeOperator $ definePhilosophizeFor 6 1 "I think, there I am." one]
 	let reneDescartesDef = DefinitionValue $ defNamedForOp 6 "Rene Descartes" reneDescartes
 
 	let williamShakespeare = NamedThing "William Shakespeare" $ NativeType \one -> [
-		DefCard $ defineYellForProp 7 0 "shout" one,
-		DefCard $ defineBirthYearFor 7 1 1564 one,
-		DefCard $ defineGoodPortraitFor 7 2 True one]
+		SomeOperator $ defineYellForProp 7 0 "shout" one,
+		SomeOperator $ defineBirthYearFor 7 1 1564 one,
+		SomeOperator $ defineGoodPortraitFor 7 2 True one]
 	let williamShakespeareDef = DefinitionValue $
 		defNamedForOp 7 "William Shakespeare" williamShakespeare
 
 	let bigfoot = NamedThing "Bigfoot" $ NativeType \one -> [
-		DefCard $ defineYellForProp 8 0 "shout" one,
-		DefCard $ defineBirthYearFor 8 1 1811 one,
-		DefCard $ defineGoodPortraitFor 8 2 False one,
-		DefCard $ definePhilosophizeFor 8 3 "MAKE OWN PATH THRU FOREST" one]
+		SomeOperator $ defineYellForProp 8 0 "shout" one,
+		SomeOperator $ defineBirthYearFor 8 1 1811 one,
+		SomeOperator $ defineGoodPortraitFor 8 2 False one,
+		SomeOperator $ definePhilosophizeFor 8 3 "MAKE OWN PATH THRU FOREST" one]
 	let bigfootDef = DefinitionValue $ defNamedForOp 8 "Bigfoot" bigfoot
 
 	let votedSubpatternsFor i one = [a i "One" one, l " voted this year"]
@@ -175,8 +175,8 @@ testTypecheck = TestCategories "typecheck" do
 	let milleniumBaby = NamedThing "a millenium baby" $ CombinedThings $ P2.dualton
 		human $
 		NativeType \one -> [
-			DefCard $ defineBirthYearFor 9 0 2000 one,
-			DecCard $ declareVotedFor 9 1 one]
+			SomeOperator $ defineBirthYearFor 9 0 2000 one,
+			SomeOperator $ declareVotedFor 9 1 one]
 	let milleniumBabyDef = DefinitionValue $ defNamedForOp 9 "a millenium baby" milleniumBaby
 
 	{- Note that the way this context is assembled is not necessarily the way context is really handled;

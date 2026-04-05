@@ -8,12 +8,12 @@ import Utils.Fallible (FallibleI)
 import Utils.Populace (Populace)
 import Utils.Populace.Populace2 (Populace2)
 
-import {-# SOURCE #-} Beng.Ops ()
-import Beng.Types.Build.Cards (Card)
-import {-# SOURCE #-} Beng.Types.Ops.Declarations (Declaration)
-import {-# SOURCE #-} qualified Beng.Types.Ops.Declarations as Declaration
-import {-# SOURCE #-} Beng.Types.Ops.Definitions (Definition)
-import {-# SOURCE #-} Beng.Types.Ops (Op)
+import {-# SOURCE #-} Beng.Invocations ()
+import Beng.Types.Operators (SomeOperator)
+import {-# SOURCE #-} Beng.Types.Operators.Declarations (Declaration)
+import {-# SOURCE #-} qualified Beng.Types.Operators.Declarations as Declaration
+import {-# SOURCE #-} Beng.Types.Operators.Definitions (Definition)
+import {-# SOURCE #-} Beng.Types.Invocations (SomeInvocation)
 import {-# SOURCE #-} Beng.Types.Parse.Patterns (SomePattern)
 
 import Data.ByteString (ByteString)
@@ -25,8 +25,8 @@ data Mismatch =
 	MismatchedArgument { name :: String, super :: Thing, sub :: Thing, cause :: Mismatch } |
 	MissingArgument { name :: String, sub :: Thing, superArgs :: Map String Thing } |
 	ExtraArgument { name :: String, super :: Thing, subArgs :: Map String Thing } |
-	UnsatisfiedProperty { declaration :: Declaration, decMismatch :: Declaration.Mismatch } |
-	ObscuredProperty { property :: Card, decMismatch :: Declaration.Mismatch } |
+	UnsatisfiedProperty { property :: SomeOperator, decMismatch :: Declaration.Mismatch } |
+	ObscuredProperty { property :: SomeOperator, decMismatch :: Declaration.Mismatch } |
 	UnsatisfiedParent { parent :: Thing, super :: Thing, cause :: Mismatch } |
 	PrimitiveMismatch { super :: Thing, sub :: Thing } |
 	Tautology { super :: Thing, sub :: Thing } |
@@ -37,7 +37,7 @@ data Undefined = Undefined { decsByContext :: [(String, Declaration)] }
 
 data Thing =
 	-- primitive values: basic building blocks of the language
-	OpValue Op |
+	InvValue SomeInvocation |
 	DefinitionValue Definition |
 	DeclarationValue Declaration |
 	PatternValue SomePattern |
@@ -57,7 +57,7 @@ data Thing =
 	NativeSomeValue { valuesP :: Populace Thing } |
 	NativeOptionalValue { fal :: FallibleI Undefined Thing } |
 	-- native types: types representing the native values
-	NativeType { properties :: Thing -> [Card] } |
+	NativeType { properties :: Thing -> [SomeOperator] } |
 	NativeBitsType { size :: Int } |
 	NativeCharType |
 	NativeStringType |

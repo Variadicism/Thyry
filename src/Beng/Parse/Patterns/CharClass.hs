@@ -17,6 +17,7 @@ import Utils.Populace (Populace)
 import qualified Utils.Populace as P
 
 import Beng.Errors (parseError)
+import Beng.Parse.Matches ()
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>:>))
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (compareAsSuperDefault)
@@ -24,6 +25,8 @@ import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Types.Parse.Matches (Match)
 import qualified Beng.Types.Parse.Matches as Match
 import {-# SOURCE #-} Beng.Parse.Patterns (asPattern)
+import {-# SOURCE #-} Beng.Parse.Patterns.Literal ()
+import {-# SOURCE #-} Beng.Parse.Patterns.Space ()
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Patterns (
 	CharClass(..),

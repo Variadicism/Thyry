@@ -52,18 +52,18 @@ common options
   default-language: Haskell2010
   other-modules:
     Beng.Build
-    Beng.Build.Cards
+    Beng.Operators
     Beng.Build.Context
     Beng.Build.Context.Builtin
     Beng.Build.Context.Builders
-    Beng.Build.Ops
+    Beng.Build.Invocations
     Beng.Build.TypeTest
     Beng.Errors
     Beng.Interpret
     Beng.Locations
-    Beng.Ops
-    Beng.Ops.Declarations
-    Beng.Ops.Definitions
+    Beng.Invocations
+    Beng.Operators.Declarations
+    Beng.Operators.Definitions
     Beng.Parse.Matches
     Beng.Parse.Patterns
     Beng.Parse.Patterns.And
@@ -78,14 +78,14 @@ common options
     Beng.Parse.Parsers
     Beng.Parse.Parsers.Code
     Beng.Parse.Parsers.PatternComparator
-    Beng.Types.Build.Cards
+    Beng.Types.Operators
     Beng.Types.Build.Context
     Beng.Types.Build.TypeTest
     Beng.Types.Errors
     Beng.Types.Locations
-    Beng.Types.Ops
-    Beng.Types.Ops.Declarations
-    Beng.Types.Ops.Definitions
+    Beng.Types.Invocations
+    Beng.Types.Operators.Declarations
+    Beng.Types.Operators.Definitions
     Beng.Types.Parse.Matches
     Beng.Types.Parse.PatternArguments
     Beng.Types.Parse.Parsers

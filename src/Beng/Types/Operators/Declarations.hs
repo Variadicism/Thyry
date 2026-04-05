@@ -1,4 +1,4 @@
-module Beng.Types.Ops.Declarations (
+module Beng.Types.Operators.Declarations (
 	Mismatch(..),
 	ArgContextBuilder,
 	Associativity(..),
@@ -8,7 +8,7 @@ module Beng.Types.Ops.Declarations (
 import Utils.Populace (Populace)
 
 import {-# SOURCE #-} Beng.Parse.Patterns ()
-import Beng.Types.Build.Cards (Card)
+import Beng.Types.Operators (SomeOperator)
 import Beng.Types.Build.Context (PrecedenceBound)
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Parse.Patterns (SomePattern)
@@ -31,15 +31,15 @@ type ArgContextBuilder =
 	String  -- ^ The name of the argument for which context is needed.
 	-> Map String Match.Argument  -- ^ The arguments built so far; they may be needed to build the preop
 	-> Location
-	-> Fallible [Card]  -- ^ The Cards to appended to context to parse the preop.
+	-> Fallible [SomeOperator]  -- ^ The operators to appended to context to parse the preop.
 {- TODO: The Location field is TEMPORARY and should be removed later!
-   In the future, the Card should use the Location of the Declaration passed into `build...using`.
+   In the future, the operator should use the Location of the Declaration passed into `build...using`.
    However, we can't use `build...using` until the type system is working.
    In the meantime, we need some declaration-generating builtin ops.
    They will be using the Location of the argument for which the Context is being generated for now.
 
    Note: it's possible (extremely unlikely) that a Declaration could be made at the very start of
-   a preop argument, which would result in generated Cards and the coded Card having the same
+   a preop argument, which would result in generated operators and the coded operator having the same
    location and therefore be considered equal under Eq Declaration or Eq Definition. Again, this
    is temporary and will be fixed when we have a type system to implement `build...using`.
 

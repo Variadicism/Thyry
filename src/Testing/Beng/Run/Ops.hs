@@ -14,26 +14,26 @@ import Utils.Testing
 import Testing.Beng.Utils.Mocks (aOp, aValue, addOp, appOp, bOp, bValue, divOp, expOp)
 import Testing.Beng.Utils.Run (assertEval, assertUndefinedError)
 
+import qualified Beng.Build.Context as Context
 import Beng.Build.Context (PrecedenceBound(Default, None))
-import Beng.Build.Context.Builders (l, argOfBuiltin, asInt, asOp, declare, define, intType, intValue)
-import Beng.Build.Cards (Card(..))
-import Beng.Ops (Op(..))
-import Beng.Ops.Definitions (Definition)
+import Beng.Build.Context.Builders (l, argOfBuiltin, asInt, asInv, declare, define, intType, intValue)
+import Beng.Operators.Definitions (Definition)
 import Beng.Parse.Matches (Match(ArgM))
 import qualified Beng.Parse.Matches as M
 import Beng.Parse.Patterns (Argument(..))
 import Beng.Run (run)
 import Beng.Types.Locations (FileLocation(..), Location(..))
+import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import Beng.Types.Parse.Patterns (Delimited(..), Or(..), SomePattern(..))
-import Beng.Types.Things (Thing, Thing(NativeOptionalValue, NativeSomeValue, OpValue))
+import Beng.Types.Things (Thing, Thing(NativeOptionalValue, NativeSomeValue, InvValue))
 
 import Data.Map ((!))
 
 -- constants
 
-argMatchOf :: Int -> String -> Thing -> Op -> Match
-argMatchOf parentIndex name argType op = ArgM M.Argument {
-	argType, name, value = OpValue op,
+argMatchOf :: Int -> String -> Thing -> SomeInvocation -> Match
+argMatchOf parentIndex name argType inv = ArgM M.Argument {
+	argType, name, value = InvValue inv,
 	decLoc = BuiltinArg name parentIndex }
 
 someOrNone :: Definition
@@ -44,7 +44,7 @@ someOrNone = define Default
 		let (NativeOptionalValue maybeSome) = args ! "Some"
 		case maybeSome of
 			Error _ -> return $ intValue 0
-			Falue value -> run $ asOp value)
+			Falue value -> run $ asInv value)
 	(Builtin 0)
 
 sumCommas :: Definition
@@ -55,12 +55,13 @@ sumCommas = define Default
 		let (NativeSomeValue elements) = args ! "Element"
 		return $ intValue $ sum $
 			assume $ sequence $ map (>>= asInt) $
-			map (run . asOp) elements)
+			map (run . asInv) elements)
 	(Builtin 1)
 
-noneOp :: Op
-noneOp = Op {
-	card = DefCard someOrNone,
+noneOp :: SomeInvocation
+noneOp = SomeInvocation Invocation {
+	operator = someOrNone,
+	context = Context.empty,
 	location = Builtin 2,
 	match = M.Or { matchIndex = 0,
 		misses = [Argument "Some" intType (BuiltinArg "Some" 2)],
@@ -68,23 +69,25 @@ noneOp = Op {
 
 -- private
 
-someOp :: Op -> Op
-someOp op = Op {
-	card = DefCard someOrNone,
+someOp :: SomeInvocation -> SomeInvocation
+someOp inv = SomeInvocation Invocation {
+	operator = someOrNone,
+	context = Context.empty,
 	location = Builtin 3,
 	match = M.Or {
 		matchIndex = 1, misses = [],
-		match = argMatchOf 3 "Some" intType op }}
+		match = argMatchOf 3 "Some" intType inv }}
 
-sumCommasOp :: Op -> Populace Op -> Op
-sumCommasOp firstArgOp argOpsTail = Op {
-	card = DefCard sumCommas,
+sumCommasOp :: SomeInvocation -> Populace SomeInvocation -> SomeInvocation
+sumCommasOp firstArgInv invsTail = SomeInvocation Invocation {
+	operator = sumCommas,
+	context = Context.empty,
 	location = Builtin 4,
 	match = M.Delimited {
-		M.head = argMatchOf 4 "Element" intType firstArgOp,
-		M.tail = toTail argOpsTail }}
+		M.head = argMatchOf 4 "Element" intType firstArgInv,
+		M.tail = toTail invsTail }}
 	where
-		toTail :: (Populace Op -> M.DelimitedTail)
+		toTail :: Populace SomeInvocation -> M.DelimitedTail
 		toTail = M.DelimitedTailMatch . P.map
 			((M.Literal ",",) . argMatchOf 4 "Element" intType)
 
@@ -114,5 +117,9 @@ testRunOps = TestCategories "evaluate" [
 		("declaration", do
 			let location = Code $ FileLocation "undefined test" 1 1
 			let declaration = declare None [l "test"] intType location
-			let op = Op { card = DecCard declaration, location, match = M.Literal "test" }
-			assertUndefinedError op)]]
+			let inv = SomeInvocation Invocation {
+				operator = declaration,
+				context = Context.empty,
+				location,
+				match = M.Literal "test" }
+			assertUndefinedError inv)]]

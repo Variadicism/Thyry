@@ -18,10 +18,11 @@ import Utils.Lists (ifNotNull)
 import Utils.Messaging (Messagable, msg)
 
 import Beng.Build.Context (Context)
-import Beng.Ops ()
+import Beng.Invocations ()
 import Beng.Parse.Parsers hiding (Parse, Parses, ParseRunner, Parser, State)
 import qualified Beng.Parse.Parsers as Parser
 import qualified Beng.Types.Parse.Parsers.Code as TCode
+import Beng.Types.Parse.Matches (Argument(..))
 import Beng.Types.Parse.Parsers.Code (Parse, Parses, Parser, ParseRunner, PrefixState(..), SpaceState(..), State(..))
 import Beng.Types.Locations (FileLocation(..))
 
@@ -44,7 +45,7 @@ instance Messagable State where
 		"post-" ++ map toLower (show spaceState) ++ " " ++
 		ifNotNull (++" ") (show prefixState) ++
 		show rest ++
-		" with " ++ show (map (\(name, capture) -> name ++ " := " ++ show capture) $ Map.assocs arguments)
+		" with " ++ show (map (\(name, capture) -> name ++ " := " ++ show (value capture)) $ Map.assocs arguments)
 
 instance Show State where
 	show state@State{..} = msg state ++
