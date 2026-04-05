@@ -7,12 +7,12 @@ module Beng.Types.Build.TypeTest (
 import Utils.Fallible (FallibleI)
 
 import Beng.Types.Build.Context (Context)
-import Beng.Types.Things (Mismatch, Thing)
+import Beng.Types.Things (Mismatch, SomeThing)
 
 data Contest = Contest {
-	candidate :: Thing,
+	candidate :: SomeThing,
 	candidateName :: Maybe String,
-	requirement :: Thing,
+	requirement :: SomeThing,
 	requirementName :: Maybe String }
 
 data TypeTest = TypeTest {

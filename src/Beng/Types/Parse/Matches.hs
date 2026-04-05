@@ -9,15 +9,15 @@ import Utils.Populace.Populace2 (Populace2)
 
 import qualified Beng.Types.Parse.PatternArguments as Pattern
 import Beng.Types.Locations (Location)
-import {-# SOURCE #-} Beng.Types.Things (Thing)
+import {-# SOURCE #-} Beng.Types.Things (SomeThing)
 
 import Data.Text.Lazy (Text)
 
 data Argument = Argument {
 	decLoc :: Location,
 	name :: String,
-	argType :: Thing,
-	value :: Thing }
+	argType :: SomeThing,
+	value :: SomeThing }
 
 data DelimitedTail =
 	DelimitedTailMatch (Populace (Match, Match)) |

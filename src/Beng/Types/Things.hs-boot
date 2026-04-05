@@ -4,4 +4,6 @@ data Mismatch
 
 data Undefined
 
-data Thing
+class Thing thing
+
+data SomeThing

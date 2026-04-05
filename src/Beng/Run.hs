@@ -6,12 +6,12 @@ module Beng.Run (
 import Beng.Operators (Operator(..))
 import Beng.Invocations (SomeInvocation(..))
 import Beng.Errors (Fallible)
-import Beng.Types.Things (Thing(InvValue))
+import Beng.Types.Things (SomeThing(..), castThing)
 
-run :: SomeInvocation -> Fallible Thing
+run :: SomeInvocation -> Fallible SomeThing
 run (SomeInvocation invocation) = runUsing invocation
 
-runWhileOp :: Thing -> Fallible Thing
-runWhileOp = \case
-	InvValue invocation -> run invocation >>= runWhileOp
-	value -> return value
+runWhileOp :: SomeThing -> Fallible SomeThing
+runWhileOp value = case castThing value of
+	Just invocation -> run invocation >>= runWhileOp
+	Nothing -> return value

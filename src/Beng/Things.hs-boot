@@ -8,7 +8,7 @@ import Beng.Types.Build.Context (Context)
 import Beng.Types.Operators.Declarations (Declaration)
 import Beng.Types.Operators.Definitions (Definition)
 import Beng.Types.Build.TypeTest (TypeTestResult)
-import Beng.Types.Things (Mismatch, Thing, Undefined, Thing)
+import Beng.Types.Things (Mismatch, SomeThing, Undefined)
 
 import Data.Text.Lazy (Text)
 
@@ -22,18 +22,18 @@ instance Ord Mismatch
 
 instance IsError Mismatch
 
-instance Eq Thing
+instance Eq SomeThing
 
-instance Show Thing
+instance Show SomeThing
 
-instance Messagable Thing
+instance Messagable SomeThing
 
-toCode :: Thing -> Text
+toCode :: SomeThing -> Text
 
-undefined :: Declaration -> FallibleI Undefined Thing
+undefined :: Declaration -> FallibleI Undefined SomeThing
 
-propsOf :: Thing -> [SomeOperator]
+propsOf :: SomeThing -> [SomeOperator]
 
-defsOf :: Thing -> [Definition]
+defsOf :: SomeThing -> [Definition]
 
-satisfies :: (Context, Thing) -> Thing -> TypeTestResult
+satisfiesThing :: (Context, SomeThing) -> SomeThing -> TypeTestResult

@@ -18,6 +18,8 @@ import qualified Beng.Parse.Matches as Match
 import Beng.Types.Parse.Matches (Match)
 import Beng.Parse.Patterns (asPattern)
 import qualified Beng.Parse.Patterns as Pattern
+import Beng.Things (NativeStringType(..), NativeStringValue(..))
+import Beng.Types.Things (SomeThing(..))
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Patterns (
 	Argument(..),
@@ -26,7 +28,6 @@ import Beng.Types.Parse.Patterns (
 	Mismatch(..),
 	NamedText(..),
 	SomePattern(..))
-import Beng.Types.Things (Thing(NativeStringType), Thing(NativeStringValue))
 
 import qualified Data.Map as Map
 import qualified Data.Map.Ordered as OMap
@@ -38,8 +39,8 @@ parseNamedText :: NamedText -> Code.Parser Match
 parseNamedText NamedText{..} = "named text " ++ wrap "\"" name @+>
 	Pattern.parse subpattern >/\> (\s match -> do
 		let argument = Match.Argument {
-			decLoc, name, argType = NativeStringType,
-			value = NativeStringValue $ Match.toCode match }
+			decLoc, name, argType = SomeThing NativeStringType,
+			value = SomeThing $ NativeStringValue $ Match.toCode match }
 		s{ Code.arguments = Map.insert name argument s.arguments }) >\> \match ->
 	Match.NamedText { decLoc, name, match }
 
@@ -103,7 +104,8 @@ instance TPattern.Pattern NamedText where
 	isOptional NamedText{..} = Pattern.isOptional subpattern
 	getSubpatterns NamedText{..} = P.singleton subpattern
 	getArgsUsing getArgs NamedText{..} =
-		(name, Argument { name, decLoc, argType = NativeStringType }) OMap.|< getArgs subpattern
+		(name, Argument { name, decLoc, argType = SomeThing NativeStringType }) OMap.|<
+			getArgs subpattern
 
 parse :: NamedText -> Code.Parser Match
 parse = parseNamedText

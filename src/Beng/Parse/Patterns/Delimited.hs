@@ -16,6 +16,8 @@ import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (compareAsSuperDefault)
 import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
+import Beng.Things (NativeSomeType(..), NativeListType(..))
+import Beng.Types.Things (SomeThing(..))
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Patterns (
 	Argument(..),
@@ -24,7 +26,6 @@ import Beng.Types.Parse.Patterns (
 	Delimited(..),
 	Mismatch(..),
 	SomePattern(..))
-import Beng.Types.Things (Thing(..))
 
 import Data.Map.Ordered ((<>|))
 
@@ -73,7 +74,7 @@ instance TPattern.Pattern Delimited where
 	startingSpaceStates Delimited{..} = Pattern.startingSpaceStates delimitend
 	isOptional Delimited{..} = Pattern.isOptional delimitend
 	getArgsUsing getArgs Delimited{..} = do
-		let wrapTypes wrapper = OMap.map (\p -> p{ argType = wrapper p.argType })
+		let wrapTypes wrapper = OMap.map (\p -> p{ argType = SomeThing $ wrapper p.argType })
 		wrapTypes NativeSomeType (getArgs delimiter) <>| wrapTypes NativeListType (getArgs delimitend)
 
 parse :: Delimited -> Code.Parser Match

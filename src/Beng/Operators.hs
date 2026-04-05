@@ -130,7 +130,7 @@ instance HasField "decLoc" SomeOperator TLocation.Location where
 instance HasField "pattern" SomeOperator TPattern.SomePattern where
 	getField (SomeOperator op) = Ops.pattern op
 
-instance HasField "returnType" SomeOperator TThing.Thing where
+instance HasField "returnType" SomeOperator TThing.SomeThing where
 	getField (SomeOperator op) = Ops.returnType op
 
 instance HasField "associativity" SomeOperator TDec.Associativity where

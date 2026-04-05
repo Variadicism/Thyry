@@ -25,15 +25,19 @@ import Beng.Run (run)
 import Beng.Types.Locations (FileLocation(..), Location(..))
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import Beng.Types.Parse.Patterns (Delimited(..), Or(..), SomePattern(..))
-import Beng.Types.Things (Thing, Thing(NativeOptionalValue, NativeSomeValue, InvValue))
+import Beng.Things (
+	SomeThing(..),
+	NativeOptionalValue(..),
+	NativeSomeValue(..) )
+import Beng.Types.Things (castThing)
 
 import Data.Map ((!))
 
 -- constants
 
-argMatchOf :: Int -> String -> Thing -> SomeInvocation -> Match
+argMatchOf :: Int -> String -> SomeThing -> SomeInvocation -> Match
 argMatchOf parentIndex name argType inv = ArgM M.Argument {
-	argType, name, value = InvValue inv,
+	argType, name, value = SomeThing inv,
 	decLoc = BuiltinArg name parentIndex }
 
 someOrNone :: Definition
@@ -41,7 +45,7 @@ someOrNone = define Default
 	[SomePattern $ Or $ dualton (l "none") $ argOfBuiltin 0 "Some" intType]
 	intType
 	(\args -> do
-		let (NativeOptionalValue maybeSome) = args ! "Some"
+		let Just NativeOptionalValue{fal=maybeSome} = castThing $ args ! "Some"
 		case maybeSome of
 			Error _ -> return $ intValue 0
 			Falue value -> run $ asInv value)
@@ -52,7 +56,7 @@ sumCommas = define Default
 	[SomePattern Delimited { delimiter = l ",", delimitend = argOfBuiltin 1 "Element" intType }]
 	intType
 	(\args -> do
-		let (NativeSomeValue elements) = args ! "Element"
+		let Just NativeSomeValue{valuesP=elements} = castThing $ args ! "Element"
 		return $ intValue $ sum $
 			assume $ sequence $ map (>>= asInt) $
 			map (run . asInv) elements)

@@ -58,7 +58,7 @@ import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PC
 import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Types.Build.TypeTest (TypeTest)
 import Beng.Types.Parse.Matches (Match)
-import Beng.Types.Things (Thing(..))
+import Beng.Types.Things (SomeThing(..), NativeOrType(..), NativeOptionalType(..), castThing)
 
 import Data.Map.Ordered (OMap)
 import qualified Data.Map.Ordered as OMap
@@ -176,16 +176,19 @@ getOrArgsUsing getArgs subpatterns = do
 					(Nothing, Just bParam) -> (bParam, True)
 					(Just (aParam, _), Nothing) -> (aParam, True)
 					(Just (aParam, aOptional), Just bParam) -> do
-						let newParam = case (aParam.argType, bParam.argType) of
-							(aType, bType) | aType == bType -> aParam
-							(NativeOrType aTypes, NativeOrType bTypes) -> bParam{
-								argType = NativeOrType $ P2.concat $ P2.dualton aTypes bTypes }
-							(NativeOrType aTypes, bType) -> bParam{
-								argType = NativeOrType $ P2.snoc aTypes bType }
-							(aType, NativeOrType bTypes) -> bParam {
-								argType = NativeOrType $ P2.cons aType bTypes }
-							(aType, bType) -> bParam{
-								argType = NativeOrType $ P2.dualton aType bType }
+						let aType = aParam.argType
+						let bType = bParam.argType
+						let newParam = case aType == bType of
+							True -> aParam
+							False -> case (castThing aType, castThing bType) of
+								(Just NativeOrType{options=aTypes}, Just NativeOrType{options=bTypes}) -> bParam{
+									argType = SomeThing $ NativeOrType $ P2.concat $ P2.dualton aTypes bTypes }
+								(Just NativeOrType{options=aTypes}, Nothing) -> bParam{
+									argType = SomeThing $ NativeOrType $ P2.snoc aTypes bType }
+								(Nothing, Just NativeOrType{options=bTypes}) -> bParam {
+									argType = SomeThing $ NativeOrType $ P2.cons aType bTypes }
+								_ -> bParam{
+									argType = SomeThing $ NativeOrType $ P2.dualton aType bType }
 						(newParam, aOptional)
 					(Nothing, Nothing) ->
 						error $ "Attempted to retrieve arg '" ++ key ++ " from no options!"
@@ -195,7 +198,7 @@ getOrArgsUsing getArgs subpatterns = do
 		foldl combineTypes start $ map getArgs subpatterns.tail.l
 	let wrapOptionals :: (Argument, Bool) -> (Argument, Bool) = \(arg, optional) -> do
 		let wrappedParam = if optional
-			then arg{ argType = NativeOptionalType arg.argType }
+			then arg{ argType = SomeThing $ NativeOptionalType arg.argType }
 			else arg
 		(wrappedParam, optional)
 	OMap.map wrapOptionals argsWithoutOptionalWrappers

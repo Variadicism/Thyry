@@ -10,9 +10,18 @@ import Utils.Testing
 import qualified Beng.Build.Context as Context
 import Beng.Types.Operators (SomeOperator(..))
 import Beng.Build.Context.Builders (argOfBuiltin, bitType, bitValue, declare, define, intType, intValue, l, s)
-import Beng.Things (Thing(..), satisfies, thing)
+import Beng.Things (
+	satisfiesThing,
+	thing,
+	NamedThing(..),
+	NativeStringType(..),
+	NativeStringValue(..),
+	NativeType(..),
+	CombinedThings(..),
+	One(..) )
 import Beng.Types.Build.Context (PrecedenceBound(..))
 import Beng.Types.Locations (Location(..))
+import Beng.Types.Things (SomeThing(..))
 
 -- tests
 
@@ -80,43 +89,43 @@ testTypecheck = TestCategories "typecheck" do
 		defForOp index subpatternsFor result (const $ return result)
 	let defNamedForOp index literal result =
 		-- One is unused because there are no arguments in the subpatterns.
-		defConstantForOp index (const [l literal]) result One
+		defConstantForOp index (const [l literal]) result (SomeThing One)
 	let defConstantForProp parentIndex propIndex subpatternsFor result =
 		defForProp parentIndex propIndex subpatternsFor result (const $ return result)
 
-	let sound = NamedThing "a sound" NativeStringType
+	let sound = SomeThing $ NamedThing "a sound" $ SomeThing NativeStringType
 
 	let yellSubpatternsFor i one = [l "yell", s, l "as", s, a i "One" one]
 	let declareYellPropFor i j = decForProp i j (yellSubpatternsFor i) sound
 	let defineYellForOp i result =
-		defConstantForOp i (yellSubpatternsFor i) (NativeStringValue result)
+		defConstantForOp i (yellSubpatternsFor i) (SomeThing $ NativeStringValue result)
 	let defineYellForProp i j result =
-		defConstantForProp i j (yellSubpatternsFor i) (NativeStringValue result)
+		defConstantForProp i j (yellSubpatternsFor i) (SomeThing $ NativeStringValue result)
 	
-	let animal = NamedThing "an animal" $ NativeType
+	let animal = SomeThing $ NamedThing "an animal" $ SomeThing $ NativeType
 		\one -> [SomeOperator $ declareYellPropFor 0 0 one]
-	let animalDef = DefinitionValue $ defNamedForOp 0 "an animal" animal
+	let animalDef = SomeThing $ defNamedForOp 0 "an animal" animal
 
 	let killSubpatternsFor i one =
 		[l "kill", s, a i "Animal" animal, s, l "as", s, a i "One" one]
 	let declareKillFor i j = decForProp i j (killSubpatternsFor i) animal
 
-	let cat = NamedThing "a cat" $ CombinedThings $ P2.dualton
+	let cat = SomeThing $ NamedThing "a cat" $ SomeThing $ CombinedThings $ P2.dualton
 		animal $
-		NativeType \one -> [SomeOperator $ declareKillFor 1 0 one]
-	let catDef = DefinitionValue $ defNamedForOp 1 "a cat" cat
-	let yowlDef = DefinitionValue $ defineYellForOp 2 "yowl" cat
+		SomeThing $ NativeType \one -> [SomeOperator $ declareKillFor 1 0 one]
+	let catDef = SomeThing $ defNamedForOp 1 "a cat" cat
+	let yowlDef = SomeThing $ defineYellForOp 2 "yowl" cat
 
 	let fetchSubpatternsFor i one =
 		[l "fetch", s, a i "Thing" thing, s, l "as", s, a i "One" one]
 	let declareFetchForProp i j = decForProp i j (fetchSubpatternsFor i) thing
 
-	let dog = NamedThing "a dog" $ CombinedThings $ P2.dualton
+	let dog = SomeThing $ NamedThing "a dog" $ SomeThing $ CombinedThings $ P2.dualton
 		animal $
-		NativeType \one -> [
+		SomeThing $ NativeType \one -> [
 			SomeOperator $ declareFetchForProp 3 0 one,
 			SomeOperator $ defineYellForProp 3 1 "bark" one]
-	let dogDef = DefinitionValue $ defNamedForOp 3 "a dog" dog
+	let dogDef = SomeThing $ defNamedForOp 3 "a dog" dog
 
 	let birthYearSubpatternsFor i one = [l "Birth Year for ", a i "One" one]
 	let declareBirthYearFor i j = decForProp i j (birthYearSubpatternsFor i) intType
@@ -129,55 +138,57 @@ testTypecheck = TestCategories "typecheck" do
 
 	let philosophizeSubpatternsFor i one = [l "philosophize", s, l "as", s, a i "One" one]
 	let definePhilosophizeFor i j result =
-		defConstantForProp i j (philosophizeSubpatternsFor i) (NativeStringValue result)
+		defConstantForProp i j (philosophizeSubpatternsFor i) (SomeThing $ NativeStringValue result)
 
-	let human = NamedThing "a human" $ CombinedThings $ P2.dualton
+	let human = SomeThing $ NamedThing "a human" $ SomeThing $ CombinedThings $ P2.dualton
 		animal $
-		NativeType \one -> [
+		SomeThing $ NativeType \one -> [
 			SomeOperator $ defineYellForProp 4 0 "shout" one,
 			SomeOperator $ declareBirthYearFor 4 1 one,
 			SomeOperator $ defineGoodPortraitFor 4 2 True one,
-			SomeOperator $ defForProp 4 3 (philosophizeSubpatternsFor 4) NativeStringType
-				(const $ return $ NativeStringValue "To be or not to be?") one]
-	let humanDef = DefinitionValue $ defNamedForOp 4 "a human" human
+			SomeOperator $ defForProp 4 3 (philosophizeSubpatternsFor 4) (SomeThing NativeStringType)
+				(const $ return $ SomeThing $ NativeStringValue "To be or not to be?") one]
+	let humanDef = SomeThing $ defNamedForOp 4 "a human" human
 
-	let parisHilton = NamedThing "Paris Hilton" $ NativeType \one -> [
+	let parisHilton = SomeThing $ NamedThing "Paris Hilton" $ SomeThing $ NativeType \one -> [
 		SomeOperator $ defineYellForProp 5 0 "shout" one,
 		SomeOperator $ defineBirthYearFor 5 1 1981 one,
 		SomeOperator $ defineGoodPortraitFor 5 2 True one,
 		SomeOperator $ definePhilosophizeFor 5 3 "Life is too short to blend in." one]
-	let parisHiltonDef = DefinitionValue $ defNamedForOp 5 "Paris Hilton" parisHilton
+	let parisHiltonDef = SomeThing $ defNamedForOp 5 "Paris Hilton" parisHilton
 
-	let reneDescartes = NamedThing "Rene Descartes" $ CombinedThings $ P2.dualton
+	let reneDescartes = SomeThing $ NamedThing "Rene Descartes" $ SomeThing $ CombinedThings $ P2.dualton
 		human $
-		NativeType \one -> [
+		SomeThing $ NativeType \one -> [
 			SomeOperator $ defineBirthYearFor 6 0 1596 one,
 			SomeOperator $ definePhilosophizeFor 6 1 "I think, there I am." one]
-	let reneDescartesDef = DefinitionValue $ defNamedForOp 6 "Rene Descartes" reneDescartes
+	let reneDescartesDef = SomeThing $ defNamedForOp 6 "Rene Descartes" reneDescartes
 
-	let williamShakespeare = NamedThing "William Shakespeare" $ NativeType \one -> [
+	let williamShakespeare = SomeThing $
+		NamedThing "William Shakespeare" $ SomeThing $ NativeType \one -> [
 		SomeOperator $ defineYellForProp 7 0 "shout" one,
 		SomeOperator $ defineBirthYearFor 7 1 1564 one,
 		SomeOperator $ defineGoodPortraitFor 7 2 True one]
-	let williamShakespeareDef = DefinitionValue $
+	let williamShakespeareDef = SomeThing $
 		defNamedForOp 7 "William Shakespeare" williamShakespeare
 
-	let bigfoot = NamedThing "Bigfoot" $ NativeType \one -> [
+	let bigfoot = SomeThing $ NamedThing "Bigfoot" $ SomeThing $ NativeType \one -> [
 		SomeOperator $ defineYellForProp 8 0 "shout" one,
 		SomeOperator $ defineBirthYearFor 8 1 1811 one,
 		SomeOperator $ defineGoodPortraitFor 8 2 False one,
 		SomeOperator $ definePhilosophizeFor 8 3 "MAKE OWN PATH THRU FOREST" one]
-	let bigfootDef = DefinitionValue $ defNamedForOp 8 "Bigfoot" bigfoot
+	let bigfootDef = SomeThing $ defNamedForOp 8 "Bigfoot" bigfoot
 
 	let votedSubpatternsFor i one = [a i "One" one, l " voted this year"]
 	let declareVotedFor i j = decForProp i j (votedSubpatternsFor i) bitType
 
-	let milleniumBaby = NamedThing "a millenium baby" $ CombinedThings $ P2.dualton
+	let milleniumBaby = SomeThing $
+		NamedThing "a millenium baby" $ SomeThing $ CombinedThings $ P2.dualton
 		human $
-		NativeType \one -> [
+		SomeThing $ NativeType \one -> [
 			SomeOperator $ defineBirthYearFor 9 0 2000 one,
 			SomeOperator $ declareVotedFor 9 1 one]
-	let milleniumBabyDef = DefinitionValue $ defNamedForOp 9 "a millenium baby" milleniumBaby
+	let milleniumBabyDef = SomeThing $ defNamedForOp 9 "a millenium baby" milleniumBaby
 
 	{- Note that the way this context is assembled is not necessarily the way context is really handled;
 		most notably, the properties of a thing should always be treated as the top of the context stack
@@ -204,7 +215,7 @@ testTypecheck = TestCategories "typecheck" do
 		milleniumBaby ]
 
 	let assertSatisfies candidate requirement =
-		mapError msg $ (context, candidate) `satisfies` requirement
+		mapError msg $ (context, candidate) `satisfiesThing` requirement
 	let assertDoesNotSatisfy candidate requirement =
 		assertSatisfies candidate requirement `hasErrorElse`
 			"This should not have been satisfied!"

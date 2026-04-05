@@ -2,6 +2,6 @@ module Beng.Run where
 
 import Beng.Types.Errors (Fallible)
 import Beng.Types.Invocations (SomeInvocation)
-import Beng.Types.Things (Thing)
+import Beng.Types.Things (SomeThing)
 
-run :: SomeInvocation -> Fallible Thing
+run :: SomeInvocation -> Fallible SomeThing

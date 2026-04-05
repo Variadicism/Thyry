@@ -16,7 +16,7 @@ import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import Beng.Types.Operators (Operator)
 import qualified Beng.Types.Operators as Ops
 import {-# SOURCE #-} qualified Beng.Parse.Matches as Match
-import Beng.Types.Things (Thing)
+import Beng.Types.Things (SomeThing)
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import Beng.Types.Parse.Matches (Argument)
 
@@ -38,7 +38,7 @@ instance Show op => Show (Invocation op) where
 instance Messagable op => Messagable (Invocation op) where
 	msg = unpack . Match.toCode . match
 
-instance Operator op => HasField "returnType" (Invocation op) Thing where
+instance Operator op => HasField "returnType" (Invocation op) SomeThing where
 	getField invocation = Ops.returnType invocation.operator
 
 instance Show SomeInvocation where
@@ -50,7 +50,7 @@ instance Messagable SomeInvocation where
 instance Eq SomeInvocation where
 	invocation1 == invocation2 = show invocation1 == show invocation2
 
-instance HasField "returnType" SomeInvocation Thing where
+instance HasField "returnType" SomeInvocation SomeThing where
 	getField invocation = returnType invocation
 
 -- exports
@@ -67,7 +67,7 @@ hasSuffix (SomeInvocation invocation) = Match.hasSuffix invocation.match
 getArgs :: SomeInvocation -> OMap String Argument
 getArgs (SomeInvocation invocation) = Match.getArgs invocation.match
 
-returnType :: SomeInvocation -> Thing
+returnType :: SomeInvocation -> SomeThing
 -- TODO: get the return type from Match when typing becomes formulaic
 returnType (SomeInvocation invocation) = Ops.returnType invocation.operator
 

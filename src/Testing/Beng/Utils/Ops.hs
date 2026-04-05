@@ -14,7 +14,8 @@ import Beng.Operators.Declarations (Declaration(..))
 import Beng.Types.Operators.Definitions (Definition(..))
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import Beng.Types.Parse.Matches (value)
-import Beng.Types.Things (Thing(InvValue))
+import Beng.Things (SomeThing)
+import Beng.Types.Things (castThing)
 
 import Data.List (sort)
 import qualified Data.Map as Map
@@ -24,24 +25,25 @@ import GHC.Records (HasField(..))
 
 -- instances
 
-instance HasField "op" (SomeInvocation -> Fallible a) (Thing -> Fallible a) where
-	getField assertion = \case
-		InvValue op -> assertion op
-		capture -> Error $ "A single InvValue was expected, but I found a(n) " ++ show capture ++ "!"
+instance HasField "op" (SomeInvocation -> Fallible a) (SomeThing -> Fallible a) where
+	getField assertion value = case castThing value of
+		Just op -> assertion op
+		Nothing -> Error $
+			"A single InvValue was expected, but I found a(n) " ++ show value ++ "!"
 
-instance HasField "op" (i -> SomeInvocation -> Fallible a) (i -> Thing -> Fallible a) where
+instance HasField "op" (i -> SomeInvocation -> Fallible a) (i -> SomeThing -> Fallible a) where
 	getField assertion = \i -> (assertion i).op
 
-instance HasField "op" (i -> j -> SomeInvocation -> Fallible a) (i -> j -> Thing -> Fallible a) where
+instance HasField "op" (i -> j -> SomeInvocation -> Fallible a) (i -> j -> SomeThing -> Fallible a) where
 	getField assertion = \i j -> (assertion i j).op
 
-instance HasField "args" Definition ([(String, Thing -> Fallible ())] -> SomeInvocation -> Fallible ()) where
+instance HasField "args" Definition ([(String, SomeThing -> Fallible ())] -> SomeInvocation -> Fallible ()) where
 	getField = argAssertionsOf
 
 instance HasField "null" Definition (SomeInvocation -> Fallible ()) where
 	getField definition = definition.args []
 
-argAssertionsOf :: Definition -> [(String, Thing -> Fallible ())] -> SomeInvocation -> Fallible ()
+argAssertionsOf :: Definition -> [(String, SomeThing -> Fallible ())] -> SomeInvocation -> Fallible ()
 argAssertionsOf definition argAssertions invocation =
 	prependToError ("In op " ++ wrap "`" (show invocation) ++ ", ") do
 		debugM $ "Asserting correct structure of " ++ show invocation ++ "..."

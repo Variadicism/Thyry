@@ -24,7 +24,7 @@ import Beng.Operators.Declarations (isReturnTypeMismatch)
 import {-# SOURCE #-} Beng.Things (propsOf)
 import Beng.Types.Build.Context (Context(..), PrecedenceBound(..))
 import Beng.Types.Build.TypeTest (TypeTest(..))
-import Beng.Types.Things (Thing)
+import Beng.Types.Things (SomeThing)
 import qualified Beng.Types.Operators.Declarations as Declaration
 
 import Data.List (findIndex)
@@ -151,7 +151,7 @@ concat [] = empty
 concat [c] = c
 concat (c1:rest) = foldl (flip push) c1 $ concatMap deck rest
 
-fromThings :: ([Thing] -> Context)
+fromThings :: ([SomeThing] -> Context)
 fromThings = fromOps . concatMap propsOf
 
 has :: Operator op => TypeTest -> op -> FallibleI Declaration.Mismatch ()

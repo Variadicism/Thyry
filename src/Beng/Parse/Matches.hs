@@ -26,7 +26,16 @@ import Beng.Build.Context.Builders (declareLiteral)
 import Beng.Types.Parse.Matches (Argument(..), DelimitedTail(..), Match(..))
 import {-# SOURCE #-} Beng.Parse.Patterns ()
 import qualified Beng.Types.Parse.Patterns as Pattern
-import Beng.Types.Things (Thing(..))
+import Beng.Things (
+	SomeThing(..),
+	NativeStringType(..),
+	NativeStringValue(..),
+	NativeOptionalType(..),
+	NativeOptionalValue(..),
+	NativeSomeType(..),
+	NativeSomeValue(..),
+	NativeListType(..),
+	NativeListValue(..) )
 import {-# SOURCE #-} qualified Beng.Things as Thing
 
 import Data.Map.Ordered ((<|), (|<), (<>|), OMap)
@@ -105,16 +114,16 @@ getArgs = \case
 	CharClass{} -> OMap.empty
 	NamedText{name,decLoc,match} -> do
 		let argument = Argument { name, decLoc,
-			argType = NativeStringType,
-			value = NativeStringValue $ toCode match }
+			argType = SomeThing NativeStringType,
+			value = SomeThing $ NativeStringValue $ toCode match }
 		OMap.singleton (name, argument)
 	Or{match,misses} -> do
 		let matchFalParam = \decLoc name argType value -> Argument {
 			decLoc, name,
-			argType = NativeOptionalType argType,
+			argType = SomeThing $ NativeOptionalType argType,
 			-- These wrappers are ridiculous, but it's the best way I can find in Haskell.
 			-- With op type disambiguation, structural typing, and implicit conversion, Beng should stop this.
-			value = NativeOptionalValue value }
+			value = SomeThing $ NativeOptionalValue value }
 		let missEntry = \p -> (p.name,
 			matchFalParam p.decLoc p.name p.argType $
 				Thing.undefined $ declareLiteral (pack p.name) p.argType p.decLoc)
@@ -125,12 +134,12 @@ getArgs = \case
 	And{matches} -> OMap.concat $ P2.map getArgs matches
 	delimited@Delimited{head=headMatch,tail=tailMatch} -> case tailMatch of
 		DelimitedTailMatch _ -> do
-			let revalueParam :: Argument -> Populace Thing -> Argument = \p values -> p{
-				argType = NativeSomeType p.argType,
-				value = NativeSomeValue values }
+			let revalueParam :: Argument -> Populace SomeThing -> Argument = \p values -> p{
+				argType = SomeThing $ NativeSomeType p.argType,
+				value = SomeThing $ NativeSomeValue values }
 			let combineValuesByName
-					:: Argument -> OMap String (Argument, Populace Thing) ->
-						OMap String (Argument, Populace Thing) =
+					:: Argument -> OMap String (Argument, Populace SomeThing) ->
+						OMap String (Argument, Populace SomeThing) =
 					\p prevs -> do
 				let oldValues = case OMap.lookup p.name prevs of
 					Nothing -> []
@@ -144,8 +153,8 @@ getArgs = \case
 					:: Pattern.Argument -> OMap String Argument -> OMap String Argument =
 					\Pattern.Argument{..} matches -> do
 				let missingParamMatch = Argument { decLoc, name,
-					argType = NativeListType argType,
-					value = NativeListValue [] }
+					argType = SomeThing $ NativeListType argType,
+					value = SomeThing $ NativeListValue [] }
 				(name, missingParamMatch) <| matches
 			foldr collateArgsWithMissing (getArgs headMatch) missedParams
 	ArgM argument -> OMap.singleton (argument.name, argument)

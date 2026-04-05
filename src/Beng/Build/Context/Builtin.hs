@@ -15,7 +15,8 @@ import Beng.Run (run, runWhileOp)
 import Beng.Types.Operators.Declarations (Associativity(..), Declaration)
 import Beng.Types.Operators.Definitions (Definition(..))
 import Beng.Types.Locations (Location(..))
-import Beng.Types.Things (Thing(..))
+import Beng.Things (PreOpType(..))
+import Beng.Types.Things (SomeThing(..), NativeBitsType(..))
 
 import qualified Data.ByteString as BS
 import Data.Int (Int32)
@@ -92,12 +93,12 @@ hangingDefinitionOf opEnum location = case opEnum of
 		location
 	Yes -> define None
 		[l "yes"]
-		(NativeBitsType 1)
+		(SomeThing $ NativeBitsType 1)
 		(\_ -> return $ bitValue True)
 		location
 	No -> define None
 		[l "no"]
-		(NativeBitsType 1)
+		(SomeThing $ NativeBitsType 1)
 		(\_ -> return $ bitValue False)
 		location
 	Add -> define Default
@@ -125,7 +126,8 @@ hangingDefinitionOf opEnum location = case opEnum of
 			return $ bitValue $ prefix `Text.isPrefixOf` target)
 		location
 	DefineValue -> defineUsing (Below $ SomeOperator $ dec Add) Righty
-		[t "Name" valueName, s, l ":=", s, a "Thing" intType, s, a "Scope" (PreOpType intType)]
+		[t "Name" valueName, s, l ":=", s, a "Thing" intType, s,
+			a "Scope" (SomeThing $ PreOpType intType)]
 		intType
 		(\name args location -> case name of
 			"Scope" -> do
@@ -136,7 +138,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 		(\args -> run $ asInv $ args ! "Scope")
 		location
 	If -> define (Below $ SomeOperator $ dec DefineValue)
-		[l "if", s, a "Condition" (NativeBitsType 1), l ",",
+		[l "if", s, a "Condition" (SomeThing $ NativeBitsType 1), l ",",
 			s, a "Y" intType, s,
 			l "else", s, a "N" intType]
 		intType

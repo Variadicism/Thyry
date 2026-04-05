@@ -59,8 +59,14 @@ import {-# SOURCE #-} Beng.Parse.Patterns.Space ()
 import Beng.Types.Parse.Patterns (And(..), ArgP(..), Argument(..), CharClass(..), CharRange(..), Delimited(..), Literal(..), NamedText(..), Or(..), SomePattern(..), Space(..))
 import {-# SOURCE #-} Beng.Run (run)
 import Beng.Errors (Fallible)
+import Beng.Types.Things (
+	SomeThing(..),
+	NativeBitsValue(..),
+	NativeStringValue(..),
+	NativeBitsType(..),
+	NativeStringType(..),
+	castThing )
 import Beng.Types.Locations (Location(..))
-import Beng.Types.Things (Thing(..))
 
 import Control.Composition ((.*))
 import Data.Bits ((.&.), (.|.), shiftL, shiftR)
@@ -71,10 +77,10 @@ import Data.Text.Lazy (Text)
 
 -- exported
 
-argAt :: Location -> String -> Thing -> SomePattern
+argAt :: Location -> String -> SomeThing -> SomePattern
 argAt decLoc name argType = SomePattern $ ArgP Argument { name, argType, decLoc }
 
-argOfBuiltin :: Int -> String -> Thing -> SomePattern
+argOfBuiltin :: Int -> String -> SomeThing -> SomePattern
 argOfBuiltin builtinIndex name argType =
 	SomePattern $ ArgP Argument { name, argType, decLoc = BuiltinArg name builtinIndex }
 
@@ -120,56 +126,56 @@ patConcat = \case
 	[solo] -> solo
 	(first:(second:rest)) -> SomePattern $ And $ P2.Populace2 first second rest
 
-bitType = NativeBitsType 1
+bitType = SomeThing $ NativeBitsType 1
 
 -- TODO: replace with an "integer" type operator that returns the type.
-intType = NativeBitsType 32
+intType = SomeThing $ NativeBitsType 32
 
-bitsValue :: Int -> [Int] -> Thing
+bitsValue :: Int -> [Int] -> SomeThing
 bitsValue size byteValues =
-	NativeBitsValue { size, bytes = BS.pack $ map (fromInteger . toInteger) byteValues }
+	SomeThing $ NativeBitsValue { size, bytes = BS.pack $ map (fromInteger . toInteger) byteValues }
 
-bitValue :: Bool -> Thing
+bitValue :: Bool -> SomeThing
 bitValue true = bitsValue 1 [if true then 1 else 0]
 
-intValue :: Int32 -> Thing
+intValue :: Int32 -> SomeThing
 intValue int = bitsValue 32 $
 	map ((.&. 0xFF) . shiftR (fromInteger $ toInteger int)) [24, 16, 8, 0]
 
-stringType = NativeStringType  -- TODO: replace with language-level string type when available
+stringType = SomeThing NativeStringType  -- TODO: replace with language-level string type when available
 
-stringValue = NativeStringValue
+stringValue = SomeThing . NativeStringValue
 
-asInv :: (Thing -> SomeInvocation)
-asInv = \case
-	InvValue op -> op
-	value -> error $
+asInv :: (SomeThing -> SomeInvocation)
+asInv value = case castThing value of
+	Just op -> op
+	Nothing -> error $
 		"A builtin invocation assumed that an arg was returning an InvValue, " ++
 		"but it actually captured a(n) " ++ show value ++ "!"
 
-asInvOf :: String -> (Thing -> Fallible a) -> Thing -> Fallible a
-asInvOf expectedDesc get = \case
-	InvValue op -> run op >>= get
-	other -> error $ "A(n) " ++ expectedDesc ++
-		" or invocation of such was expected, but instead, it's a(n) " ++ show other ++ "!"
+asInvOf :: String -> (SomeThing -> Fallible a) -> SomeThing -> Fallible a
+asInvOf expectedDesc get value = case castThing value of
+	Just op -> run op >>= get
+	Nothing -> error $ "A(n) " ++ expectedDesc ++
+		" or invocation of such was expected, but instead, it's a(n) " ++ show value ++ "!"
 
-asNativeString :: Thing -> Fallible Text
-asNativeString = \case
-	NativeStringValue text -> return text
-	other -> asInvOf "native string" asNativeString other
+asNativeString :: SomeThing -> Fallible Text
+asNativeString value = case castThing value of
+	Just NativeStringValue{text} -> return text
+	Nothing -> asInvOf "native string" asNativeString value
 
-asBits :: Int -> (Thing -> Fallible ByteString)
-asBits size = \case
-	bitsValue@(NativeBitsValue{bytes=bytestring}) ->
+asBits :: Int -> (SomeThing -> Fallible ByteString)
+asBits size value = case castThing value of
+	Just bitsValue@(NativeBitsValue{bytes=bytestring}) ->
 		if BS.length bytestring == ceiling (fromIntegral size / 8.0) then
 			return bytestring
 		-- TODO: replace `error` with `TypeError`
 		else error $ show size ++ "b was expected, but " ++
 			show (BS.length bytestring) ++ "B (" ++ show (BS.length bytestring * 8) ++
 			"b) were found instead: " ++ show bitsValue
-	other -> asInvOf (show size ++ "b") (asBits size) other
+	Nothing -> asInvOf (show size ++ "b") (asBits size) value
 
-asInt :: Thing -> Fallible Int32
+asInt :: SomeThing -> Fallible Int32
 asInt value = do  -- TODO TEMPORARY
 	bytestring <- asBits 32 value
 	let [b1, b2, b3, b4] = BS.unpack bytestring
@@ -179,13 +185,13 @@ asInt value = do  -- TODO TEMPORARY
 		(shiftL (fromIntegral b3) 8) .|.
 		(fromIntegral b4)
 
-declare :: PrecedenceBound -> [SomePattern] -> Thing -> Location -> Declaration
+declare :: PrecedenceBound -> [SomePattern] -> SomeThing -> Location -> Declaration
 declare precedence subpatterns returnType location =
 	Declaration { precedence, location, returnType,
 		pattern = patConcat subpatterns,
 		associativity = Lefty, contextualize = noContext }
 
-declareLiteral :: Text -> Thing -> Location -> Declaration
+declareLiteral :: Text -> SomeThing -> Location -> Declaration
 declareLiteral literal returnType location = Declaration {
 	location,
 	pattern = SomePattern $ Literal literal,
@@ -196,21 +202,21 @@ declareLiteral literal returnType location = Declaration {
 
 defineUsing ::
 	PrecedenceBound -> Associativity ->
-	[SomePattern] -> Thing -> ArgContextBuilder -> Runner -> Location -> Definition
+	[SomePattern] -> SomeThing -> ArgContextBuilder -> Runner -> Location -> Definition
 defineUsing precedence associativity subpatterns returnType contextualize runWith location =
 	Definition { location, runWith,
 		declaration = Declaration {
 			precedence, location, contextualize, associativity, returnType,
 			pattern = patConcat subpatterns }}
 
-define :: PrecedenceBound -> [SomePattern] -> Thing -> (Runner -> Location -> Definition)
+define :: PrecedenceBound -> [SomePattern] -> SomeThing -> (Runner -> Location -> Definition)
 define precedence subpatterns returnType =
 	defineUsing precedence Lefty subpatterns returnType noContext
 
-defineRighty :: PrecedenceBound -> [SomePattern] -> Thing -> (Runner -> Location -> Definition)
+defineRighty :: PrecedenceBound -> [SomePattern] -> SomeThing -> (Runner -> Location -> Definition)
 defineRighty precedence subpatterns returnType = defineUsing precedence Righty subpatterns returnType noContext
 
-defineLiteral :: Text -> Thing -> Thing -> Location -> Definition
+defineLiteral :: Text -> SomeThing -> SomeThing -> Location -> Definition
 defineLiteral literal valueType value location = Definition {
 	runWith = const $ Falue value,
 	location,

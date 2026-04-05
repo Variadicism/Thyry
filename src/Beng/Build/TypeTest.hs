@@ -9,33 +9,10 @@ import Utils.Fallible
 import Utils.Lists (mapIndexed)
 import Utils.Messaging (Messagable, debugM, msg)
 
-import qualified Beng.Types.Operators as Ops
 import Beng.Build.Context (Context)
-import Beng.Types.Operators (SomeOperator(..))
 import Beng.Types.Build.TypeTest
-import qualified Beng.Types.Build.TypeTest as ST
-import Beng.Types.Things (Mismatch(..), Thing(..))
-
-import Control.Monad (void)
-import Data.List (intercalate)
-import Data.Map ((!?))
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-
--- private
-
-satisfiesProps :: (TypeTest, Thing) -> (Thing -> [SomeOperator]) -> FallibleI Mismatch ()
-satisfiesProps (test, candidate) propsWith = do
-	let checkProp prop = do
-		debugM $ "Testing satisfaction of prop: " ++ show prop ++ "..."
-		case prop of
-			SomeOperator op -> Ops.hasProp test op
-
-	{- Fill sub's properties with super because super only needs to satisfy operators
-	   with its own type, not _all_ of the sub's type, e.g., if number declares
-	   'one' + 'one' as a property, int only needs to define 'int' + 'int' to satisfy
-	   number's type, not 'number' + 'number'. -}
-	void $ sequence $ map checkProp $ propsWith candidate
+import Beng.Types.Things (Mismatch(..), SomeThing(..))
+import qualified Beng.Types.Things as Thing
 
 showContestUsing :: Bool -> Contest -> String
 showContestUsing useMsg Contest{..} = do
@@ -86,7 +63,7 @@ instance Messagable TypeTest where
 
 -- exported
 
-fromContext :: Context -> Thing -> Thing -> TypeTest
+fromContext :: Context -> SomeThing -> SomeThing -> TypeTest
 fromContext context candidate requirement = TypeTest {
 	context,
 	ongoing = [],
@@ -96,7 +73,7 @@ fromContext context candidate requirement = TypeTest {
 		candidateName = Nothing,
 		requirementName = Nothing } }
 
-satisfiesDuring :: (TypeTest, Thing) -> Thing -> TypeTestResult
+satisfiesDuring :: (TypeTest, SomeThing) -> SomeThing -> TypeTestResult
 satisfiesDuring (test, candidate) requirement = do
 	let contest = Contest {
 		candidate,
@@ -116,114 +93,11 @@ satisfiesDuring (test, candidate) requirement = do
 runTest :: TypeTest -> FallibleI Mismatch ()
 runTest test = do
 	debugM $ "Testing " ++ show test ++ "..."
-
-	let testBits superSize subSize super sub =
-		if superSize <= subSize then do
-			debugM $ "SATISFIED because " ++ show superSize ++
-				" bits can be padded to " ++ show subSize ++ " bits"
+	case (test.current.candidate, test.current.requirement) of
+		(super, sub) | super == sub -> do
+			debugM $ "SATISFIED due to equality: " ++ show super ++ " = " ++
+				(if show super == show sub then "(identical)" else show sub)
 			Falue ()
-		else do
-			debugM $ "UNSATISFIED because " ++ show superSize ++
-				" is too few bits (needed " ++ show subSize ++ ")"
-			Error $ PrimitiveMismatch super sub
-	-- runTest' avoids excess test info debug spam.
-	let runTest' test = do
-		let testListLike super sub supers subs =
-			if length supers < length subs then do
-				debugM $ "UNSATISFIED list-likes because " ++ show (length supers) ++
-					" is too few elements (needed " ++ show (length subs) ++ ")"
-				Error $ PrimitiveMismatch super sub
-			else do
-				let elementSatisfied superElement subElement =
-					(test, superElement) `satisfiesDuring` subElement
-				void $ sequence $ zipWith elementSatisfied supers subs
-		let testListLikeType elementType values =
-			void $ sequence $ map (\v -> (test, v) `satisfiesDuring` elementType) values
-		case (test.current.candidate, test.current.requirement) of
-			-- congruent types
-			(super, sub) | super == sub -> do
-				debugM $ "SATISFIED due to equality: " ++ show super ++ " = " ++
-					(if show super == show sub then "(identical)" else show sub)
-				Falue ()
-			(super@NativeBitsType{}, sub@NativeBitsType{}) ->
-				testBits super.size sub.size super sub
-			(super@OpType{}, sub@OpType{}) -> do
-				debugM $ "Testing ops' return types..."
-				(test, super.returnType) `satisfiesDuring` sub.returnType
-				debugM $ "Ops' return types match; testing ops' arguments..."
-				let argKeys = Set.union (Set.fromList $ Map.keys sub.args) (Set.fromList $ Map.keys super.args)
-				let checkArgs key = case (super.args !? key, sub.args !? key) of
-					(Nothing, Nothing) ->
-						error $ "Impossible: there was no '" ++ key ++ "' arg in either " ++ show super ++
-							" or " ++ show sub ++ "!"
-					(Just superArgType, Nothing) -> Error $ ExtraArgument key superArgType sub.args
-					(Nothing, Just subArgType) -> Error $ MissingArgument key subArgType super.args
-					(Just superArgType, Just subArgType) ->
-						mapError (MismatchedArgument key superArgType subArgType) $
-							(test, subArgType) `satisfiesDuring` superArgType
-				void $ sequence $ map checkArgs $ Set.elems argKeys
-				debugM "SATISFIED op type"
-			(super@NativeListType{}, sub@NativeListType{}) ->
-				(test, super.elementType) `satisfiesDuring` sub.elementType
-			(super@NativeSomeType{}, sub@NativeSomeType{}) ->
-				(test, super.elementType) `satisfiesDuring` sub.elementType
-			(super@NativeOptionalType{}, sub@NativeOptionalType{}) ->
-				(test, super.falueType) `satisfiesDuring` sub.falueType
-			-- values
-			(super@NativeListValue{}, sub@NativeListValue{}) ->
-				testListLike super sub super.values sub.values
-			(super@NativeSomeValue{}, sub@NativeSomeValue{}) ->
-				testListLike super sub super.valuesP.l sub.valuesP.l
-			-- types and values
-			(super@NativeBitsType{}, sub@NativeBitsValue{}) ->
-				testBits super.size sub.size super sub
-			(NativeCharType, NativeCharValue{}) -> Falue ()
-			(NativeStringType, NativeStringValue{}) -> Falue ()
-			(super@NativeListType{}, sub@NativeListValue{}) ->
-				testListLikeType super.elementType sub.values
-			(super@NativeSomeType{}, sub@NativeSomeValue{}) ->
-				testListLikeType super.elementType sub.valuesP.l
-			(super@NativeOptionalType{}, sub@NativeOptionalValue{}) -> case sub.fal of
-				Error _ -> Falue ()
-				Falue v -> (test, v) `satisfiesDuring` super.falueType
-			-- disparate types
-			(super, sub@NativeType{}) ->
-				(test, super) `satisfiesProps` sub.properties
-			(super@CombinedThings{}, sub) -> do
-				debugM $ "Deconstructing compound super value: " ++ intercalate " AND " (map msg super.things.l)
-				void $ sequenceAny $ map (\v -> (test, v) `satisfiesDuring` sub) super.things.l
-			(super, sub@CombinedThings{}) -> do
-				debugM $ "Deconstructing compound sub value: " ++ intercalate " AND " (map show sub.things.l)
-				void $ sequence $ map ((test, super) `satisfiesDuring`) sub.things.l
-			(super@NamedThing{..}, _) -> do
-				debugM $ "Deconstructing named super value: \"" ++ name ++ "\""
-				runTest' test{
-					ST.current = test.current{ candidate = super.value, candidateName = Just name }}
-			(_, sub@NamedThing{..}) -> do
-				debugM $ "Deconstructing named sub value: \"" ++ name ++ "\""
-				runTest' test{
-					ST.current = test.current{
-						requirement = sub.value,
-						requirementName = Just name }}
-			-- TODO: when native types satisfy language-level types: (super@NativeType{}, sub)
-			(super@NativeListType{}, sub@NativeSomeType{}) ->
-				(test, super.elementType) `satisfiesDuring` sub.elementType
-			-- NativeSomeType cannot satisfy NativeListType becauses lists can be empty!
-			(super@NativeListType{}, sub@NativeSomeValue{}) ->
-				testListLikeType super.elementType sub.valuesP.l
-			(super@NativeListValue{}, sub@NativeSomeValue{}) ->
-				testListLike super sub super.values sub.valuesP.l
-			(super@NativeSomeValue{}, sub@NativeListValue{}) ->
-				testListLike super sub super.valuesP.l sub.values 
-			(super@NativeOptionalType{}, sub) -> do
-				debugM $ "Deconstructing optional super value: " ++ show super.falueType
-				(test, super.falueType) `satisfiesDuring` sub
-			(super, sub@NativeOrType{}) -> void $
-				sequence $ map (\subOption -> (test, subOption) `satisfiesDuring` super) sub.options.l
-			(super@NativeOrType{}, sub) ->
-				void $ sequenceAny $ map ((test, sub) `satisfiesDuring`) super.options.l
-			(super, sub) -> do
-				debugM $ "UNSATISFIED " ++ show sub ++ " by " ++ show super ++
-					" via incongruence or unequal values"
-				Error $ PrimitiveMismatch super sub
-	runTest' test
+		(SomeThing super, sub) -> do
+			debugM $ "Delegating satisfaction to " ++ show super
+			(test, super) `Thing.satisfies` sub

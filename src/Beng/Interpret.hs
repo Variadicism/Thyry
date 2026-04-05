@@ -8,7 +8,7 @@ import Utils.Fallible.Trans
 import Beng.Build (buildFile)
 import Beng.Errors (printError)
 import Beng.Run (runWhileOp)
-import Beng.Things (Thing(InvValue))
+import Beng.Types.Things (SomeThing(..))
 
 interpret :: FilePath -> VoidFallible
 interpret path = do
@@ -16,7 +16,7 @@ interpret path = do
 	let interpret' = \case
 		[] -> success
 		nextOp:remainingOps -> do
-			result <- falT $ mapError printError $ runWhileOp $ InvValue nextOp
+			result <- falT $ mapError printError $ runWhileOp $ SomeThing nextOp
 			-- TODO: Simply printing the result is (obviously) a placeholder.
 			tryIO $ putStrLn $ show result
 			interpret' remainingOps	

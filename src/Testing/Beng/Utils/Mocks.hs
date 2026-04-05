@@ -67,7 +67,9 @@ import Beng.Types.Operators.Declarations (Associativity(..), Declaration)
 import Beng.Types.Operators.Definitions (Definition(..))
 import Beng.Types.Locations (Location(..))
 import Beng.Run (run)
-import Beng.Types.Things (Thing(PreOpType), Thing(..))
+import Beng.Types.Things (
+	SomeThing(..),
+	PreOpType(..) )
 
 import Control.Composition ((.*))
 import Data.Bits (complement)
@@ -105,7 +107,7 @@ defineStaticNameValue name location = do
 	let a name argType = SomePattern $ ArgP Argument {
 		decLoc = BuiltinArg { name, parentIndex }, name, argType }
 	defineUsing (Below $ SomeOperator $ declarationOf App) Righty
-		[l name, s, l ":=", s, a "Thing" intType, s, a "Scope" (PreOpType intType)]
+		[l name, s, l ":=", s, a "Thing" intType, s, a "Scope" (SomeThing $ PreOpType intType)]
 		intType
 		(\argName args location -> return case argName of
 			"Scope" -> do
@@ -228,7 +230,7 @@ hangingABDivDefinitionOf :: ABDiv -> (Location -> Definition)
    definition maker passed as an argument, which will add tons of boilerplate. -}
 hangingABDivDefinitionOf e = hangingDefinitionOf $ toEnum $ fromEnum e
 
-argOf :: ABCD -> String -> Thing -> Pattern
+argOf :: ABCD -> String -> SomeThing -> Pattern
 argOf abcd name argType = do
 	let (Builtin locationIndex) = locationOf abcd
 	argAt (BuiltinArg name locationIndex) name argType
@@ -252,21 +254,21 @@ opOf a = \match -> SomeInvocation Invocation {
 	location = locationOf a,
 	match }
 
-prefixedUnaryOpMatch :: ABCD -> Text -> String -> Thing -> Op -> Match
+prefixedUnaryOpMatch :: ABCD -> Text -> String -> SomeThing -> Op -> Match
 prefixedUnaryOpMatch abcd prefix argName argType op =
 	Match.And $ dualton (Match.Literal prefix) $ ArgM Match.Argument {
-		decLoc = (locationOf abcd), name = argName, argType, value = InvValue op }
+		decLoc = (locationOf abcd), name = argName, argType, value = SomeThing op }
 
-infixOpMatch :: ABCD -> String -> Thing -> Text -> String -> Thing -> Op -> Op -> Match
+infixOpMatch :: ABCD -> String -> SomeThing -> Text -> String -> SomeThing -> Op -> Op -> Match
 infixOpMatch abcd leftName leftType literal rightName rightType leftOp rightOp =
 	Match.And $ P2.Populace2
-		(ArgM $ Match.Argument (locationOf abcd) leftName leftType $ InvValue leftOp)
+		(ArgM $ Match.Argument (locationOf abcd) leftName leftType $ SomeThing leftOp)
 		(Match.Literal literal)
-		[ArgM $ Match.Argument (locationOf abcd) rightName rightType $ InvValue rightOp]
+		[ArgM $ Match.Argument (locationOf abcd) rightName rightType $ SomeThing rightOp]
 
-type AssertOneArg = (Thing -> Fallible ()) -> Op -> Fallible ()
+type AssertOneArg = (SomeThing -> Fallible ()) -> Op -> Fallible ()
 
-type AssertTwoArgs = (Thing -> Fallible ()) -> AssertOneArg
+type AssertTwoArgs = (SomeThing -> Fallible ()) -> AssertOneArg
 
 -- exported
 ---- contexts

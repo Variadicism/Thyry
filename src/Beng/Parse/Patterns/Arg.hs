@@ -25,7 +25,7 @@ import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (compareAsSuperDefault)
 import Beng.Parse.Parsers.PatternComparator ()
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
-import Beng.Things (satisfies)
+import Beng.Things (satisfiesThing)
 import Beng.Types.Errors (Error(..), Fallible)
 import Beng.Types.Locations (Location)
 import qualified Beng.Types.Locations as Location
@@ -33,7 +33,8 @@ import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import qualified Beng.Types.Parse.Parsers.Code as SpaceState
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Patterns (ArgP(..), Argument(..), Comparison(..), ComparatorState(..), Mismatch(..), SomePattern(..))
-import Beng.Types.Things (Thing, Thing(InvValue), Thing(PreOpType))
+import Beng.Things (SomeThing, PreOpType(..))
+import Beng.Types.Things (SomeThing(..), castThing)
 
 import qualified Data.Map as Map
 import qualified Data.Map.Ordered as OMap
@@ -42,10 +43,10 @@ import Data.List.Extra (dropPrefix)
 import Control.Monad (when)
 import qualified Data.Set as Set
 
-showArg :: String -> Thing -> Location -> String
+showArg :: String -> SomeThing -> Location -> String
 showArg name argType decLoc = show decLoc ++ ":" ++ msgArg name argType
 
-msgArg :: String -> Thing -> String
+msgArg :: String -> SomeThing -> String
 msgArg name argType = do
 	let argTypeName = dropPrefix "a " $ dropPrefix "an " $ map toLower $ msg argType
 	let contents = if argTypeName == map toLower name
@@ -56,9 +57,9 @@ msgArg name argType = do
 parseArg :: ArgP -> Code.Parser Match
 parseArg (ArgP Argument{..}) = msgArg name argType @> \state -> do
 	let (Just parent) = state.parent
-	let typeToSatisfy = case argType of
-		PreOpType resolvedType -> resolvedType
-		rawType -> rawType
+	let typeToSatisfy = case castThing argType of
+		Just PreOpType{resolvedType} -> resolvedType
+		Nothing -> argType
 	let checkSatisfiesArgType :: SomeInvocation -> Fallible () = \(SomeInvocation invocation) -> do
 		let (Location.Code opLocation) = invocation.location
 		let contextualizeError cause = TypeError {
@@ -66,11 +67,13 @@ parseArg (ArgP Argument{..}) = msgArg name argType @> \state -> do
 			argName = name,
 			fileLocation = opLocation,
 			cause }
-		mapError contextualizeError $ (state.context, invocation.returnType) `satisfies` typeToSatisfy
+		mapError contextualizeError $ (state.context, invocation.returnType) `satisfiesThing` typeToSatisfy
 
-	let argOf invocation = ArgM Match.Argument { decLoc, name, argType, value = InvValue invocation }
+	let argOf invocation = ArgM Match.Argument {
+		decLoc, name, argType,
+		value = SomeThing invocation }
 	let putArg invocation state' = do
-		let newArg = Match.Argument { name, decLoc, argType, value = InvValue invocation }
+		let newArg = Match.Argument { name, decLoc, argType, value = SomeThing invocation }
 		state' { arguments = Map.insert name newArg state'.arguments }
 	case state.prefixState of
 		AvoidingFor invocation -> do
@@ -92,7 +95,9 @@ parseArg (ArgP Argument{..}) = msgArg name argType @> \state -> do
 					>/\> (\s invocation -> putArg invocation s{ Code.context = state.context })
 					>-\> (\invocation -> checkSatisfiesArgType invocation >> return invocation)
 					>\> \invocation ->
-						ArgM Match.Argument { decLoc, name, argType, value = InvValue invocation }
+						ArgM Match.Argument {
+							decLoc, name, argType,
+							value = SomeThing invocation }
 
 compareAsSubArg :: ArgP -> PatternComparator.Parser
 compareAsSubArg self@(ArgP Argument{..}) = msgArg name argType ++ " comparator" @> \state -> do
