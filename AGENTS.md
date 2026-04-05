@@ -19,6 +19,7 @@ Follow the existing project style, even when another Haskell form would also be 
 - Keep helper logic close to its use when it is specific to one parsing or comparison path.
 - Reuse shared semantic helpers when behavior is not specific to one module.
 - Ensure that all lines underneath a case alternative are indented further than the case alternative.
+- Do not introduce new extensions without requesting permission.
 
 ## Testing
 
