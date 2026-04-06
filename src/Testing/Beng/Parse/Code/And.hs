@@ -12,10 +12,11 @@ import Testing.Beng.Utils.Mocks (mockNothing)
 import Testing.Beng.Utils.Parsers ((!>>>), MockParser, assertState)
 
 import Beng.Build.Context.Builders (l, s, patConcat)
-import Beng.Parse.Matches (Match)
-import qualified Beng.Parse.Matches as Match
+import Beng.Parse.Matches ()
+import qualified Beng.Types.Parse.Matches as Match
 import Beng.Parse.Parsers.Code ((>\>), Parse, SpaceState(..), target)
 import qualified Beng.Parse.Patterns as Pattern
+import Beng.Types.Parse.Matches (SomeMatch(..))
 import Beng.Types.Parse.Patterns (Or(..), SomePattern(..))
 
 import Data.Text.Lazy (Text)
@@ -25,30 +26,30 @@ import qualified Data.Text.Lazy as Text
 
 type Pattern = SomePattern
 
-parse :: [Pattern] -> MockParser (Populace Match)
+parse :: [Pattern] -> MockParser (Populace SomeMatch)
 parse subpatterns = mockNothing !>>>
 	Pattern.parse (patConcat subpatterns) >\>
 	Match.getSubmatches
 
-parseLits :: [Char] -> Text -> Fallible (Populace (Parse (Populace Match)))
+parseLits :: [Char] -> Text -> Fallible (Populace (Parse (Populace SomeMatch)))
 parseLits chars = parse $ map (l . Text.singleton) chars
 
-assertMatches :: [Match] -> Parse (Populace Match) -> Fallible ()
+assertMatches :: [SomeMatch] -> Parse (Populace SomeMatch) -> Fallible ()
 assertMatches matches result =
 	(P.assume matches, result.target) `isEqualElse` "The subpattern matches were unexpected!"
 
-assertLitMatches :: [Char] -> (Parse (Populace Match) -> Fallible ())
+assertLitMatches :: [Char] -> (Parse (Populace SomeMatch) -> Fallible ())
 assertLitMatches chars =
-	assertMatches $ map (Match.Literal . Text.singleton) chars
+	assertMatches $ map (SomeMatch . Match.Literal . Text.singleton) chars
 
-lM :: (Text -> Match)
-lM = Match.Literal
+lM :: (Text -> SomeMatch)
+lM = SomeMatch . Match.Literal
 
-orM :: Match -> Int -> Match
-orM match matchIndex = Match.Or{ matchIndex, match, misses = [] }
+orM :: SomeMatch -> Int -> SomeMatch
+orM match matchIndex = SomeMatch $ Match.Or{ matchIndex, match, misses = [] }
 
-sM :: (Text -> Match)
-sM = Match.Space
+sM :: (Text -> SomeMatch)
+sM = SomeMatch . Match.Space
 
 gThenOptionalR :: [Pattern]
 gThenOptionalR = [l "g", SomePattern $ Or $ P2.dualton (l "") (l "r")]

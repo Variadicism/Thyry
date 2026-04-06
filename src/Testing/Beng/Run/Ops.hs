@@ -18,12 +18,13 @@ import qualified Beng.Build.Context as Context
 import Beng.Build.Context (PrecedenceBound(Default, None))
 import Beng.Build.Context.Builders (l, argOfBuiltin, asInt, asInv, declare, define, intType, intValue)
 import Beng.Operators.Definitions (Definition)
-import Beng.Parse.Matches (Match(ArgM))
-import qualified Beng.Parse.Matches as M
+import Beng.Parse.Matches ()
+import qualified Beng.Types.Parse.Matches as M
 import Beng.Parse.Patterns (Argument(..))
 import Beng.Run (run)
 import Beng.Types.Locations (FileLocation(..), Location(..))
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
+import Beng.Types.Parse.Matches (SomeMatch(..))
 import Beng.Types.Parse.Patterns (Delimited(..), Or(..), SomePattern(..))
 import Beng.Things (
 	SomeThing(..),
@@ -35,8 +36,8 @@ import Data.Map ((!))
 
 -- constants
 
-argMatchOf :: Int -> String -> SomeThing -> SomeInvocation -> Match
-argMatchOf parentIndex name argType inv = ArgM M.Argument {
+argMatchOf :: Int -> String -> SomeThing -> SomeInvocation -> SomeMatch
+argMatchOf parentIndex name argType inv = SomeMatch $ M.Argument {
 	argType, name, value = SomeThing inv,
 	decLoc = BuiltinArg name parentIndex }
 
@@ -67,9 +68,9 @@ noneOp = SomeInvocation Invocation {
 	operator = someOrNone,
 	context = Context.empty,
 	location = Builtin 2,
-	match = M.Or { matchIndex = 0,
+	match = SomeMatch $ M.Or { matchIndex = 0,
 		misses = [Argument "Some" intType (BuiltinArg "Some" 2)],
-		match = M.Literal "none" }}
+		match = SomeMatch $ M.Literal "none" }}
 
 -- private
 
@@ -78,7 +79,7 @@ someOp inv = SomeInvocation Invocation {
 	operator = someOrNone,
 	context = Context.empty,
 	location = Builtin 3,
-	match = M.Or {
+	match = SomeMatch $ M.Or {
 		matchIndex = 1, misses = [],
 		match = argMatchOf 3 "Some" intType inv }}
 
@@ -87,13 +88,13 @@ sumCommasOp firstArgInv invsTail = SomeInvocation Invocation {
 	operator = sumCommas,
 	context = Context.empty,
 	location = Builtin 4,
-	match = M.Delimited {
+	match = SomeMatch $ M.Delimited {
 		M.head = argMatchOf 4 "Element" intType firstArgInv,
 		M.tail = toTail invsTail }}
 	where
 		toTail :: Populace SomeInvocation -> M.DelimitedTail
 		toTail = M.DelimitedTailMatch . P.map
-			((M.Literal ",",) . argMatchOf 4 "Element" intType)
+			((SomeMatch $ M.Literal ",",) . argMatchOf 4 "Element" intType)
 
 -- tests
 
@@ -125,5 +126,5 @@ testRunOps = TestCategories "evaluate" [
 				operator = declaration,
 				context = Context.empty,
 				location,
-				match = M.Literal "test" }
+				match = SomeMatch $ M.Literal "test" }
 			assertUndefinedError inv)]]

@@ -7,7 +7,7 @@ import Utils.Testing
 import Testing.Beng.Utils.Mocks (mockNothing)
 import Testing.Beng.Utils.Parsers ((!>>>), MockParser, assertState)
 
-import qualified Beng.Parse.Matches as Match
+import Beng.Parse.Matches ()
 import Beng.Parse.Parsers.Code ((>\>), SpaceState(..))
 import qualified Beng.Parse.Patterns.Literal as Literal
 import Beng.Types.Parse.Patterns (Literal(..))
@@ -19,7 +19,7 @@ import Data.Text.Lazy (Text)
 parse :: Text -> MockParser ()
 parse literalText = mockNothing !>>>
 	Literal.parse (Literal literalText) >\>
-	\Match.Literal{} -> ()
+	const ()
 
 parseL = parse "l"
 

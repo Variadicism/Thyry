@@ -9,8 +9,7 @@ import Utils.Messaging (Messagable(..))
 import qualified Utils.Populace as P
 
 import Beng.Errors (Fallible, parseError)
-import Beng.Parse.Matches (Match)
-import qualified Beng.Parse.Matches as Match
+import {-# SOURCE #-} Beng.Parse.Matches ()
 import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>|>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
@@ -18,6 +17,8 @@ import {-# SOURCE #-} Beng.Parse.Patterns (asPattern, startingSpaceStates)
 import qualified Beng.Types.Parse.Parsers.Code as TCode
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Parsers.Code (PrefixState(..))
+import Beng.Types.Parse.Matches (SomeMatch(..))
+import qualified Beng.Types.Parse.Matches as Match
 import qualified Beng.Types.Parse.Parsers.Code as SpaceState (SpaceState(..))
 import Beng.Types.Parse.Patterns (Comparison(..), ComparatorState(..), Mismatch(..), SomePattern(..), Space(..))
 
@@ -26,10 +27,10 @@ import qualified Data.Set as Set
 import Data.Text.Lazy (pack)
 import qualified Data.Text.Lazy as T
 
-parseSpace :: Code.Parser Match
+parseSpace :: Code.Parser SomeMatch
 parseSpace = "space pattern" @+> parseBoundary >|> parseSpaces
 
-parseBoundary :: Code.Parser Match
+parseBoundary :: Code.Parser SomeMatch
 parseBoundary = "parse word boundary" @> \state ->
 	case T.uncons state.rest of
 		Nothing -> takeBoundary state
@@ -45,15 +46,15 @@ failBoundary nextChar state = Error $ parseError state $
 		show state.spaceState ++ " character.\n" ++
 		"Note: in Beng, underscores are considered Punctuation."
 
-takeBoundary :: Code.ParseRunner Match
-takeBoundary = Code.takeAs "" (Match.Space "")
+takeBoundary :: Code.ParseRunner SomeMatch
+takeBoundary = Code.takeAs "" (SomeMatch $ Match.Space "")
 
-parseSpaces :: Code.Parser Match
+parseSpaces :: Code.Parser SomeMatch
 parseSpaces =
 	parseSingleSpace >:>
 	Code.parseAll parseSingleSpace >\>
 	\(firstSpace, moreSpaces) ->
-		Match.Space $ T.cons firstSpace $ pack moreSpaces
+		SomeMatch $ Match.Space $ T.cons firstSpace $ pack moreSpaces
 
 parseSingleSpace :: Code.Parser Char
 parseSingleSpace = "parse whitespace" @> \state ->
@@ -136,5 +137,5 @@ instance TPattern.Pattern Space where
 	startingSpaceStates _ = Set.empty
 	isOptional _ = False
 
-parse :: Space -> Code.Parser Match
+parse :: Space -> Code.Parser SomeMatch
 parse _ = parseSpace

@@ -30,7 +30,7 @@ import qualified Utils.Populace as P
 import Utils.Populace.Populace2 (Populace2)
 
 import Beng.Types.Locations (Location)
-import Beng.Types.Parse.Matches (Match)
+import Beng.Types.Parse.Matches (SomeMatch)
 import Beng.Types.Parse.PatternArguments (Argument(..), Arguments)
 import qualified Beng.Types.Parse.Parsers.Code as Code
 import Beng.Types.Parse.Parsers.Code (SpaceState)
@@ -91,7 +91,7 @@ data Delimited = Delimited { delimiter :: SomePattern, delimitend :: SomePattern
 data ArgP = ArgP Argument
 
 class (Eq p, Show p, Messagable p, Typeable p) => Pattern p where
-	parse :: p -> Code.Parser Match
+	parse :: p -> Code.Parser SomeMatch
 	compareAsSub :: p -> Comparator
 	compareAsSuper :: p -> Comparator
 

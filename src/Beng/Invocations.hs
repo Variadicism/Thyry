@@ -13,11 +13,12 @@ import Utils.Messaging (Messagable, msg)
 
 import Beng.Locations ()
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
+import {-# SOURCE #-} Beng.Parse.Matches ()
 import Beng.Types.Operators (Operator)
 import qualified Beng.Types.Operators as Ops
-import {-# SOURCE #-} qualified Beng.Parse.Matches as Match
 import Beng.Types.Things (SomeThing)
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
+import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Parse.Matches (Argument)
 
 import Data.Map.Ordered (OMap)

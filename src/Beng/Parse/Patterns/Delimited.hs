@@ -9,8 +9,9 @@ import qualified Utils.Populace as P
 
 import Beng.Parse.Patterns (asPattern)
 import qualified Beng.Parse.Patterns as Pattern
-import Beng.Parse.Matches (Match)
+import {-# SOURCE #-} Beng.Parse.Matches ()
 import qualified Beng.Types.Parse.Matches as Match
+import Beng.Types.Parse.Matches (SomeMatch(..))
 import Beng.Parse.Parsers ((@>), (@+>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (compareAsSuperDefault)
@@ -29,13 +30,13 @@ import Beng.Types.Parse.Patterns (
 
 import Data.Map.Ordered ((<>|))
 
-parseDelimited :: Delimited -> Code.Parser Match
+parseDelimited :: Delimited -> Code.Parser SomeMatch
 parseDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter @+>
 	Pattern.parse delimitend >:>
 	(Code.parseAll (Pattern.parse delimiter >:> Pattern.parse delimitend) >\> \case
 		[] -> Match.DelimitedTailMissing $ OMap.values $ Pattern.getArgs (SomePattern self)
 		firstMatch:matchTail -> Match.DelimitedTailMatch $ P.Populace firstMatch matchTail) >\>
-	uncurry Match.Delimited
+	(\(head, tail) -> SomeMatch $ Match.Delimited { head, tail })
 
 compareAsSubDelimited :: Delimited -> PatternComparator.Parser
 compareAsSubDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter ++ " comparator" @> \state -> do
@@ -77,5 +78,5 @@ instance TPattern.Pattern Delimited where
 		let wrapTypes wrapper = OMap.map (\p -> p{ argType = SomeThing $ wrapper p.argType })
 		wrapTypes NativeSomeType (getArgs delimiter) <>| wrapTypes NativeListType (getArgs delimitend)
 
-parse :: Delimited -> Code.Parser Match
+parse :: Delimited -> Code.Parser SomeMatch
 parse = parseDelimited

@@ -58,8 +58,9 @@ import qualified Beng.Build.Context as Context
 import Beng.Build.Context.Builders (l, s, asInt, argAt, asNativeString, asInv, bitType, bitValue, buildContextFrom, define, defineRighty, defineLiteral, defineUsing, intType, intValue, stringType, stringValue)
 import qualified Beng.Build.Context.Builders as Builder
 import Beng.Types.Build.Context (PrecedenceBound(..))
-import qualified Beng.Parse.Matches as Match
-import Beng.Types.Parse.Matches (Match(ArgM), value)
+import Beng.Parse.Matches ()
+import qualified Beng.Types.Parse.Matches as Match
+import Beng.Types.Parse.Matches (SomeMatch(..), value)
 import Beng.Types.Parse.Patterns (ArgP(..), Argument(..), SomePattern(..))
 import Beng.Types.Operators (SomeOperator(..))
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
@@ -247,24 +248,24 @@ operatorOf = SomeOperator . definitionOf
 locationOf :: (ABCD -> Location)
 locationOf = Builtin . fromEnum
 
-opOf :: ABCD -> (Match -> Op)
+opOf :: ABCD -> (SomeMatch -> Op)
 opOf a = \match -> SomeInvocation Invocation {
 	operator = definitionOf a,
 	context = mockABCD,
 	location = locationOf a,
 	match }
 
-prefixedUnaryOpMatch :: ABCD -> Text -> String -> SomeThing -> Op -> Match
+prefixedUnaryOpMatch :: ABCD -> Text -> String -> SomeThing -> Op -> SomeMatch
 prefixedUnaryOpMatch abcd prefix argName argType op =
-	Match.And $ dualton (Match.Literal prefix) $ ArgM Match.Argument {
+	SomeMatch $ Match.And $ dualton (SomeMatch $ Match.Literal prefix) $ SomeMatch $ Match.Argument {
 		decLoc = (locationOf abcd), name = argName, argType, value = SomeThing op }
 
-infixOpMatch :: ABCD -> String -> SomeThing -> Text -> String -> SomeThing -> Op -> Op -> Match
+infixOpMatch :: ABCD -> String -> SomeThing -> Text -> String -> SomeThing -> Op -> Op -> SomeMatch
 infixOpMatch abcd leftName leftType literal rightName rightType leftOp rightOp =
-	Match.And $ P2.Populace2
-		(ArgM $ Match.Argument (locationOf abcd) leftName leftType $ SomeThing leftOp)
-		(Match.Literal literal)
-		[ArgM $ Match.Argument (locationOf abcd) rightName rightType $ SomeThing rightOp]
+	SomeMatch $ Match.And $ P2.Populace2
+		(SomeMatch $ Match.Argument (locationOf abcd) leftName leftType $ SomeThing leftOp)
+		(SomeMatch $ Match.Literal literal)
+		[SomeMatch $ Match.Argument (locationOf abcd) rightName rightType $ SomeThing rightOp]
 
 type AssertOneArg = (SomeThing -> Fallible ()) -> Op -> Fallible ()
 
@@ -303,28 +304,28 @@ negate = definitionOf Negate
 
 ---- matches
 
-aMatch :: Match
-aMatch = Match.Literal "a"
+aMatch :: SomeMatch
+aMatch = SomeMatch $ Match.Literal "a"
 
-bMatch :: Match
-bMatch = Match.Literal "b"
+bMatch :: SomeMatch
+bMatch = SomeMatch $ Match.Literal "b"
 
-appMatch :: (Op -> Op -> Match)
+appMatch :: (Op -> Op -> SomeMatch)
 appMatch = infixOpMatch App "Left" intType "$" "Right" intType
 
-expMatch :: (Op -> Op -> Match)
+expMatch :: (Op -> Op -> SomeMatch)
 expMatch = infixOpMatch Exp "Base" intType "^" "Exponent" intType
 
-divMatch :: (Op -> Op -> Match)
+divMatch :: (Op -> Op -> SomeMatch)
 divMatch = infixOpMatch Divide "Dividend" intType "/" "Divisor" intType
 
-addMatch :: (Op -> Op -> Match)
+addMatch :: (Op -> Op -> SomeMatch)
 addMatch = infixOpMatch Add "Augend" intType "+" "Addend" intType
 
-notMatch :: (Op -> Match)
+notMatch :: (Op -> SomeMatch)
 notMatch = prefixedUnaryOpMatch Not "!" "Thing" intType
 
-negateMatch :: (Op -> Match)
+negateMatch :: (Op -> SomeMatch)
 negateMatch = prefixedUnaryOpMatch Negate "~" "Negend" intType
 
 ---- ops

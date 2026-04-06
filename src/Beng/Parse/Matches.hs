@@ -1,20 +1,14 @@
 module Beng.Parse.Matches (
-	DelimitedTail(..),
-	Match(..),
-	Argument(..),
-	getSubmatches,
-	toCode,
-	getArgs,
+	asMatch,
 	hasArgs,
-	hasPrefix,
-	hasSuffix
+	module Beng.Types.Parse.Matches
 ) where
 
 import Prelude hiding (map, undefined)
 
 import Utils.Collective (map)
 import Utils.Fallible (FallibleI(..))
-import Utils.Lists (ifNotNull,  takeUntilIncl, wrap)
+import Utils.Lists (ifNotNull, takeUntilIncl, wrap)
 import qualified Utils.Maps.Ordered as OMap
 import Utils.Messaging (Messagable, msg, msgList)
 import Utils.Populace (Populace(..))
@@ -23,10 +17,26 @@ import qualified Utils.Populace.Populace2 as P2
 import Utils.Tuples (toList2)
 
 import Beng.Build.Context.Builders (declareLiteral)
-import Beng.Types.Parse.Matches (Argument(..), DelimitedTail(..), Match(..))
+import Beng.Types.Parse.Matches (
+	And(..),
+	Argument(..),
+	CharClass(..),
+	Delimited(..),
+	DelimitedTail(..),
+	Literal(..),
+	Match,
+	NamedText(..),
+	Or(..),
+	SomeMatch(..),
+	Space(..))
+import qualified Beng.Types.Parse.Matches as Match
+import Beng.Things ()
+import qualified Beng.Things as Thing
+import Beng.Locations ()
 import {-# SOURCE #-} Beng.Parse.Patterns ()
+import {-# SOURCE #-} Beng.Parse.Patterns.Literal ()
 import qualified Beng.Types.Parse.Patterns as Pattern
-import Beng.Things (
+import Beng.Types.Things (
 	SomeThing(..),
 	NativeStringType(..),
 	NativeStringValue(..),
@@ -35,15 +45,13 @@ import Beng.Things (
 	NativeSomeType(..),
 	NativeSomeValue(..),
 	NativeListType(..),
-	NativeListValue(..) )
-import {-# SOURCE #-} qualified Beng.Things as Thing
-
+	NativeListValue(..),
+	Undefined(..))
 import Data.Map.Ordered ((<|), (|<), (<>|), OMap)
 import qualified Data.Map.Ordered as OMap
-import Data.Text.Lazy (Text, pack, unpack)
+import Data.Text.Lazy (pack, unpack)
 import qualified Data.Text.Lazy as Text
-
--- instances
+import Data.Typeable (cast)
 
 instance Eq Argument where
 	(==) p1 p2 = p1.name == p2.name
@@ -66,73 +74,147 @@ instance Messagable DelimitedTail where
 		DelimitedTailMatch pairs -> msg pairs
 		DelimitedTailMissing misses -> "missing tail" ++ ifNotNull (" with "++) (msgList misses)
 
-instance Eq Match where
-	-- Most of these are trivial....
-	(==) s1@Space{} s2@Space{} = s1.text == s2.text
-	(==) l1@Literal{} l2@Literal{} = l1.text == l2.text
-	(==) o1@Or{} o2@Or{} = o1.matchIndex == o2.matchIndex
-	(==) a1@And{} a2@And{} = a1.matches == a2.matches
-	(==) d1@Delimited{} d2@Delimited{} = d1.head == d2.head && d1.tail == d2.tail
-	-- ...But, ArgumentMatches need to be compared by Definition only.
-	-- Otherwise, an import cycle forms for Eq Op. Plus, if the names match, they should match.
-	(==) (ArgM a1) (ArgM a2) = a1.name == a2.name
-	(==) _ _ = False
+asMatch :: Match m => SomeMatch -> Maybe m
+asMatch (SomeMatch match) = cast match
 
-instance Show Match where
-	show = unpack . toCode  -- TODO: include the information than toCode can't.
+instance Eq SomeMatch where
+	SomeMatch m1 == SomeMatch m2 = maybe False (m1 ==) $ cast m2
 
-instance Messagable Match where
-	msg = unpack . toCode
+instance Show SomeMatch where
+	show (SomeMatch match) = unpack $ Match.toCode match
 
--- exports
+instance Messagable SomeMatch where
+	msg (SomeMatch match) = unpack $ Match.toCode match
 
-getSubmatches :: (Match -> Populace Match)
-getSubmatches = \case
-	Or{match} -> P.singleton match
-	And{matches} -> matches.p1
-	match@Delimited{} -> P.Populace match.head $ case match.tail of
-		DelimitedTailMatch matchPairs -> concatMap toList2 matchPairs
-		DelimitedTailMissing _ -> []
-	match -> P.singleton match
+instance Match SomeMatch where
+	getSubmatches (SomeMatch match) = Match.getSubmatches match
+	toCode (SomeMatch match) = Match.toCode match
+	getArgs (SomeMatch match) = Match.getArgs match
+	hasPrefix (SomeMatch match) = Match.hasPrefix match
+	hasSuffix (SomeMatch match) = Match.hasSuffix match
 
--- This is defined here for use in defining `show Match`.
-toCode :: (Match -> Text)
-toCode = \case
-	Space{text} -> text
-	Literal{text} -> text
-	CharClass{char} -> Text.singleton char
-	NamedText{match} -> toCode match
-	Or{match} -> toCode match
-	And{matches} -> Text.concat $ map toCode matches.l
-	match@Delimited{} -> Text.concat $ map toCode $ P.toList $ getSubmatches match
-	ArgM Argument{value} -> Thing.toCode value
+instance Eq Space where
+	Space{text = text1} == Space{text = text2} = text1 == text2
 
-getArgs :: (Match -> OMap String Argument)
-getArgs = \case
-	Space{} -> OMap.empty
-	Literal{} -> OMap.empty
-	CharClass{} -> OMap.empty
-	NamedText{name,decLoc,match} -> do
+instance Show Space where
+	show Space{text} = unpack text
+
+instance Messagable Space where
+	msg = show
+
+instance Eq Literal where
+	Literal{text = text1} == Literal{text = text2} = text1 == text2
+
+instance Show Literal where
+	show Literal{text} = unpack text
+
+instance Messagable Literal where
+	msg = show
+
+instance Eq CharClass where
+	CharClass{char = char1} == CharClass{char = char2} = char1 == char2
+
+instance Show CharClass where
+	show CharClass{char} = [char]
+
+instance Messagable CharClass where
+	msg = show
+
+instance Eq NamedText where
+	match1 == match2 =
+		match1.decLoc == match2.decLoc &&
+		match1.name == match2.name &&
+		match1.match == match2.match
+
+instance Show NamedText where
+	show = unpack . Match.toCode
+
+instance Messagable NamedText where
+	msg = show
+
+instance Eq Or where
+	match1 == match2 = match1.matchIndex == match2.matchIndex
+
+instance Show Or where
+	show = unpack . Match.toCode
+
+instance Messagable Or where
+	msg = show
+
+instance Eq And where
+	And{matches = matches1} == And{matches = matches2} = matches1 == matches2
+
+instance Show And where
+	show = unpack . Match.toCode
+
+instance Messagable And where
+	msg = show
+
+instance Eq Delimited where
+	match1 == match2 = match1.head == match2.head && match1.tail == match2.tail
+
+instance Show Delimited where
+	show = unpack . Match.toCode
+
+instance Messagable Delimited where
+	msg = show
+
+instance Match Space where
+	toCode Space{text} = text
+	hasPrefix match = not $ Text.null match.text
+	hasSuffix match = not $ Text.null match.text
+
+instance Match Literal where
+	toCode Literal{text} = text
+	hasPrefix match = not $ Text.null match.text
+	hasSuffix match = not $ Text.null match.text
+
+instance Match CharClass where
+	toCode CharClass{char} = Text.singleton char
+	hasPrefix _ = True
+	hasSuffix _ = True
+
+instance Match NamedText where
+	toCode NamedText{match = SomeMatch match} = Match.toCode match
+	getArgs NamedText{name,decLoc,match = SomeMatch match} = do
 		let argument = Argument { name, decLoc,
 			argType = SomeThing NativeStringType,
-			value = SomeThing $ NativeStringValue $ toCode match }
+			value = SomeThing $ NativeStringValue $ Match.toCode match }
 		OMap.singleton (name, argument)
-	Or{match,misses} -> do
+	hasPrefix NamedText{match = SomeMatch match} = not $ Text.null $ Match.toCode match
+	hasSuffix NamedText{match = SomeMatch match} = not $ Text.null $ Match.toCode match
+
+instance Match Or where
+	getSubmatches Or{match} = P.singleton match
+	toCode Or{match = SomeMatch match} = Match.toCode match
+	getArgs Or{match = SomeMatch match,misses} = do
 		let matchFalParam = \decLoc name argType value -> Argument {
 			decLoc, name,
 			argType = SomeThing $ NativeOptionalType argType,
-			-- These wrappers are ridiculous, but it's the best way I can find in Haskell.
-			-- With op type disambiguation, structural typing, and implicit conversion, Beng should stop this.
 			value = SomeThing $ NativeOptionalValue value }
 		let missEntry = \p -> (p.name,
 			matchFalParam p.decLoc p.name p.argType $
-				Thing.undefined $ declareLiteral (pack p.name) p.argType p.decLoc)
+				Error $ Undefined [("", declareLiteral (pack p.name) p.argType p.decLoc)])
 		let falValue = \p -> matchFalParam p.decLoc p.name p.argType $ Falue p.value
 
 		OMap.fromList (map missEntry misses) <>|
-			OMap.map falValue (getArgs match)
-	And{matches} -> OMap.concat $ P2.map getArgs matches
-	delimited@Delimited{head=headMatch,tail=tailMatch} -> case tailMatch of
+			OMap.map falValue (Match.getArgs match)
+	hasPrefix Or{match = SomeMatch match} = Match.hasPrefix match
+	hasSuffix Or{match = SomeMatch match} = Match.hasSuffix match
+
+instance Match And where
+	getSubmatches And{matches} = matches.p1
+	toCode And{matches} = Text.concat $ map Match.toCode matches.l
+	getArgs And{matches} = OMap.concat $ P2.map Match.getArgs matches
+	hasPrefix And{matches} = any Match.hasPrefix $ takeUntilIncl hasArgs matches.l
+	hasSuffix And{matches} = any Match.hasSuffix $ takeUntilIncl hasArgs $ reverse matches.l
+
+instance Match Delimited where
+	getSubmatches delimited@Delimited{head} = P.Populace head $ case delimited.tail of
+		DelimitedTailMatch matchPairs -> concatMap toList2 matchPairs
+		DelimitedTailMissing _ -> []
+	toCode match = Text.concat $ map Match.toCode $ P.toList $ Match.getSubmatches match
+	getArgs delimited@Delimited{head = headMatch,tail = tailMatch} = case tailMatch of
 		DelimitedTailMatch _ -> do
 			let revalueParam :: Argument -> Populace SomeThing -> Argument = \p values -> p{
 				argType = SomeThing $ NativeSomeType p.argType,
@@ -147,7 +229,8 @@ getArgs = \case
 				(p.name, (p, Populace p.value oldValues)) |< prevs
 			let collateArgs :: ([Argument] -> OMap String Argument) =
 				OMap.map (uncurry revalueParam) . foldr combineValuesByName OMap.empty
-			collateArgs $ concatMap (OMap.values . getArgs) $ P.toList $ getSubmatches delimited
+			collateArgs $ concatMap (OMap.values . Match.getArgs) $
+				P.toList $ Match.getSubmatches delimited
 		DelimitedTailMissing missedParams -> do
 			let collateArgsWithMissing
 					:: Pattern.Argument -> OMap String Argument -> OMap String Argument =
@@ -156,26 +239,17 @@ getArgs = \case
 					argType = SomeThing $ NativeListType argType,
 					value = SomeThing $ NativeListValue [] }
 				(name, missingParamMatch) <| matches
-			foldr collateArgsWithMissing (getArgs headMatch) missedParams
-	ArgM argument -> OMap.singleton (argument.name, argument)
+			foldr collateArgsWithMissing (Match.getArgs headMatch) missedParams
+	hasPrefix match =
+		any Match.hasPrefix $ takeUntilIncl hasArgs $ P.toList $ Match.getSubmatches match
+	hasSuffix match =
+		any Match.hasSuffix $ takeUntilIncl hasArgs $ reverse $ P.toList $ Match.getSubmatches match
 
-hasArgs :: (Match -> Bool)
-hasArgs = not . OMap.null . getArgs
+instance Match Argument where
+	toCode Argument{value} = Thing.toCode value
+	getArgs argument = OMap.singleton (argument.name, argument)
+	hasPrefix _ = False
+	hasSuffix _ = False
 
-hasPrefix :: Match -> Bool
-hasPrefix = \case
-	NamedText{match} -> not $ Text.null $ toCode match
-	Or{match} -> hasPrefix match
-	And{matches} -> any hasPrefix $ takeUntilIncl hasArgs matches.l
-	match@Delimited{} -> any hasPrefix $ takeUntilIncl hasArgs $ P.toList $ getSubmatches match
-	ArgM{} -> False
-	match -> not $ Text.null $ toCode match
-
-hasSuffix :: Match -> Bool
-hasSuffix = \case
-	NamedText{match} -> not $ Text.null $ toCode match
-	Or{match} -> hasSuffix match
-	And{matches} -> any hasSuffix $ takeUntilIncl hasArgs $ reverse matches.l
-	match@Delimited{} -> any hasSuffix $ takeUntilIncl hasArgs $ reverse $ P.toList $ getSubmatches match
-	ArgM{} -> False
-	match -> not $ Text.null $ toCode match
+hasArgs :: SomeMatch -> Bool
+hasArgs (SomeMatch match) = not $ OMap.null $ Match.getArgs match

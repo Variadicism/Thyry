@@ -15,10 +15,11 @@ import Testing.Beng.Utils.Parsers (MockParser, assertRest)
 
 import Beng.Types.Operators (SomeOperator(..))
 import Beng.Build.Context.Builders (cr2, intType, l, s)
-import qualified Beng.Parse.Matches as Match
+import Beng.Parse.Matches ()
 import Beng.Parse.Parsers.Code ((>>>), (>\>), Parse, PrefixState(..), State(..), fileStartState, parses, target)
 import qualified Beng.Parse.Patterns.NamedText as NamedText
 import Beng.Types.Locations (Location(Builtin, BuiltinArg))
+import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Parse.Patterns (And(..), CharClass(..), Delimited(..), NamedText(..), Or(..), SomePattern(..), Space(..))
 
 import Data.Bifunctor (bimap)

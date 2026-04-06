@@ -32,8 +32,9 @@ import qualified Beng.Types.Build.TypeTest as TTest
 import Beng.Types.Errors (Error(..))
 import qualified Beng.Types.Locations as TLocation
 import Beng.Types.Invocations (SomeInvocation(..))
-import {-# SOURCE #-} qualified Beng.Parse.Matches as Match
 import qualified Beng.Types.Operators.Declarations as TDec
+import {-# SOURCE #-} Beng.Parse.Matches ()
+import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Parse.Patterns (Literal(..), SomePattern(..))
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Matches (value)

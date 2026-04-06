@@ -13,24 +13,27 @@ import Testing.Beng.Utils.Mocks (mockNothing)
 import Testing.Beng.Utils.Parsers ((!>>>), MockParser, assertState)
 
 import Beng.Build.Context.Builders (l)
-import Beng.Parse.Matches (Match, match, matchIndex)
-import qualified Beng.Parse.Matches as Match
+import Beng.Parse.Matches ()
 import Beng.Parse.Parsers.Code ((>\>), Parse, SpaceState(..), target)
 import qualified Beng.Parse.Patterns.Or as Or
+import qualified Beng.Parse.Matches as Match
+import Beng.Types.Parse.Matches (SomeMatch(..))
 import Beng.Types.Parse.Patterns (Or(..))
 
 import qualified Data.Text.Lazy as Text
 
 -- private
 
-parse :: String -> MockParser (Int, Match)
+parse :: String -> MockParser (Int, SomeMatch)
 parse chars = mockNothing !>>>
 	Or.parse (Or $ P2.assume $ map (l . Text.singleton) chars) >\>
-	\Match.Or{matchIndex,match} -> (matchIndex, match)
+	\match -> case Match.asMatch match of
+		Just Match.Or{matchIndex,match} -> (matchIndex, match)
+		Nothing -> (0, match)
 
-assertMatch :: Int -> Char -> Parse (Int, Match) -> Fallible ()
+assertMatch :: Int -> Char -> Parse (Int, SomeMatch) -> Fallible ()
 assertMatch index char result = do
-	(Match.Literal $ Text.singleton char, snd result.target) `isEqualElse`
+	(SomeMatch $ Match.Literal $ Text.singleton char, snd result.target) `isEqualElse`
 		"The subpattern match was unexpected!"
 	(index, fst result.target) `isEqualElse` "The subpattern index was unexpected!"
 

@@ -10,27 +10,31 @@ import Testing.Beng.Utils.Mocks (mockNothing)
 import Testing.Beng.Utils.Parsers ((!>>>), MockParser, assertState)
 
 import Beng.Build.Context.Builders (l)
+import Beng.Parse.Matches ()
 import Beng.Parse.Parsers.Code ((>\>), Parse, SpaceState(..), target)
 import qualified Beng.Parse.Patterns.Delimited as Delimited
-import Beng.Types.Parse.Matches (DelimitedTail(..), Match)
-import qualified Beng.Types.Parse.Matches as Match
-import Beng.Types.Parse.Patterns (Delimited(..))
+import Beng.Types.Parse.Matches (Delimited(..), DelimitedTail(..), SomeMatch(..))
+import qualified Beng.Parse.Matches as Match
+import qualified Beng.Types.Parse.Patterns as Pattern
 
 -- private
 
-parse :: MockParser (Match, DelimitedTail)
+parse :: MockParser (SomeMatch, DelimitedTail)
 parse = mockNothing !>>>
-	Delimited.parse Delimited { delimiter = l ",", delimitend = l "p" } >\>
-	\match@Match.Delimited{} -> (match.head, match.tail)
+	Delimited.parse Pattern.Delimited { delimiter = l ",", delimitend = l "p" } >\>
+	\match -> case Match.asMatch match of
+		Just Match.Delimited{head,tail} -> (head, tail)
+		Nothing -> (match, DelimitedTailMissing [])
 
-assertMatches :: Int -> Parse (Match, DelimitedTail) -> Fallible ()
+assertMatches :: Int -> Parse (SomeMatch, DelimitedTail) -> Fallible ()
 assertMatches repetitions result = do
-	(Match.Literal "p", fst result.target) `isEqualElse` "The head of the match was unexpected!"
+	(SomeMatch $ Match.Literal "p", fst result.target) `isEqualElse` "The head of the match was unexpected!"
 	(expectedTail, snd result.target) `isEqualElse` "The tail of the match was unexpected!"
 	where
 		expectedTail = if repetitions == 0
 			then DelimitedTailMissing []
-			else DelimitedTailMatch $ P.assume $ replicate repetitions (Match.Literal ",", Match.Literal "p")
+			else DelimitedTailMatch $ P.assume $
+				replicate repetitions (SomeMatch $ Match.Literal ",", SomeMatch $ Match.Literal "p")
 
 -- tests
 

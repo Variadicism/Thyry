@@ -9,9 +9,10 @@ import Beng.Build.Context (Context(..), comparePrecedence)
 import qualified Beng.Operators as Ops
 import Beng.Operators (Operator, SomeOperator(..), canHavePrefix, mustHavePrefix)
 import Beng.Errors (parseError)
+import Beng.Parse.Matches ()
+import qualified Beng.Types.Parse.Matches as Match
 import Beng.Operators.Declarations (Associativity(..))
 import Beng.Parse.Parsers.Code ((>>>), (@>), (@+>), (>/>), (>/\>), (>^\>), (>\>), Parser, PrefixState(..), State(..), parseAny)
-import qualified Beng.Parse.Matches as Match
 import qualified Beng.Parse.Patterns as Pattern
 import Beng.Invocations (Invocation(..))
 import qualified Beng.Types.Locations as Location

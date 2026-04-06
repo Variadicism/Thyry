@@ -17,13 +17,13 @@ import Utils.Populace (Populace)
 import qualified Utils.Populace as P
 
 import Beng.Errors (parseError)
-import Beng.Parse.Matches ()
+import {-# SOURCE #-} Beng.Parse.Matches ()
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>:>))
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (compareAsSuperDefault)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
-import Beng.Types.Parse.Matches (Match)
 import qualified Beng.Types.Parse.Matches as Match
+import Beng.Types.Parse.Matches (SomeMatch(..))
 import {-# SOURCE #-} Beng.Parse.Patterns (asPattern)
 import {-# SOURCE #-} Beng.Parse.Patterns.Literal ()
 import {-# SOURCE #-} Beng.Parse.Patterns.Space ()
@@ -67,14 +67,14 @@ showClass ranges negate = do
 	let contentsEscaped = if "^" `isPrefixOf` contents then '^' : contents else contents
 	"[" ++ (if negate then "^" else "") ++ contentsEscaped ++ "]"
 
-parseCharClass :: CharClass -> Code.Parser Match
+parseCharClass :: CharClass -> Code.Parser SomeMatch
 parseCharClass CharClass{..} = do
 	let shown = showClass ranges negate
 	"parse " ++ shown @> \state ->
 		case Text.uncons state.rest of
 			Nothing -> Error $ parseError state $ shown ++ " was expected, but the end was reached!"
 			Just (firstChar, _) -> if has firstChar ranges negate then
-				Code.takeAs (Text.singleton firstChar) (Match.CharClass firstChar) state
+				Code.takeAs (Text.singleton firstChar) (SomeMatch $ Match.CharClass firstChar) state
 			else
 				Error $ parseError state $
 					shown ++ " was expected, but '" ++ [firstChar] ++ "' was found!"
@@ -130,7 +130,7 @@ instance TPattern.Pattern CharClass where
 			Prelude.filter (\state -> Prelude.any (hasState state) values) [Code.Space, Code.Word, Code.Punctuation]
 	isOptional _ = False
 
-parse :: CharClass -> Code.Parser Match
+parse :: CharClass -> Code.Parser SomeMatch
 parse = parseCharClass
 
 hasState :: Code.SpaceState -> Char -> Bool

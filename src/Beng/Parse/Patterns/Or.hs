@@ -10,8 +10,9 @@ import qualified Utils.Populace as P
 import qualified Utils.Populace.Populace2 as P2
 
 import qualified Beng.Parse.Patterns as Pattern
-import Beng.Types.Parse.Matches (Match)
-import qualified Beng.Parse.Matches as Match
+import {-# SOURCE #-} Beng.Parse.Matches ()
+import Beng.Types.Parse.Matches (SomeMatch(..))
+import qualified Beng.Types.Parse.Matches as Match
 import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>:>), (>\>), parseAny)
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
@@ -23,18 +24,18 @@ import qualified Data.Map.Ordered as OrderedMap
 import Data.List (intercalate)
 import qualified Data.Set as Set
 
-parseOr :: Or -> Code.Parser Match
+parseOr :: Or -> Code.Parser SomeMatch
 parseOr (Or subpatterns) = show (length subpatterns) ++ " possible patterns" @+>
 	parseAny (P2.toP1 $ P2.mapIndexed (parserForSubpattern subpatterns) subpatterns)
 
-parserForSubpattern :: P2.Populace2 Pattern.SomePattern -> Int -> Pattern.SomePattern -> Code.Parser Match
+parserForSubpattern :: P2.Populace2 Pattern.SomePattern -> Int -> Pattern.SomePattern -> Code.Parser SomeMatch
 parserForSubpattern subpatterns matchIndex pattern =
 	Pattern.parse pattern >\> \match -> do
 		let missedSubpatterns = removeAt matchIndex subpatterns.l
 		let misses = OMap.values $
 			OrderedMap.filter (\k _ -> k `OrderedMap.notMember` Match.getArgs match) $
 			OMap.concat $ map Pattern.getArgs missedSubpatterns
-		Match.Or { match, matchIndex, misses }
+		SomeMatch $ Match.Or { match, matchIndex, misses }
 
 compareAsSubOr :: Or -> PatternComparator.Parser
 compareAsSubOr self@(Or subpatterns) = show (length subpatterns) ++ " possible pattern comparator" @> \state ->
@@ -93,5 +94,5 @@ instance TPattern.Pattern Or where
 	isOptional (Or subpatterns) = any Pattern.isOptional subpatterns.l
 	getArgsUsing getArgs (Or subpatterns) = OMap.map fst $ Pattern.getOrArgsUsing getArgs subpatterns
 
-parse :: Or -> Code.Parser Match
+parse :: Or -> Code.Parser SomeMatch
 parse = parseOr

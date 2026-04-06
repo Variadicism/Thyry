@@ -4,7 +4,7 @@ import Utils.Fallible (FallibleI, IsError)
 import Utils.Messaging (Messagable)
 import Utils.Populace (Populace)
 
-import Beng.Types.Parse.Matches (Match)
+import Beng.Types.Parse.Matches (SomeMatch)
 import qualified Beng.Types.Parse.Parsers.Code as Code
 import Beng.Types.Parse.Parsers.Code (Parser)
 import Beng.Types.Parse.Patterns (Argument, CharRange, Mismatch, Pattern, SomePattern)
@@ -32,7 +32,7 @@ instance Show Argument
 instance Messagable Argument
 
 asPattern :: Pattern p => SomePattern -> Maybe p
-parse :: SomePattern -> Parser Match
+parse :: SomePattern -> Parser SomeMatch
 getSubpatterns :: SomePattern -> Populace SomePattern
 getArgs :: SomePattern -> OMap String Argument
 getRequiredArgs :: SomePattern -> OMap String Argument

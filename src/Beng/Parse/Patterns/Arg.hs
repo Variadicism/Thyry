@@ -17,8 +17,7 @@ import Beng.Build.TypeTest (satisfiesDuring)
 import Beng.Errors (parseError)
 import Beng.Invocations ()
 import {-# SOURCE #-} Beng.Parse.Patterns (asPattern)
-import Beng.Parse.Matches (Match(ArgM))
-import qualified Beng.Parse.Matches as Match
+import {-# SOURCE #-} Beng.Parse.Matches ()
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/\>), (>-\>))
 import Beng.Parse.Parsers.Code (PrefixState(..), State(..))
 import qualified Beng.Parse.Parsers.Code as Code
@@ -30,6 +29,8 @@ import Beng.Types.Errors (Error(..), Fallible)
 import Beng.Types.Locations (Location)
 import qualified Beng.Types.Locations as Location
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
+import Beng.Types.Parse.Matches (SomeMatch(..))
+import qualified Beng.Types.Parse.Matches as Match
 import qualified Beng.Types.Parse.Parsers.Code as SpaceState
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Patterns (ArgP(..), Argument(..), Comparison(..), ComparatorState(..), Mismatch(..), SomePattern(..))
@@ -54,7 +55,7 @@ msgArg name argType = do
 		else name ++ ", " ++ msg argType
 	wrap "'" contents
 
-parseArg :: ArgP -> Code.Parser Match
+parseArg :: ArgP -> Code.Parser SomeMatch
 parseArg (ArgP Argument{..}) = msgArg name argType @> \state -> do
 	let (Just parent) = state.parent
 	let typeToSatisfy = case castThing argType of
@@ -69,7 +70,7 @@ parseArg (ArgP Argument{..}) = msgArg name argType @> \state -> do
 			cause }
 		mapError contextualizeError $ (state.context, invocation.returnType) `satisfiesThing` typeToSatisfy
 
-	let argOf invocation = ArgM Match.Argument {
+	let argOf invocation = SomeMatch $ Match.Argument {
 		decLoc, name, argType,
 		value = SomeThing invocation }
 	let putArg invocation state' = do
@@ -95,7 +96,7 @@ parseArg (ArgP Argument{..}) = msgArg name argType @> \state -> do
 					>/\> (\s invocation -> putArg invocation s{ Code.context = state.context })
 					>-\> (\invocation -> checkSatisfiesArgType invocation >> return invocation)
 					>\> \invocation ->
-						ArgM Match.Argument {
+						SomeMatch $ Match.Argument {
 							decLoc, name, argType,
 							value = SomeThing invocation }
 
@@ -136,5 +137,5 @@ instance TPattern.Pattern ArgP where
 	isOptional _ = False
 	getArgsUsing _ (ArgP arg) = OMap.singleton (arg.name, arg)
 
-parse :: ArgP -> Code.Parser Match
+parse :: ArgP -> Code.Parser SomeMatch
 parse = parseArg

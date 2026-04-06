@@ -57,7 +57,7 @@ import qualified Beng.Parse.Parsers.Code as Code
 import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PC
 import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Types.Build.TypeTest (TypeTest)
-import Beng.Types.Parse.Matches (Match)
+import Beng.Types.Parse.Matches (SomeMatch)
 import Beng.Types.Things (SomeThing(..), NativeOrType(..), NativeOptionalType(..), castThing)
 
 import Data.Map.Ordered (OMap)
@@ -203,7 +203,7 @@ getOrArgsUsing getArgs subpatterns = do
 		(wrappedParam, optional)
 	OMap.map wrapOptionals argsWithoutOptionalWrappers
 
-parse :: SomePattern -> Code.Parser Match
+parse :: SomePattern -> Code.Parser SomeMatch
 parse (SomePattern p) = TPattern.parse p
 
 getSubpatterns :: SomePattern -> Populace SomePattern
