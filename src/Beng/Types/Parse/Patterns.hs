@@ -30,7 +30,7 @@ import qualified Utils.Populace as P
 import Utils.Populace.Populace2 (Populace2)
 
 import Beng.Types.Locations (Location)
-import Beng.Types.Parse.Matches (SomeMatch)
+import Beng.Types.Parse.Matches (Match)
 import Beng.Types.Parse.PatternArguments (Argument(..), Arguments)
 import qualified Beng.Types.Parse.Parsers.Code as Code
 import Beng.Types.Parse.Parsers.Code (SpaceState)
@@ -42,7 +42,7 @@ import Data.Set (Set)
 import Data.Text.Lazy (Text)
 import Data.Typeable (Typeable)
 
-data SomePattern = forall p. Pattern p => SomePattern p
+data SomePattern = forall p m. Pattern m p => SomePattern p
 
 data Mismatch =
 	-- \/ closest to success
@@ -90,8 +90,8 @@ data Delimited = Delimited { delimiter :: SomePattern, delimitend :: SomePattern
 
 data ArgP = ArgP Argument
 
-class (Eq p, Show p, Messagable p, Typeable p) => Pattern p where
-	parse :: p -> Code.Parser SomeMatch
+class (Match m, Eq p, Show p, Messagable p, Typeable p) => Pattern m p | p -> m where
+	parse :: p -> Code.Parser m
 	compareAsSub :: p -> Comparator
 	compareAsSuper :: p -> Comparator
 

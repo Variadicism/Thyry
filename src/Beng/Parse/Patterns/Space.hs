@@ -17,7 +17,6 @@ import {-# SOURCE #-} Beng.Parse.Patterns (asPattern, startingSpaceStates)
 import qualified Beng.Types.Parse.Parsers.Code as TCode
 import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Parsers.Code (PrefixState(..))
-import Beng.Types.Parse.Matches (SomeMatch(..))
 import qualified Beng.Types.Parse.Matches as Match
 import qualified Beng.Types.Parse.Parsers.Code as SpaceState (SpaceState(..))
 import Beng.Types.Parse.Patterns (Comparison(..), ComparatorState(..), Mismatch(..), SomePattern(..), Space(..))
@@ -27,10 +26,10 @@ import qualified Data.Set as Set
 import Data.Text.Lazy (pack)
 import qualified Data.Text.Lazy as T
 
-parseSpace :: Code.Parser SomeMatch
+parseSpace :: Code.Parser Match.Space
 parseSpace = "space pattern" @+> parseBoundary >|> parseSpaces
 
-parseBoundary :: Code.Parser SomeMatch
+parseBoundary :: Code.Parser Match.Space
 parseBoundary = "parse word boundary" @> \state ->
 	case T.uncons state.rest of
 		Nothing -> takeBoundary state
@@ -46,15 +45,15 @@ failBoundary nextChar state = Error $ parseError state $
 		show state.spaceState ++ " character.\n" ++
 		"Note: in Beng, underscores are considered Punctuation."
 
-takeBoundary :: Code.ParseRunner SomeMatch
-takeBoundary = Code.takeAs "" (SomeMatch $ Match.Space "")
+takeBoundary :: Code.ParseRunner Match.Space
+takeBoundary = Code.takeAs "" $ Match.Space ""
 
-parseSpaces :: Code.Parser SomeMatch
+parseSpaces :: Code.Parser Match.Space
 parseSpaces =
 	parseSingleSpace >:>
 	Code.parseAll parseSingleSpace >\>
 	\(firstSpace, moreSpaces) ->
-		SomeMatch $ Match.Space $ T.cons firstSpace $ pack moreSpaces
+		Match.Space $ T.cons firstSpace $ pack moreSpaces
 
 parseSingleSpace :: Code.Parser Char
 parseSingleSpace = "parse whitespace" @> \state ->
@@ -124,7 +123,7 @@ compareAsSuperSpace _ = "space super comparator" @> \state -> do
 instance Messagable Space where
 	msg = show
 
-instance TPattern.Pattern Space where
+instance TPattern.Pattern Match.Space Space where
 	parse _ = parseSpace
 	compareAsSub = compareAsSubSpace
 	compareAsSuper = compareAsSuperSpace
@@ -137,5 +136,5 @@ instance TPattern.Pattern Space where
 	startingSpaceStates _ = Set.empty
 	isOptional _ = False
 
-parse :: Space -> Code.Parser SomeMatch
+parse :: Space -> Code.Parser Match.Space
 parse _ = parseSpace

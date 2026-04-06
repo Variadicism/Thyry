@@ -31,7 +31,7 @@ instance Eq Argument
 instance Show Argument
 instance Messagable Argument
 
-asPattern :: Pattern p => SomePattern -> Maybe p
+asPattern :: Pattern m p => SomePattern -> Maybe p
 parse :: SomePattern -> Parser SomeMatch
 getSubpatterns :: SomePattern -> Populace SomePattern
 getArgs :: SomePattern -> OMap String Argument

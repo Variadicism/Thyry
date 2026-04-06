@@ -13,8 +13,8 @@ import Beng.Build.Context.Builders (l)
 import Beng.Parse.Matches ()
 import Beng.Parse.Parsers.Code ((>\>), Parse, SpaceState(..), target)
 import qualified Beng.Parse.Patterns.Delimited as Delimited
+import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Parse.Matches (Delimited(..), DelimitedTail(..), SomeMatch(..))
-import qualified Beng.Parse.Matches as Match
 import qualified Beng.Types.Parse.Patterns as Pattern
 
 -- private
@@ -22,9 +22,7 @@ import qualified Beng.Types.Parse.Patterns as Pattern
 parse :: MockParser (SomeMatch, DelimitedTail)
 parse = mockNothing !>>>
 	Delimited.parse Pattern.Delimited { delimiter = l ",", delimitend = l "p" } >\>
-	\match -> case Match.asMatch match of
-		Just Match.Delimited{head,tail} -> (head, tail)
-		Nothing -> (match, DelimitedTailMissing [])
+	\Delimited{head,tail} -> (head, tail)
 
 assertMatches :: Int -> Parse (SomeMatch, DelimitedTail) -> Fallible ()
 assertMatches repetitions result = do

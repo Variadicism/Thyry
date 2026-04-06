@@ -52,12 +52,12 @@ import Beng.Types.Parse.Patterns (
 	SomePattern(..),
 	Space(..))
 import qualified Beng.Types.Parse.Patterns as TPattern
-import Beng.Parse.Parsers ((>>>))
+import Beng.Parse.Parsers ((>>>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PC
 import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Types.Build.TypeTest (TypeTest)
-import Beng.Types.Parse.Matches (SomeMatch)
+import Beng.Types.Parse.Matches (SomeMatch(..))
 import Beng.Types.Things (SomeThing(..), NativeOrType(..), NativeOptionalType(..), castThing)
 
 import Data.Map.Ordered (OMap)
@@ -77,7 +77,7 @@ instance Show SomePattern where
 instance Messagable SomePattern where
 	msg (SomePattern p) = TPattern.showPatternWith True p
 
-asPattern :: TPattern.Pattern p => SomePattern -> Maybe p
+asPattern :: TPattern.Pattern m p => SomePattern -> Maybe p
 asPattern (SomePattern p) = cast p
 
 patConcat :: [SomePattern] -> SomePattern
@@ -204,7 +204,7 @@ getOrArgsUsing getArgs subpatterns = do
 	OMap.map wrapOptionals argsWithoutOptionalWrappers
 
 parse :: SomePattern -> Code.Parser SomeMatch
-parse (SomePattern p) = TPattern.parse p
+parse (SomePattern p) = TPattern.parse p >\> SomeMatch
 
 getSubpatterns :: SomePattern -> Populace SomePattern
 getSubpatterns (SomePattern p) = TPattern.getSubpatterns p

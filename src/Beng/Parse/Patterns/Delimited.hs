@@ -11,7 +11,6 @@ import Beng.Parse.Patterns (asPattern)
 import qualified Beng.Parse.Patterns as Pattern
 import {-# SOURCE #-} Beng.Parse.Matches ()
 import qualified Beng.Types.Parse.Matches as Match
-import Beng.Types.Parse.Matches (SomeMatch(..))
 import Beng.Parse.Parsers ((@>), (@+>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (compareAsSuperDefault)
@@ -30,13 +29,13 @@ import Beng.Types.Parse.Patterns (
 
 import Data.Map.Ordered ((<>|))
 
-parseDelimited :: Delimited -> Code.Parser SomeMatch
+parseDelimited :: Delimited -> Code.Parser Match.Delimited
 parseDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter @+>
 	Pattern.parse delimitend >:>
 	(Code.parseAll (Pattern.parse delimiter >:> Pattern.parse delimitend) >\> \case
 		[] -> Match.DelimitedTailMissing $ OMap.values $ Pattern.getArgs (SomePattern self)
 		firstMatch:matchTail -> Match.DelimitedTailMatch $ P.Populace firstMatch matchTail) >\>
-	(\(head, tail) -> SomeMatch $ Match.Delimited { head, tail })
+	(\(head, tail) -> Match.Delimited { head, tail })
 
 compareAsSubDelimited :: Delimited -> PatternComparator.Parser
 compareAsSubDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter ++ " comparator" @> \state -> do
@@ -59,7 +58,7 @@ instance Show Delimited where
 instance Messagable Delimited where
 	msg = show
 
-instance TPattern.Pattern Delimited where
+instance TPattern.Pattern Match.Delimited Delimited where
 	parse = parseDelimited
 	compareAsSub = compareAsSubDelimited
 	compareAsSuper self = compareAsSuperDefault (SomePattern self)
@@ -78,5 +77,5 @@ instance TPattern.Pattern Delimited where
 		let wrapTypes wrapper = OMap.map (\p -> p{ argType = SomeThing $ wrapper p.argType })
 		wrapTypes NativeSomeType (getArgs delimiter) <>| wrapTypes NativeListType (getArgs delimitend)
 
-parse :: Delimited -> Code.Parser SomeMatch
+parse :: Delimited -> Code.Parser Match.Delimited
 parse = parseDelimited

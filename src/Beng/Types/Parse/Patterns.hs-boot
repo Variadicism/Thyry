@@ -10,12 +10,12 @@ import qualified Utils.Populace as P
 import qualified Data.Map.Ordered as OMap
 import Data.Set (Set)
 import Data.Typeable (Typeable)
-import Beng.Types.Parse.Matches (SomeMatch)
+import Beng.Types.Parse.Matches (Match)
 import Beng.Types.Parse.PatternArguments (Arguments)
 import qualified Beng.Types.Parse.Parsers as General
 import qualified Beng.Types.Parse.Parsers.Code as Code
 
-data SomePattern = forall p. Pattern p => SomePattern p
+data SomePattern = forall p m. Pattern m p => SomePattern p
 
 data Mismatch
 data Comparison
@@ -34,8 +34,8 @@ data And
 data Delimited
 data ArgP
 
-class (Eq p, Show p, Messagable p, Typeable p) => Pattern p where
-	parse :: p -> Code.Parser SomeMatch
+class (Match m, Eq p, Show p, Messagable p, Typeable p) => Pattern m p | p -> m where
+	parse :: p -> Code.Parser m
 	compareAsSub :: p -> Comparator
 	compareAsSuper :: p -> Comparator
 	showPatternWith :: Bool -> p -> String

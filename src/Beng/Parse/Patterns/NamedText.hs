@@ -15,7 +15,6 @@ import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
 import Beng.Parse.Parsers.PatternComparator (comparator)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import {-# SOURCE #-} Beng.Parse.Matches ()
-import Beng.Types.Parse.Matches (SomeMatch(..))
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Parse.Patterns (asPattern)
 import qualified Beng.Parse.Patterns as Pattern
@@ -36,14 +35,14 @@ import qualified Data.Map.Ordered as OMap
 canBeEmpty :: SomePattern -> Bool
 canBeEmpty = Pattern.canMatchEmpty
 
-parseNamedText :: NamedText -> Code.Parser SomeMatch
+parseNamedText :: NamedText -> Code.Parser Match.NamedText
 parseNamedText NamedText{..} = "named text " ++ wrap "\"" name @+>
 	Pattern.parse subpattern >/\> (\s match -> do
 		let argument = Match.Argument {
 			decLoc, name, argType = SomeThing NativeStringType,
 			value = SomeThing $ NativeStringValue $ Match.toCode match }
 		s{ Code.arguments = Map.insert name argument s.arguments }) >\> \match ->
-	SomeMatch $ Match.NamedText { decLoc, name, match }
+	Match.NamedText { decLoc, name, match }
 
 compareAsSubNamedText :: NamedText -> PatternComparator.Parser
 compareAsSubNamedText NamedText{..} = "named text " ++ wrap "\"" name ++ " comparator" @> \state ->
@@ -90,7 +89,7 @@ instance Show NamedText where
 instance Messagable NamedText where
 	msg NamedText{..} = wrap "\"" name ++ "(" ++ msg subpattern ++ ")"
 
-instance TPattern.Pattern NamedText where
+instance TPattern.Pattern Match.NamedText NamedText where
 	parse = parseNamedText
 	compareAsSub = compareAsSubNamedText
 	compareAsSuper = compareAsSuperNamedText
@@ -108,5 +107,5 @@ instance TPattern.Pattern NamedText where
 		(name, Argument { name, decLoc, argType = SomeThing NativeStringType }) OMap.|<
 			getArgs subpattern
 
-parse :: NamedText -> Code.Parser SomeMatch
+parse :: NamedText -> Code.Parser Match.NamedText
 parse = parseNamedText

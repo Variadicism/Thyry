@@ -11,7 +11,6 @@ import qualified Utils.Populace.Populace2 as P2
 
 import qualified Beng.Parse.Patterns as Pattern
 import {-# SOURCE #-} Beng.Parse.Matches ()
-import Beng.Types.Parse.Matches (SomeMatch(..))
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>:>), (>\>), parseAny)
 import qualified Beng.Parse.Parsers.Code as Code
@@ -24,18 +23,18 @@ import qualified Data.Map.Ordered as OrderedMap
 import Data.List (intercalate)
 import qualified Data.Set as Set
 
-parseOr :: Or -> Code.Parser SomeMatch
+parseOr :: Or -> Code.Parser Match.Or
 parseOr (Or subpatterns) = show (length subpatterns) ++ " possible patterns" @+>
 	parseAny (P2.toP1 $ P2.mapIndexed (parserForSubpattern subpatterns) subpatterns)
 
-parserForSubpattern :: P2.Populace2 Pattern.SomePattern -> Int -> Pattern.SomePattern -> Code.Parser SomeMatch
+parserForSubpattern :: P2.Populace2 Pattern.SomePattern -> Int -> Pattern.SomePattern -> Code.Parser Match.Or
 parserForSubpattern subpatterns matchIndex pattern =
 	Pattern.parse pattern >\> \match -> do
 		let missedSubpatterns = removeAt matchIndex subpatterns.l
 		let misses = OMap.values $
 			OrderedMap.filter (\k _ -> k `OrderedMap.notMember` Match.getArgs match) $
 			OMap.concat $ map Pattern.getArgs missedSubpatterns
-		SomeMatch $ Match.Or { match, matchIndex, misses }
+		Match.Or { match, matchIndex, misses }
 
 compareAsSubOr :: Or -> PatternComparator.Parser
 compareAsSubOr self@(Or subpatterns) = show (length subpatterns) ++ " possible pattern comparator" @> \state ->
@@ -77,7 +76,7 @@ instance Show Or where
 instance Messagable Or where
 	msg = show
 
-instance TPattern.Pattern Or where
+instance TPattern.Pattern Match.Or Or where
 	parse = parseOr
 	compareAsSub = compareAsSubOr
 	compareAsSuper = compareAsSuperOr
@@ -94,5 +93,5 @@ instance TPattern.Pattern Or where
 	isOptional (Or subpatterns) = any Pattern.isOptional subpatterns.l
 	getArgsUsing getArgs (Or subpatterns) = OMap.map fst $ Pattern.getOrArgsUsing getArgs subpatterns
 
-parse :: Or -> Code.Parser SomeMatch
+parse :: Or -> Code.Parser Match.Or
 parse = parseOr

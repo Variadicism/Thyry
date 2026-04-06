@@ -18,6 +18,7 @@ import Beng.Parse.Parsers.Code ((>\>), Parse, SpaceState(..), target)
 import qualified Beng.Parse.Patterns.Or as Or
 import qualified Beng.Parse.Matches as Match
 import Beng.Types.Parse.Matches (SomeMatch(..))
+import qualified Beng.Types.Parse.Matches as TMatch
 import Beng.Types.Parse.Patterns (Or(..))
 
 import qualified Data.Text.Lazy as Text
@@ -27,9 +28,7 @@ import qualified Data.Text.Lazy as Text
 parse :: String -> MockParser (Int, SomeMatch)
 parse chars = mockNothing !>>>
 	Or.parse (Or $ P2.assume $ map (l . Text.singleton) chars) >\>
-	\match -> case Match.asMatch match of
-		Just Match.Or{matchIndex,match} -> (matchIndex, match)
-		Nothing -> (0, match)
+	\TMatch.Or{matchIndex,match} -> (matchIndex, match)
 
 assertMatch :: Int -> Char -> Parse (Int, SomeMatch) -> Fallible ()
 assertMatch index char result = do

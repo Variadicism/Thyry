@@ -1,5 +1,7 @@
 module Beng.Parse.Matches where
 
+import Utils.Messaging (Messagable)
+
 import Beng.Types.Parse.Matches (
 	And,
 	Argument,
@@ -12,6 +14,35 @@ import Beng.Types.Parse.Matches (
 	Or,
 	SomeMatch,
 	Space)
+
+instance Eq And
+instance Eq Argument
+instance Eq CharClass
+instance Eq Delimited
+instance Eq Literal
+instance Eq NamedText
+instance Eq Or
+instance Eq SomeMatch
+instance Eq Space
+
+instance Show And
+instance Show Argument
+instance Show CharClass
+instance Show Delimited
+instance Show Literal
+instance Show NamedText
+instance Show Or
+instance Show Space
+
+instance Messagable And
+instance Messagable Argument
+instance Messagable CharClass
+instance Messagable Delimited
+instance Messagable Literal
+instance Messagable NamedText
+instance Messagable Or
+instance Messagable SomeMatch
+instance Messagable Space
 
 instance Match And
 instance Match Argument

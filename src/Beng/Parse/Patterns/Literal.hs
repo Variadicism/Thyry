@@ -9,7 +9,6 @@ import qualified Utils.Text as UtilsText
 
 import Beng.Errors (parseError)
 import qualified Beng.Types.Parse.Matches as Match
-import Beng.Types.Parse.Matches (SomeMatch(..))
 import Beng.Parse.Parsers ((@>), (>>>))
 import Beng.Parse.Parsers.Code (PrefixState(..))
 import qualified Beng.Parse.Parsers.Code as Code
@@ -32,14 +31,14 @@ import Data.Char (isAlphaNum, isSpace)
 import qualified Data.Set as Set
 import qualified Data.Text.Lazy as Text
 
-parseLiteral :: Literal -> Code.Parser SomeMatch
+parseLiteral :: Literal -> Code.Parser Match.Literal
 parseLiteral (Literal literal) = "literal " ++ show literal @> \state ->
 	if not $ literal `Text.isPrefixOf` state.rest then
 		Error $ parseError state $ show literal ++ " was expected next!"
 	else case state.prefixState of
 		AvoidingFor op -> Error $ parseError state $
 			"An non-prefixed argument was expected to match " ++ show op ++ ", but a prefix was found!"
-		_ -> Code.takeAs literal (SomeMatch $ Match.Literal literal)
+		_ -> Code.takeAs literal (Match.Literal literal)
 			state{ Code.prefixState = Unneeded }
 
 compareAsSubLiteral :: Literal -> PatternComparator.Parser
@@ -82,7 +81,7 @@ compareAsSuperLiteral self@(Literal literal) = show literal ++ " super comparato
 instance Messagable Literal where
 	msg = show
 
-instance TPattern.Pattern Literal where
+instance TPattern.Pattern Match.Literal Literal where
 	parse = parseLiteral
 	compareAsSub = compareAsSubLiteral
 	compareAsSuper = compareAsSuperLiteral
@@ -138,5 +137,5 @@ compareAgainstSpace self literal next state superP swapSub =
 			Error $ Mismatch (SomePattern self) superP
 		_ -> Error $ Mismatch (SomePattern self) superP
 
-parse :: Literal -> Code.Parser SomeMatch
+parse :: Literal -> Code.Parser Match.Literal
 parse = parseLiteral

@@ -13,7 +13,7 @@ import qualified Utils.Populace.Populace2 as P2
 import qualified Beng.Parse.Patterns as Pattern
 import {-# SOURCE #-} Beng.Parse.Matches ()
 import qualified Beng.Types.Parse.Matches as Match
-import Beng.Types.Parse.Matches (SomeMatch(..))
+import Beng.Types.Parse.Matches (SomeMatch)
 import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (comparator)
@@ -23,10 +23,10 @@ import Beng.Types.Parse.Patterns (And(..), Comparison(..), ComparatorState(..), 
 
 import qualified Data.Set as Set
 
-parseAnd :: And -> Code.Parser SomeMatch
+parseAnd :: And -> Code.Parser Match.And
 parseAnd (And subpatterns) =
 	show (length subpatterns) ++ " patterns" @+>
-	parseAsP subpatterns >\> (SomeMatch . Match.And)
+	parseAsP subpatterns >\> Match.And
 
 parseAsP :: P2.Populace2 Pattern.SomePattern -> Code.Parser (P2.Populace2 SomeMatch)
 parseAsP p = case p.tailTail of
@@ -68,7 +68,7 @@ instance Show And where
 instance Messagable And where
 	msg = show
 
-instance TPattern.Pattern And where
+instance TPattern.Pattern Match.And And where
 	parse = parseAnd
 	compareAsSub = compareAsSubAnd
 	compareAsSuper = compareAsSuperAnd
@@ -96,5 +96,5 @@ firstStates patterns = case patterns of
 	else
 		Pattern.startingSpaceStates pattern
 
-parse :: And -> Code.Parser SomeMatch
+parse :: And -> Code.Parser Match.And
 parse = parseAnd

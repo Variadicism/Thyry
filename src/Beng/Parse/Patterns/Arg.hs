@@ -29,7 +29,6 @@ import Beng.Types.Errors (Error(..), Fallible)
 import Beng.Types.Locations (Location)
 import qualified Beng.Types.Locations as Location
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
-import Beng.Types.Parse.Matches (SomeMatch(..))
 import qualified Beng.Types.Parse.Matches as Match
 import qualified Beng.Types.Parse.Parsers.Code as SpaceState
 import qualified Beng.Types.Parse.Patterns as TPattern
@@ -55,7 +54,7 @@ msgArg name argType = do
 		else name ++ ", " ++ msg argType
 	wrap "'" contents
 
-parseArg :: ArgP -> Code.Parser SomeMatch
+parseArg :: ArgP -> Code.Parser Match.Argument
 parseArg (ArgP Argument{..}) = msgArg name argType @> \state -> do
 	let (Just parent) = state.parent
 	let typeToSatisfy = case castThing argType of
@@ -70,7 +69,7 @@ parseArg (ArgP Argument{..}) = msgArg name argType @> \state -> do
 			cause }
 		mapError contextualizeError $ (state.context, invocation.returnType) `satisfiesThing` typeToSatisfy
 
-	let argOf invocation = SomeMatch $ Match.Argument {
+	let argOf invocation = Match.Argument {
 		decLoc, name, argType,
 		value = SomeThing invocation }
 	let putArg invocation state' = do
@@ -96,7 +95,7 @@ parseArg (ArgP Argument{..}) = msgArg name argType @> \state -> do
 					>/\> (\s invocation -> putArg invocation s{ Code.context = state.context })
 					>-\> (\invocation -> checkSatisfiesArgType invocation >> return invocation)
 					>\> \invocation ->
-						SomeMatch $ Match.Argument {
+						Match.Argument {
 							decLoc, name, argType,
 							value = SomeThing invocation }
 
@@ -121,7 +120,7 @@ instance Show ArgP where
 instance Messagable ArgP where
 	msg (ArgP Argument{name,argType}) = msgArg name argType
 
-instance TPattern.Pattern ArgP where
+instance TPattern.Pattern Match.Argument ArgP where
 	parse = parseArg
 	compareAsSub = compareAsSubArg
 	compareAsSuper self = compareAsSuperDefault (SomePattern self)
@@ -137,5 +136,5 @@ instance TPattern.Pattern ArgP where
 	isOptional _ = False
 	getArgsUsing _ (ArgP arg) = OMap.singleton (arg.name, arg)
 
-parse :: ArgP -> Code.Parser SomeMatch
+parse :: ArgP -> Code.Parser Match.Argument
 parse = parseArg
