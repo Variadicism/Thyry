@@ -56,7 +56,7 @@ import Beng.Parse.Patterns.Literal ()
 import Beng.Parse.Patterns.NamedText ()
 import Beng.Parse.Patterns.Or ()
 import Beng.Parse.Patterns.Space ()
-import Beng.Types.Parse.Patterns (And(..), ArgP(..), Argument(..), CharClass(..), CharRange(..), Delimited(..), Literal(..), NamedText(..), Or(..), SomePattern(..), Space(..))
+import Beng.Types.Parse.Patterns (And(..), Argument(..), CharClass(..), CharRange(..), Delimited(..), Literal(..), NamedText(..), Or(..), SomePattern(..), Space(..))
 import Beng.Run (run)
 import Beng.Errors (Fallible)
 import Beng.Types.Things (
@@ -78,11 +78,11 @@ import Data.Text.Lazy (Text)
 -- exported
 
 argAt :: Location -> String -> SomeThing -> SomePattern
-argAt decLoc name argType = SomePattern $ ArgP Argument { name, argType, decLoc }
+argAt decLoc name argType = SomePattern Argument { name, argType, decLoc }
 
 argOfBuiltin :: Int -> String -> SomeThing -> SomePattern
 argOfBuiltin builtinIndex name argType =
-	SomePattern $ ArgP Argument { name, argType, decLoc = BuiltinArg name builtinIndex }
+	SomePattern Argument { name, argType, decLoc = BuiltinArg name builtinIndex }
 
 c :: [CharRange] -> SomePattern
 c ranges = SomePattern $ CharClass { ranges = P.assume ranges, negate = False }

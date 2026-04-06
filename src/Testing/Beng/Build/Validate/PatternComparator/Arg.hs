@@ -7,13 +7,13 @@ import Utils.Testing
 import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, assertDoesNotSatisfy)
 
 import Beng.Types.Locations (Location(Builtin))
-import Beng.Types.Parse.Patterns (ArgP(..), Argument(..), SomePattern(..))
+import Beng.Types.Parse.Patterns (Argument(..), SomePattern(..))
 import Beng.Things (NativeBitsType(..), PatternType(..))
 import Beng.Types.Things (SomeThing(..))
 
 testArg :: TestCategory
 testArg = TestCategories "Arg" do
-	let a name argType = SomePattern $ ArgP Argument { name, argType, decLoc = Builtin 1 {- unused -}}
+	let a name argType = SomePattern Argument { name, argType, decLoc = Builtin 1 {- unused -}}
 	let intType = SomeThing $ NativeBitsType 32
 	let bitType = SomeThing $ NativeBitsType 1
 	[

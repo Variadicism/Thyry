@@ -32,7 +32,7 @@ import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import qualified Beng.Types.Parse.Matches as Match
 import qualified Beng.Types.Parse.Parsers.Code as SpaceState
 import qualified Beng.Types.Parse.Patterns as TPattern
-import Beng.Types.Parse.Patterns (ArgP(..), Argument(..), Comparison(..), ComparatorState(..), Mismatch(..), SomePattern(..))
+import Beng.Types.Parse.Patterns (Argument(..), Comparison(..), ComparatorState(..), Mismatch(..), SomePattern(..))
 import Beng.Things (SomeThing, PreOpType(..))
 import Beng.Types.Things (SomeThing(..), castThing)
 
@@ -54,8 +54,8 @@ msgArg name argType = do
 		else name ++ ", " ++ msg argType
 	wrap "'" contents
 
-parseArg :: ArgP -> Code.Parser Match.Argument
-parseArg (ArgP Argument{..}) = msgArg name argType @> \state -> do
+parseArg :: Argument -> Code.Parser Match.Argument
+parseArg Argument{..} = msgArg name argType @> \state -> do
 	let (Just parent) = state.parent
 	let typeToSatisfy = case castThing argType of
 		Just PreOpType{resolvedType} -> resolvedType
@@ -99,32 +99,23 @@ parseArg (ArgP Argument{..}) = msgArg name argType @> \state -> do
 							decLoc, name, argType,
 							value = SomeThing invocation }
 
-compareAsSubArg :: ArgP -> PatternComparator.Parser
-compareAsSubArg self@(ArgP Argument{..}) = msgArg name argType ++ " comparator" @> \state -> do
+compareAsSubArg :: Argument -> PatternComparator.Parser
+compareAsSubArg self@Argument{..} = msgArg name argType ++ " comparator" @> \state -> do
 	case state.rest.requirement of
 		[] -> Error $ LeftoverSub $ P.assume state.rest.candidate
-		nextSuper:superLeft -> case asPattern nextSuper :: Maybe ArgP of
-			Just (ArgP arg) -> if state.checkArgTypes &&
+		nextSuper:superLeft -> case asPattern nextSuper :: Maybe Argument of
+			Just arg -> if state.checkArgTypes &&
 					hasError ((state.test, argType) `satisfiesDuring` arg.argType) then
 				Error $ Mismatch (SomePattern self) $ P.Populace nextSuper superLeft
 			else
 				PatternComparator.accept [nextSuper] state
 			Nothing -> Error $ Mismatch (SomePattern self) $ P.Populace nextSuper superLeft
 
-instance Eq ArgP where
-	ArgP a1 == ArgP a2 = a1 == a2
-
-instance Show ArgP where
-	show (ArgP Argument{name,argType,decLoc}) = showArg name argType decLoc
-
-instance Messagable ArgP where
-	msg (ArgP Argument{name,argType}) = msgArg name argType
-
-instance TPattern.Pattern Match.Argument ArgP where
+instance TPattern.Pattern Match.Argument Argument where
 	parse = parseArg
 	compareAsSub = compareAsSubArg
 	compareAsSuper self = compareAsSuperDefault (SomePattern self)
-	showPatternWith useMsg (ArgP Argument{name,argType,decLoc}) = if useMsg
+	showPatternWith useMsg Argument{name,argType,decLoc} = if useMsg
 		then msgArg name argType
 		else showArg name argType decLoc
 	mustHavePrefix _ = False
@@ -134,7 +125,7 @@ instance TPattern.Pattern Match.Argument ArgP where
 	canMatchEmpty _ = False
 	startingSpaceStates _ = Set.fromList [SpaceState.Word, SpaceState.Space, SpaceState.Punctuation]
 	isOptional _ = False
-	getArgsUsing _ (ArgP arg) = OMap.singleton (arg.name, arg)
+	getArgsUsing _ arg = OMap.singleton (arg.name, arg)
 
-parse :: ArgP -> Code.Parser Match.Argument
+parse :: Argument -> Code.Parser Match.Argument
 parse = parseArg

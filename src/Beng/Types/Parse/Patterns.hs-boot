@@ -32,7 +32,6 @@ data NamedText
 data Or
 data And
 data Delimited
-data ArgP
 
 class (Match m, Eq p, Show p, Messagable p, Typeable p) => Pattern m p | p -> m where
 	parse :: p -> Code.Parser m

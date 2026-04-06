@@ -19,7 +19,6 @@ module Beng.Types.Parse.Patterns (
 	Or(..),
 	And(..),
 	Delimited(..),
-	ArgP(..),
 	Arguments,
 	Pattern(..)
 ) where
@@ -87,8 +86,6 @@ data And = And { subpatterns :: Populace2 SomePattern }
 
 -- Yeah, I made up "delimitend" akin to "dividend" and "subtrahend". So?! Come at me! :P
 data Delimited = Delimited { delimiter :: SomePattern, delimitend :: SomePattern }
-
-data ArgP = ArgP Argument
 
 class (Match m, Eq p, Show p, Messagable p, Typeable p) => Pattern m p | p -> m where
 	parse :: p -> Code.Parser m

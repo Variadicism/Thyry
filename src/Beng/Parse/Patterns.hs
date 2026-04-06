@@ -40,7 +40,6 @@ import {-# SOURCE #-} Beng.Parse.Patterns.Space ()
 import Beng.Parse.Patterns.Arg (msgArg, showArg)
 import Beng.Types.Parse.Patterns (
 	And(..),
-	ArgP(..),
 	Argument(..),
 	CharClass(..),
 	CharRange(..),

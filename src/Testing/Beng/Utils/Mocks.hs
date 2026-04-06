@@ -61,7 +61,7 @@ import Beng.Types.Build.Context (PrecedenceBound(..))
 import Beng.Parse.Matches ()
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Parse.Matches (SomeMatch(..), value)
-import Beng.Types.Parse.Patterns (ArgP(..), Argument(..), SomePattern(..))
+import Beng.Types.Parse.Patterns (Argument(..), SomePattern(..))
 import Beng.Types.Operators (SomeOperator(..))
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import Beng.Types.Operators.Declarations (Associativity(..), Declaration)
@@ -105,7 +105,7 @@ type Operator = SomeOperator
 defineStaticNameValue :: Text -> Location -> Definition
 defineStaticNameValue name location = do
 	let (Builtin parentIndex) = location  -- All locations in mocks are Builtin-type.
-	let a name argType = SomePattern $ ArgP Argument {
+	let a name argType = SomePattern Argument {
 		decLoc = BuiltinArg { name, parentIndex }, name, argType }
 	defineUsing (Below $ SomeOperator $ declarationOf App) Righty
 		[l name, s, l ":=", s, a "Thing" intType, s, a "Scope" (SomeThing $ PreOpType intType)]
@@ -221,7 +221,7 @@ hangingDefinitionOf enum location = case enum of
 	where
 		a name argType = do
 			let (Builtin parentIndex) = location  -- All these ops use Builtin location types.
-			SomePattern $ ArgP Argument { decLoc = BuiltinArg { name, parentIndex }, name, argType }
+			SomePattern Argument { decLoc = BuiltinArg { name, parentIndex }, name, argType }
 
 
 hangingABDivDefinitionOf :: ABDiv -> (Location -> Definition)
