@@ -26,7 +26,7 @@ import qualified Beng.Types.Parse.Matches as Match
 import {-# SOURCE #-} Beng.Parse.Patterns (asPattern)
 import {-# SOURCE #-} Beng.Parse.Patterns.Literal ()
 import {-# SOURCE #-} Beng.Parse.Patterns.Space ()
-import qualified Beng.Types.Parse.Patterns as TPattern
+import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Types.Parse.Patterns (
 	CharClass(..),
 	CharRange(..),
@@ -118,7 +118,6 @@ instance Pattern Match.CharClass CharClass where
 	parse = parseCharClass
 	compareAsSub = compareAsSubCharClass
 	compareAsSuper self = compareAsSuperDefault (SomePattern self)
-	showPatternWith _ CharClass{..} = showClass ranges negate
 	mustHavePrefix _ = True
 	mustHaveSuffix _ = True
 	canHavePrefix _ = True

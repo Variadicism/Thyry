@@ -20,7 +20,7 @@ import Beng.Parse.Patterns (asPattern)
 import qualified Beng.Parse.Patterns as Pattern
 import Beng.Things (NativeStringType(..), NativeStringValue(..))
 import Beng.Types.Things (SomeThing(..))
-import qualified Beng.Types.Parse.Patterns as TPattern
+import qualified Beng.Types.Parse.Patterns as TypePattern
 import Beng.Types.Parse.Patterns (
 	Argument(..),
 	Comparison(..),
@@ -72,7 +72,7 @@ compareAsSuperNamedText nt@NamedText{..} = "named text " ++ wrap "\"" name ++ " 
 		[] -> exposeSubpattern nt state
 	where
 		dispatchCurrentSub (SomePattern pattern) state =
-			state >>> TPattern.compareAsSub pattern >:> comparator >\> const ()
+			state >>> TypePattern.compareAsSub pattern >:> comparator >\> const ()
 
 		exposeSubpattern NamedText{..} state = case state.rest.requirement of
 			_:superLeft ->
@@ -94,10 +94,8 @@ instance Pattern Match.NamedText NamedText where
 	parse = parseNamedText
 	compareAsSub = compareAsSubNamedText
 	compareAsSuper = compareAsSuperNamedText
-	showPatternWith useMsg NamedText{..} =
-		wrap "\"" name ++ "(" ++ (if useMsg then msg subpattern else show subpattern) ++ ")"
 	mustHavePrefix NamedText{..} = not $ canBeEmpty subpattern
-	mustHaveSuffix = TPattern.mustHavePrefix
+	mustHaveSuffix NamedText{..} = Pattern.mustHavePrefix subpattern
 	canHavePrefix _ = True
 	canHaveSuffix _ = True
 	canMatchEmpty NamedText{..} = Pattern.canMatchEmpty subpattern

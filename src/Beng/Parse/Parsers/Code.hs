@@ -21,7 +21,7 @@ import Beng.Build.Context (Context)
 import Beng.Invocations ()
 import Beng.Parse.Parsers hiding (Parse, Parses, ParseRunner, Parser, State)
 import qualified Beng.Parse.Parsers as Parser
-import qualified Beng.Types.Parse.Parsers.Code as TCode
+import qualified Beng.Types.Parse.Parsers.Code as Code
 import Beng.Types.Parse.Matches (Argument(..))
 import Beng.Types.Parse.Parsers.Code (Parse, Parses, Parser, ParseRunner, PrefixState(..), SpaceState(..), State(..))
 import Beng.Types.Locations (FileLocation(..))
@@ -79,7 +79,7 @@ takeAs1 parsed target state = do
 		", but the former is not a prefix of the latter!"
 	let spaceState = if Text.null parsed
 		then state.spaceState
-		else TCode.spaceStateOfChar $ Text.last parsed
+		else Code.spaceStateOfChar $ Text.last parsed
 
 	let ol = state.location
 	-- `lines` discards trailing empty lines, including "", but `split` does not.

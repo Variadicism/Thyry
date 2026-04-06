@@ -31,7 +31,7 @@ import qualified Beng.Types.Locations as Location
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import qualified Beng.Types.Parse.Matches as Match
 import qualified Beng.Types.Parse.Parsers.Code as SpaceState
-import qualified Beng.Types.Parse.Patterns as TPattern
+import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Types.Parse.Patterns (
 	Argument(..),
 	Comparison(..),
@@ -121,9 +121,6 @@ instance Pattern Match.Argument Argument where
 	parse = parseArg
 	compareAsSub = compareAsSubArg
 	compareAsSuper self = compareAsSuperDefault (SomePattern self)
-	showPatternWith useMsg Argument{name,argType,decLoc} = if useMsg
-		then msgArg name argType
-		else showArg name argType decLoc
 	mustHavePrefix _ = False
 	mustHaveSuffix _ = False
 	canHavePrefix _ = False

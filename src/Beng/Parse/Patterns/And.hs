@@ -18,8 +18,13 @@ import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (comparator)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
-import qualified Beng.Types.Parse.Patterns as TPattern
-import Beng.Types.Parse.Patterns (And(..), Comparison(..), ComparatorState(..), Mismatch(..), Pattern)
+import Beng.Types.Parse.Patterns (
+	And(..),
+	Comparison(..),
+	ComparatorState(..),
+	Mismatch(..),
+	Pattern(..),
+	SomePattern(..))
 
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -29,7 +34,7 @@ parseAnd (And subpatterns) =
 	show (length subpatterns) ++ " patterns" @+>
 	parseAsP subpatterns >\> Match.And
 
-parseAsP :: P2.Populace2 Pattern.SomePattern -> Code.Parser (P2.Populace2 SomeMatch)
+parseAsP :: P2.Populace2 SomePattern -> Code.Parser (P2.Populace2 SomeMatch)
 parseAsP p = case p.tailTail of
 	[] ->
 		Pattern.parse p.head >:>
@@ -47,7 +52,7 @@ compareAsSubAnd self@(And subpatterns) =
 			_:subLeft ->
 				state{ rest = state.rest{ candidate = subpatterns.l ++ subLeft }} >>> comparator
 			[] -> case state.rest.requirement of
-				next:superLeft -> Error $ Mismatch (Pattern.SomePattern self) $ P.Populace next superLeft
+				next:superLeft -> Error $ Mismatch (SomePattern self) $ P.Populace next superLeft
 				[] -> PatternComparator.acceptRest state
 
 compareAsSuperAnd :: And -> PatternComparator.Parser
@@ -64,17 +69,15 @@ instance Eq And where
 	And a == And b = a == b
 
 instance Show And where
-	show = TPattern.showPatternWith False
+	show (And subpatterns) = concatMap show subpatterns.l
 
 instance Messagable And where
-	msg = show
+	msg (And subpatterns) = concatMap msg subpatterns.l
 
 instance Pattern Match.And And where
 	parse = parseAnd
 	compareAsSub = compareAsSubAnd
 	compareAsSuper = compareAsSuperAnd
-	showPatternWith useMsg (And subpatterns) =
-		concatMap (\p -> if useMsg then msg p else show p) subpatterns.l
 	getSubpatterns (And subpatterns) = subpatterns.p1
 	mustHavePrefix (And subpatterns) =
 		any Pattern.mustHavePrefix $ takeUntilIncl Pattern.hasArgs subpatterns.l
@@ -89,13 +92,10 @@ instance Pattern Match.And And where
 	isOptional (And subpatterns) = all Pattern.isOptional subpatterns.l
 	getArgsUsing getArgs (And subpatterns) = OMap.concat $ map getArgs subpatterns.l
 
-firstStates :: [Pattern.SomePattern] -> Set Code.SpaceState
+firstStates :: [SomePattern] -> Set Code.SpaceState
 firstStates patterns = case patterns of
 	[] -> mempty
 	pattern:rest -> if Pattern.canMatchEmpty pattern then
 		Pattern.startingSpaceStates pattern `Set.union` firstStates rest
 	else
 		Pattern.startingSpaceStates pattern
-
-parse :: And -> Code.Parser Match.And
-parse = parseAnd

@@ -12,34 +12,33 @@ module Beng.Operators (
 ) where
 
 import Utils.Fallible
-import qualified Utils.Maps.Ordered as UOMap
+import qualified Utils.Maps.Ordered as OMap
 import Utils.Messaging (Messagable, debug, debugM, msg)
 
 import {-# SOURCE #-} qualified Beng.Build.Context as C
-import {-# SOURCE #-} qualified Beng.Build.TypeTest as TypeTest
-import Beng.Locations ()
+import {-# SOURCE #-} Beng.Build.TypeTest (satisfiesDuring)
+import Beng.Locations (Location)
 import Beng.Invocations (Invocation(..))
 import qualified Beng.Operators.Declarations as Dec
-import Beng.Operators.Declarations (Declaration(..), isReturnTypeMismatch)
+import Beng.Operators.Declarations
+	(ArgContextBuilder, Associativity, Declaration(..), PrecedenceBound, isReturnTypeMismatch)
 import qualified Beng.Operators.Definitions as Def
 import Beng.Operators.Definitions (Definition(..))
 import {-# SOURCE #-} qualified Beng.Parse.Patterns as Pattern
 import qualified Beng.Types.Operators as Ops
 import Beng.Types.Operators (Operator, SomeOperator(..))
-import qualified Beng.Types.Build.Context as TContext
+import qualified Beng.Types.Build.Context as Context
 import Beng.Types.Build.TypeTest (TypeTest(..))
-import qualified Beng.Types.Build.TypeTest as TTest
+import qualified Beng.Types.Build.TypeTest as Test
 import Beng.Types.Errors (Error(..))
-import qualified Beng.Types.Locations as TLocation
 import Beng.Types.Invocations (SomeInvocation(..))
-import qualified Beng.Types.Operators.Declarations as TDec
+import qualified Beng.Types.Operators.Declarations as Dec
+import Beng.Types.Operators.Declarations (Mismatch(..))
 import {-# SOURCE #-} Beng.Parse.Matches ()
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Parse.Patterns (Literal(..), SomePattern(..))
-import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Matches (value)
-import Beng.Types.Things (Mismatch(..))
-import qualified Beng.Types.Things as TThing
+import Beng.Types.Things (Mismatch(..), SomeThing)
 
 import Control.Exception.Extra (Partial)
 import Data.List (find)
@@ -69,7 +68,7 @@ instance Operator Declaration where
 				debugM $ "UNSATISFIED declaration prop: " ++ show unsatisfiedError
 				Error unsatisfiedError
 	runUsing invocation@Invocation{operator = declaration, ..} = do
-		let args = OMap.toMap $ UOMap.map value $ Match.getArgs match
+		let args = OMap.toMap $ OMap.map value $ Match.getArgs match
 		let sameDeclaration :: SomeOperator -> Bool = \candidate ->
 			candidate.decLoc == Dec.location declaration
 		case find sameDeclaration context.deck of
@@ -92,7 +91,7 @@ instance Operator Definition where
 		let propTest :: TypeTest = do
 			let propsContext = C.fromThings [test.current.candidate]
 			debug "Restricing test context to props for definition prop"
-				test { TTest.context = propsContext }
+				test { Test.context = propsContext }
 
 		void $ case C.has propTest prop of
 			Falue _ -> do
@@ -107,7 +106,7 @@ instance Operator Definition where
 					"but no obscuring operator): " ++ show definition
 				Falue ()
 	runUsing Invocation{operator = definition, match} = Def.runWith definition $
-		OMap.toMap $ UOMap.map value $ Match.getArgs match
+		OMap.toMap $ OMap.map value $ Match.getArgs match
 
 instance Operator SomeOperator where
 	location (SomeOperator op) = Ops.location op
@@ -122,25 +121,25 @@ instance Operator SomeOperator where
 	runUsing Invocation{operator = SomeOperator op, context, match, location} =
 		Ops.runUsing Invocation{operator = op, context, match, location}
 
-instance HasField "location" SomeOperator TLocation.Location where
+instance HasField "location" SomeOperator Location where
 	getField (SomeOperator op) = Ops.location op
 
-instance HasField "decLoc" SomeOperator TLocation.Location where
+instance HasField "decLoc" SomeOperator Location where
 	getField (SomeOperator op) = Ops.decLoc op
 
-instance HasField "pattern" SomeOperator TPattern.SomePattern where
+instance HasField "pattern" SomeOperator SomePattern where
 	getField (SomeOperator op) = Ops.pattern op
 
-instance HasField "returnType" SomeOperator TThing.SomeThing where
+instance HasField "returnType" SomeOperator SomeThing where
 	getField (SomeOperator op) = Ops.returnType op
 
-instance HasField "associativity" SomeOperator TDec.Associativity where
+instance HasField "associativity" SomeOperator Associativity where
 	getField (SomeOperator op) = Ops.associativity op
 
-instance HasField "precedence" SomeOperator TContext.PrecedenceBound where
+instance HasField "precedence" SomeOperator PrecedenceBound where
 	getField (SomeOperator op) = Ops.precedence op
 
-instance HasField "contextualize" SomeOperator TDec.ArgContextBuilder where
+instance HasField "contextualize" SomeOperator ArgContextBuilder where
 	getField (SomeOperator op) = Ops.contextualize op
 
 instance Eq SomeOperator where
@@ -182,7 +181,7 @@ nameAsValue op = case Ops.pattern op of
 		Just (Literal name) -> unpack name
 		Nothing -> error "Expected literal declaration pattern"
 
-satisfies :: (Operator super, Operator sub) => (TypeTest, super) -> sub -> FallibleI TDec.Mismatch ()
+satisfies :: (Operator super, Operator sub) => (TypeTest, super) -> sub -> FallibleI Dec.Mismatch ()
 satisfies (test, super) sub = do
 	debugM $ "Testing satisfaction of operator:\n" ++
 		"\tSuper: " ++ show super ++ "\n\tSub: " ++ show sub
@@ -190,7 +189,7 @@ satisfies (test, super) sub = do
 		debugM $ "Satisfies because the operators have equal declarations"
 		Falue ()
 	else do
-		let patternResult = mapError TDec.PatternMismatch $
+		let patternResult = mapError PatternMismatch $
 			(test, Ops.pattern super) `Pattern.satisfies` Ops.pattern sub
 		case patternResult of
 			Falue _ -> do
@@ -198,8 +197,8 @@ satisfies (test, super) sub = do
 					"\n\t✓ Sub: " ++ show (Ops.pattern sub) ++
 					"\nComparing return types next:\n\t? Super:" ++ show (Ops.returnType super) ++
 					"\n\t? Sub: "
-				let returnTypeResult = mapError TDec.ReturnTypeMismatch $
-					(test, Ops.returnType sub) `TypeTest.satisfiesDuring` Ops.returnType super
+				let returnTypeResult = mapError ReturnTypeMismatch $
+					(test, Ops.returnType sub) `satisfiesDuring` Ops.returnType super
 				case returnTypeResult of
 					Falue _ -> debugM $ "SATISFIED operator:\n\t✓ Super:" ++ show (Ops.returnType super) ++
 						"\n\t✓ Sub: " ++ show (Ops.returnType sub)

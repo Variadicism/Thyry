@@ -14,8 +14,8 @@ import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>|>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import {-# SOURCE #-} Beng.Parse.Patterns (asPattern, startingSpaceStates)
-import qualified Beng.Types.Parse.Parsers.Code as TCode
-import qualified Beng.Types.Parse.Patterns as TPattern
+import qualified Beng.Types.Parse.Parsers.Code as Code
+import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Types.Parse.Parsers.Code (PrefixState(..))
 import qualified Beng.Types.Parse.Matches as Match
 import qualified Beng.Types.Parse.Parsers.Code as SpaceState (SpaceState(..))
@@ -84,7 +84,7 @@ compareAsSubSpace _ = "space comparator" @> \state ->
 			let canSatisfyBoundary =
 				not state.atStart &&
 				not (Set.null states) &&
-				all (TCode.formsBoundary state.spaceState) states
+				all (Code.formsBoundary state.spaceState) states
 			if nextIsSpace then
 				PatternComparator.accept [SomePattern Space] state
 			else if canSatisfyBoundary then
@@ -109,7 +109,7 @@ compareAsSuperSpace _ = "space super comparator" @> \state -> do
 				case superLeft of
 					next:_ -> do
 						let states = startingSpaceStates next
-						not (Set.null states) && all (TCode.formsBoundary state.spaceState) states
+						not (Set.null states) && all (Code.formsBoundary state.spaceState) states
 					[] -> False
 			if canConsumeBoundary then
 				state >>> ("consume boundary super Space" @>
@@ -124,7 +124,7 @@ compareAsSuperSpace _ = "space super comparator" @> \state -> do
 			[] -> PatternComparator.acceptRest state
 	where
 		dispatchCurrentSub (SomePattern pattern) state =
-			state >>> TPattern.compareAsSub pattern >:> PatternComparator.comparator >\> const ()
+			state >>> Pattern.compareAsSub pattern >:> PatternComparator.comparator >\> const ()
 
 instance Messagable Space where
 	msg = show
@@ -133,7 +133,6 @@ instance Pattern Match.Space Space where
 	parse _ = parseSpace
 	compareAsSub = compareAsSubSpace
 	compareAsSuper = compareAsSuperSpace
-	showPatternWith _ _ = " "
 	mustHavePrefix _ = False
 	mustHaveSuffix _ = False
 	canHavePrefix _ = True

@@ -16,7 +16,7 @@ import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>:>), (>\>), parseAny)
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
-import qualified Beng.Types.Parse.Patterns as TPattern
+import qualified Beng.Types.Parse.Patterns as TypePattern
 import Beng.Types.Parse.Patterns (
 	Comparison(..),
 	ComparatorState(..),
@@ -33,7 +33,7 @@ parseOr :: Or -> Code.Parser Match.Or
 parseOr (Or subpatterns) = show (length subpatterns) ++ " possible patterns" @+>
 	parseAny (P2.toP1 $ P2.mapIndexed (parserForSubpattern subpatterns) subpatterns)
 
-parserForSubpattern :: P2.Populace2 Pattern.SomePattern -> Int -> Pattern.SomePattern -> Code.Parser Match.Or
+parserForSubpattern :: P2.Populace2 SomePattern -> Int -> SomePattern -> Code.Parser Match.Or
 parserForSubpattern subpatterns matchIndex pattern =
 	Pattern.parse pattern >\> \match -> do
 		let missedSubpatterns = removeAt matchIndex subpatterns.l
@@ -59,7 +59,7 @@ compareAsSuperOr (Or subpatterns) = show (length subpatterns) ++ " possible supe
 		[] -> branchOptions state
 	where
 		dispatchCurrentSub (SomePattern pattern) state =
-			state >>> TPattern.compareAsSub pattern >:> PatternComparator.comparator >\> const ()
+			state >>> TypePattern.compareAsSub pattern >:> PatternComparator.comparator >\> const ()
 
 		branchOptions state = do
 			case state.rest.requirement of
@@ -77,17 +77,15 @@ instance Eq Or where
 	Or a == Or b = a == b
 
 instance Show Or where
-	show = TPattern.showPatternWith False
+	show (Or subpatterns) = "(" ++ intercalate "|" (map show subpatterns.l) ++ ")"
 
 instance Messagable Or where
-	msg = show
+	msg (Or subpatterns) = "(" ++ intercalate "|" (map msg subpatterns.l) ++ ")"
 
 instance Pattern Match.Or Or where
 	parse = parseOr
 	compareAsSub = compareAsSubOr
 	compareAsSuper = compareAsSuperOr
-	showPatternWith useMsg (Or subpatterns) =
-		"(" ++ intercalate "|" (map (\p -> if useMsg then msg p else show p) subpatterns.l) ++ ")"
 	getSubpatterns (Or subpatterns) = subpatterns.p1
 	mustHavePrefix (Or subpatterns) = all Pattern.mustHavePrefix subpatterns.l
 	mustHaveSuffix (Or subpatterns) = all Pattern.mustHaveSuffix subpatterns.l

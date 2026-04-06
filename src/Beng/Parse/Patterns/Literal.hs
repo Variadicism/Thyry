@@ -16,7 +16,7 @@ import Beng.Parse.Parsers.PatternComparator (compareAsSuperDefault)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import {-# SOURCE #-} Beng.Parse.Patterns (asPattern)
 import qualified Beng.Parse.Patterns.CharClass as CC
-import qualified Beng.Types.Parse.Patterns as TPattern
+import qualified Beng.Types.Parse.Patterns as Pattern
 import qualified Beng.Types.Parse.Parsers.Code as SpaceState (SpaceState(..))
 import Beng.Types.Parse.Patterns (
 	CharClass(..),
@@ -87,11 +87,10 @@ instance Pattern Match.Literal Literal where
 	parse = parseLiteral
 	compareAsSub = compareAsSubLiteral
 	compareAsSuper = compareAsSuperLiteral
-	showPatternWith _ (Literal literal) = Text.unpack literal
 	mustHavePrefix (Literal literal) = not $ Text.null literal
 	mustHaveSuffix (Literal literal) = not $ Text.null literal
-	canHavePrefix = TPattern.mustHavePrefix
-	canHaveSuffix = TPattern.mustHaveSuffix
+	canHavePrefix = Pattern.mustHavePrefix
+	canHaveSuffix = Pattern.mustHaveSuffix
 	canMatchEmpty (Literal literal) = Text.null literal
 	startingSpaceStates (Literal literal) = if Text.null literal then
 		mempty

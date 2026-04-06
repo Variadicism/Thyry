@@ -25,7 +25,7 @@ import {-# SOURCE #-} Beng.Parse.Patterns (isOptional)
 import qualified Beng.Types.Parse.Parsers.Code as Code
 import Beng.Types.Parse.Parsers.PatternComparator (Comparison(..), Parse, ParseRunner, Parser, Parses)
 import Beng.Types.Parse.Patterns (And(..), ComparatorState(..), Literal(..), Mismatch(..), SomePattern(..))
-import qualified Beng.Types.Parse.Patterns as TPattern
+import qualified Beng.Types.Parse.Patterns as Pattern
 
 import Control.Applicative ((<|>))
 import Data.List (isPrefixOf)
@@ -111,10 +111,10 @@ takeAsNull :: Show t => t -> Parser.ParseRunner Mismatch Comparison ComparatorSt
 takeAsNull = takeAs Comparison { candidate = [], requirement = [] }
 
 compareAsSubPattern :: SomePattern -> Parser
-compareAsSubPattern (SomePattern pattern) = TPattern.compareAsSub pattern >:> comparator >\> const ()
+compareAsSubPattern (SomePattern pattern) = Pattern.compareAsSub pattern >:> comparator >\> const ()
 
 compareAsSuperPattern :: SomePattern -> Parser
-compareAsSuperPattern (SomePattern pattern) = TPattern.compareAsSuper pattern >:> comparator >\> const ()
+compareAsSuperPattern (SomePattern pattern) = Pattern.compareAsSuper pattern >:> comparator >\> const ()
 
 startState :: Bool -> TypeTest -> SomePattern -> SomePattern -> ComparatorState
 startState checkArgTypes test requirement candidate =

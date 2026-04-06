@@ -26,7 +26,7 @@ import qualified Beng.Types.Operators as Ops
 import Beng.Types.Build.Context (Context)
 import Beng.Types.Build.TypeTest (TypeTest, TypeTestResult)
 import qualified Beng.Types.Build.TypeTest as TypeTest
-import qualified Beng.Types.Things as TThing
+import qualified Beng.Types.Things as Thing
 import Beng.Types.Invocations (SomeInvocation)
 import Beng.Types.Operators (SomeOperator(..))
 import Beng.Types.Operators.Declarations (Declaration)
@@ -472,7 +472,7 @@ instance Messagable thing => Messagable (NamedThing thing) where
 instance Thing SomeThing where
     satisfies (test, SomeThing thing) = satisfies (test, thing)
     propsWith (SomeThing thing) = propsWith thing
-    toCode (SomeThing thing) = TThing.toCode thing
+    toCode (SomeThing thing) = Thing.toCode thing
 
 instance Thing SomeInvocation where
     satisfies (test, invocation) = primitiveSatisfies test $ SomeThing invocation
@@ -566,7 +566,7 @@ instance Thing NativeSomeValue where
 instance Thing thing => Thing (NativeOptionalValue thing) where
     satisfies (test, super) = primitiveSatisfies test $ SomeThing super
     toCode NativeOptionalValue{fal} = case fal of
-        Falue falue -> TThing.toCode falue
+        Falue falue -> Thing.toCode falue
         Error error -> Text.concat ["\"", pack $ msg error, "\"!"]
 
 instance Thing NativeType where
@@ -658,7 +658,7 @@ instance Thing thing => Thing (NamedThing thing) where
     toCode = pack . show
 
 toCode :: SomeThing -> Text
-toCode (SomeThing value) = TThing.toCode value
+toCode (SomeThing value) = Thing.toCode value
 
 undefined :: Declaration -> FallibleI Undefined SomeThing
 undefined declaration = Error $ Undefined [("", declaration)]

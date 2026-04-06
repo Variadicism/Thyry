@@ -51,7 +51,7 @@ import Beng.Types.Parse.Patterns (
 	Pattern,
 	SomePattern(..),
 	Space(..))
-import qualified Beng.Types.Parse.Patterns as TPattern
+import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Parse.Parsers ((>>>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PC
@@ -72,10 +72,10 @@ instance Eq SomePattern where
 	SomePattern p1 == SomePattern p2 = maybe False (p1 ==) $ cast p2
 
 instance Show SomePattern where
-	show (SomePattern p) = TPattern.showPatternWith False p
+	show (SomePattern p) = show p
 
 instance Messagable SomePattern where
-	msg (SomePattern p) = TPattern.showPatternWith True p
+	msg (SomePattern p) = msg p
 
 asPattern :: Pattern m p => SomePattern -> Maybe p
 asPattern (SomePattern p) = cast p
@@ -157,13 +157,13 @@ instance Messagable Argument where
 type GetArgs = SomePattern -> OMap String Argument
 
 getArgsOf :: SomePattern -> OMap String Argument
-getArgsOf (SomePattern p) = TPattern.getArgs p
+getArgsOf (SomePattern p) = Pattern.getArgs p
 
 getNonStructuralArgsOf :: SomePattern -> OMap String Argument
-getNonStructuralArgsOf (SomePattern p) = TPattern.getNonStructuralArgs p
+getNonStructuralArgsOf (SomePattern p) = Pattern.getNonStructuralArgs p
 
 getRequiredArgsOf :: SomePattern -> OMap String Argument
-getRequiredArgsOf (SomePattern p) = TPattern.getRequiredArgs p
+getRequiredArgsOf (SomePattern p) = Pattern.getRequiredArgs p
 
 getOrArgsUsing :: GetArgs -> Populace2 SomePattern -> OMap String (Argument, Bool)
 getOrArgsUsing getArgs subpatterns = do
@@ -204,10 +204,10 @@ getOrArgsUsing getArgs subpatterns = do
 	OMap.map wrapOptionals argsWithoutOptionalWrappers
 
 parse :: SomePattern -> Code.Parser SomeMatch
-parse (SomePattern p) = TPattern.parse p >\> SomeMatch
+parse (SomePattern p) = Pattern.parse p >\> SomeMatch
 
 getSubpatterns :: SomePattern -> Populace SomePattern
-getSubpatterns (SomePattern p) = TPattern.getSubpatterns p
+getSubpatterns (SomePattern p) = Pattern.getSubpatterns p
 
 getArgs :: GetArgs
 getArgs = getArgsOf
@@ -219,28 +219,28 @@ getRequiredArgs :: GetArgs
 getRequiredArgs = getRequiredArgsOf
 
 hasArgs :: SomePattern -> Bool
-hasArgs (SomePattern p) = TPattern.hasArgs p
+hasArgs (SomePattern p) = Pattern.hasArgs p
 
 mustHavePrefix :: SomePattern -> Bool
-mustHavePrefix (SomePattern p) = TPattern.mustHavePrefix p
+mustHavePrefix (SomePattern p) = Pattern.mustHavePrefix p
 
 mustHaveSuffix :: SomePattern -> Bool
-mustHaveSuffix (SomePattern p) = TPattern.mustHaveSuffix p
+mustHaveSuffix (SomePattern p) = Pattern.mustHaveSuffix p
 
 canHavePrefix :: SomePattern -> Bool
-canHavePrefix (SomePattern p) = TPattern.canHavePrefix p
+canHavePrefix (SomePattern p) = Pattern.canHavePrefix p
 
 canHaveSuffix :: SomePattern -> Bool
-canHaveSuffix (SomePattern p) = TPattern.canHaveSuffix p
+canHaveSuffix (SomePattern p) = Pattern.canHaveSuffix p
 
 canMatchEmpty :: SomePattern -> Bool
-canMatchEmpty (SomePattern p) = TPattern.canMatchEmpty p
+canMatchEmpty (SomePattern p) = Pattern.canMatchEmpty p
 
 startingSpaceStates :: SomePattern -> Set Code.SpaceState
-startingSpaceStates (SomePattern p) = TPattern.startingSpaceStates p
+startingSpaceStates (SomePattern p) = Pattern.startingSpaceStates p
 
 isOptional :: SomePattern -> Bool
-isOptional (SomePattern p) = TPattern.isOptional p
+isOptional (SomePattern p) = Pattern.isOptional p
 
 satisfies :: (TypeTest, SomePattern) -> SomePattern -> FallibleI Mismatch ()
 (test, requirement) `satisfies` candidate = do

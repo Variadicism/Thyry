@@ -37,7 +37,6 @@ class (Match m, Eq p, Show p, Messagable p, Typeable p) => Pattern m p | p -> m 
 	parse :: p -> Code.Parser m
 	compareAsSub :: p -> Comparator
 	compareAsSuper :: p -> Comparator
-	showPatternWith :: Bool -> p -> String
 	getSubpatterns :: p -> Populace SomePattern
 	getSubpatterns = P.singleton . SomePattern
 	mustHavePrefix :: p -> Bool
