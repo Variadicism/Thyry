@@ -17,7 +17,13 @@ import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import qualified Beng.Types.Parse.Patterns as TPattern
-import Beng.Types.Parse.Patterns (Comparison(..), ComparatorState(..), Mismatch(..), Or(..), SomePattern(..))
+import Beng.Types.Parse.Patterns (
+	Comparison(..),
+	ComparatorState(..),
+	Mismatch(..),
+	Or(..),
+	Pattern,
+	SomePattern(..))
 
 import qualified Data.Map.Ordered as OrderedMap
 import Data.List (intercalate)
@@ -76,7 +82,7 @@ instance Show Or where
 instance Messagable Or where
 	msg = show
 
-instance TPattern.Pattern Match.Or Or where
+instance Pattern Match.Or Or where
 	parse = parseOr
 	compareAsSub = compareAsSubOr
 	compareAsSuper = compareAsSuperOr

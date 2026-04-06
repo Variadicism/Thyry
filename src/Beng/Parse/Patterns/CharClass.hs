@@ -34,6 +34,7 @@ import Beng.Types.Parse.Patterns (
 	ComparatorState(..),
 	Literal(..),
 	Mismatch(..),
+	Pattern,
 	SomePattern(..),
 	Space(..))
 
@@ -113,7 +114,7 @@ instance Show CharClass where
 instance Messagable CharClass where
 	msg = show
 
-instance TPattern.Pattern Match.CharClass CharClass where
+instance Pattern Match.CharClass CharClass where
 	parse = parseCharClass
 	compareAsSub = compareAsSubCharClass
 	compareAsSuper self = compareAsSuperDefault (SomePattern self)

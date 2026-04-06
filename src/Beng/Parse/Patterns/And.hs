@@ -19,8 +19,9 @@ import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (comparator)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import qualified Beng.Types.Parse.Patterns as TPattern
-import Beng.Types.Parse.Patterns (And(..), Comparison(..), ComparatorState(..), Mismatch(..))
+import Beng.Types.Parse.Patterns (And(..), Comparison(..), ComparatorState(..), Mismatch(..), Pattern)
 
+import Data.Set (Set)
 import qualified Data.Set as Set
 
 parseAnd :: And -> Code.Parser Match.And
@@ -68,7 +69,7 @@ instance Show And where
 instance Messagable And where
 	msg = show
 
-instance TPattern.Pattern Match.And And where
+instance Pattern Match.And And where
 	parse = parseAnd
 	compareAsSub = compareAsSubAnd
 	compareAsSuper = compareAsSuperAnd
@@ -88,7 +89,7 @@ instance TPattern.Pattern Match.And And where
 	isOptional (And subpatterns) = all Pattern.isOptional subpatterns.l
 	getArgsUsing getArgs (And subpatterns) = OMap.concat $ map getArgs subpatterns.l
 
-firstStates :: [Pattern.SomePattern] -> Set.Set Code.SpaceState
+firstStates :: [Pattern.SomePattern] -> Set Code.SpaceState
 firstStates patterns = case patterns of
 	[] -> mempty
 	pattern:rest -> if Pattern.canMatchEmpty pattern then

@@ -48,6 +48,7 @@ import Beng.Types.Parse.Patterns (
 	Mismatch(..),
 	NamedText(..),
 	Or(..),
+	Pattern,
 	SomePattern(..),
 	Space(..))
 import qualified Beng.Types.Parse.Patterns as TPattern
@@ -76,7 +77,7 @@ instance Show SomePattern where
 instance Messagable SomePattern where
 	msg (SomePattern p) = TPattern.showPatternWith True p
 
-asPattern :: TPattern.Pattern m p => SomePattern -> Maybe p
+asPattern :: Pattern m p => SomePattern -> Maybe p
 asPattern (SomePattern p) = cast p
 
 patConcat :: [SomePattern] -> SomePattern

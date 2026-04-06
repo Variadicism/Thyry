@@ -32,7 +32,13 @@ import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import qualified Beng.Types.Parse.Matches as Match
 import qualified Beng.Types.Parse.Parsers.Code as SpaceState
 import qualified Beng.Types.Parse.Patterns as TPattern
-import Beng.Types.Parse.Patterns (Argument(..), Comparison(..), ComparatorState(..), Mismatch(..), SomePattern(..))
+import Beng.Types.Parse.Patterns (
+	Argument(..),
+	Comparison(..),
+	ComparatorState(..),
+	Mismatch(..),
+	Pattern,
+	SomePattern(..))
 import Beng.Things (SomeThing, PreOpType(..))
 import Beng.Types.Things (SomeThing(..), castThing)
 
@@ -111,7 +117,7 @@ compareAsSubArg self@Argument{..} = msgArg name argType ++ " comparator" @> \sta
 				PatternComparator.accept [nextSuper] state
 			Nothing -> Error $ Mismatch (SomePattern self) $ P.Populace nextSuper superLeft
 
-instance TPattern.Pattern Match.Argument Argument where
+instance Pattern Match.Argument Argument where
 	parse = parseArg
 	compareAsSub = compareAsSubArg
 	compareAsSuper self = compareAsSuperDefault (SomePattern self)

@@ -25,6 +25,7 @@ import Beng.Types.Parse.Patterns (
 	ComparatorState(..),
 	Delimited(..),
 	Mismatch(..),
+	Pattern,
 	SomePattern(..))
 
 import Data.Map.Ordered ((<>|))
@@ -58,7 +59,7 @@ instance Show Delimited where
 instance Messagable Delimited where
 	msg = show
 
-instance TPattern.Pattern Match.Delimited Delimited where
+instance Pattern Match.Delimited Delimited where
 	parse = parseDelimited
 	compareAsSub = compareAsSubDelimited
 	compareAsSuper self = compareAsSuperDefault (SomePattern self)

@@ -19,7 +19,13 @@ import qualified Beng.Types.Parse.Patterns as TPattern
 import Beng.Types.Parse.Parsers.Code (PrefixState(..))
 import qualified Beng.Types.Parse.Matches as Match
 import qualified Beng.Types.Parse.Parsers.Code as SpaceState (SpaceState(..))
-import Beng.Types.Parse.Patterns (Comparison(..), ComparatorState(..), Mismatch(..), SomePattern(..), Space(..))
+import Beng.Types.Parse.Patterns (
+	Comparison(..),
+	ComparatorState(..),
+	Mismatch(..),
+	Pattern,
+	SomePattern(..),
+	Space(..))
 
 import Data.Char (isAlphaNum, isSpace)
 import qualified Data.Set as Set
@@ -123,7 +129,7 @@ compareAsSuperSpace _ = "space super comparator" @> \state -> do
 instance Messagable Space where
 	msg = show
 
-instance TPattern.Pattern Match.Space Space where
+instance Pattern Match.Space Space where
 	parse _ = parseSpace
 	compareAsSub = compareAsSubSpace
 	compareAsSuper = compareAsSuperSpace

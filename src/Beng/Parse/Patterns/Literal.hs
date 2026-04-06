@@ -24,11 +24,13 @@ import Beng.Types.Parse.Patterns (
 	ComparatorState(..),
 	Literal(..),
 	Mismatch(..),
+	Pattern,
 	SomePattern(..),
 	Space(..))
 
 import Data.Char (isAlphaNum, isSpace)
 import qualified Data.Set as Set
+import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
 
 parseLiteral :: Literal -> Code.Parser Match.Literal
@@ -81,7 +83,7 @@ compareAsSuperLiteral self@(Literal literal) = show literal ++ " super comparato
 instance Messagable Literal where
 	msg = show
 
-instance TPattern.Pattern Match.Literal Literal where
+instance Pattern Match.Literal Literal where
 	parse = parseLiteral
 	compareAsSub = compareAsSubLiteral
 	compareAsSuper = compareAsSuperLiteral
@@ -103,7 +105,7 @@ instance TPattern.Pattern Match.Literal Literal where
 
 compareAgainstNonLiteral
 	:: Literal
-	-> Text.Text
+	-> Text
 	-> SomePattern
 	-> ComparatorState
 	-> P.Populace SomePattern
@@ -121,7 +123,7 @@ compareAgainstNonLiteral self literal next state superP swapSub =
 
 compareAgainstSpace
 	:: Literal
-	-> Text.Text
+	-> Text
 	-> SomePattern
 	-> ComparatorState
 	-> P.Populace SomePattern

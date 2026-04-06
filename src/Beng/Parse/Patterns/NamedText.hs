@@ -27,6 +27,7 @@ import Beng.Types.Parse.Patterns (
 	ComparatorState(..),
 	Mismatch(..),
 	NamedText(..),
+	Pattern,
 	SomePattern(..))
 
 import qualified Data.Map as Map
@@ -89,7 +90,7 @@ instance Show NamedText where
 instance Messagable NamedText where
 	msg NamedText{..} = wrap "\"" name ++ "(" ++ msg subpattern ++ ")"
 
-instance TPattern.Pattern Match.NamedText NamedText where
+instance Pattern Match.NamedText NamedText where
 	parse = parseNamedText
 	compareAsSub = compareAsSubNamedText
 	compareAsSuper = compareAsSuperNamedText
