@@ -18,14 +18,16 @@ import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, ass
 import Beng.Build.Context.Builders (c, cr, l, multi, optional, s, textAt)
 import Beng.Types.Locations (Location(Builtin))
 import Beng.Types.Parse.Patterns (And(..), Argument(..), SomePattern(..))
-import Beng.Things (thing)
+import Beng.Things (NativeType(..))
+import Beng.Types.Things (SomeParameterizedThing(..))
 
 -- private
 
 testComparator :: TestCategory
 testComparator = PureTests "interpattern complexities" do
 	let capitalizedWords = SomePattern $ And $ P2.dualton (c [cr 'A' 'Z']) (optional $ multi $ c [cr 'a' 'z'])
-	let valueArg = SomePattern Argument { name = "Thing", argType = thing, decLoc = Builtin 0 }
+	let thingType = SomeParameterizedThing $ NativeType $ const []
+	let valueArg = SomePattern Argument { name = "Thing", argType = thingType, decLoc = Builtin 0 }
 
 	let varDef = SomePattern $ And $ P2.Populace2 capitalizedWords s
 		[l ":", l "=", s, valueArg]
@@ -40,10 +42,10 @@ testComparator = PureTests "interpattern complexities" do
 		[l ":", optional (l "/"), l "=", s, valueArg]
 	[
 		("equal", varDefOrUn `assertSatisfies` varDefOrUn),
-		("proper super pattern is super", varDefOrUn `assertSatisfies` varDef),
-		("proper super pattern is sub", varDef `assertDoesNotSatisfy` varDefOrUn),
-		("NamedText ignored in super", varNamedDefOrUn `assertSatisfies` varDef),
-		("NamedText matched in super and sub", varNamedDefOrUn `assertSatisfies` varNamedDef),
+		("proper requirement pattern is requirement", varDefOrUn `assertSatisfies` varDef),
+		("proper requirement pattern is candidate", varDef `assertDoesNotSatisfy` varDefOrUn),
+		("NamedText ignored in requirement", varNamedDefOrUn `assertSatisfies` varDef),
+		("NamedText matched in requirement and candidate", varNamedDefOrUn `assertSatisfies` varNamedDef),
 		("Or can match partially", varDefOrUn `assertSatisfies` varUndef) ]
 
 -- tests

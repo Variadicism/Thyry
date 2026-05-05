@@ -32,11 +32,15 @@ import Beng.Types.Parse.Matches (
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Things ()
 import qualified Beng.Things as Thing
+import qualified Beng.Types.Things as ThingType
 import Beng.Locations ()
+import Beng.Types.Invocations (SomeInvocation)
+import Beng.Types.Build.TypeTest (ParameterMatchResults(..))
 import {-# SOURCE #-} Beng.Parse.Patterns ()
 import {-# SOURCE #-} Beng.Parse.Patterns.Literal ()
 import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Types.Things (
+	SomeParameterizedThing(..),
 	SomeThing(..),
 	NativeStringType(..),
 	NativeStringValue(..),
@@ -46,6 +50,7 @@ import Beng.Types.Things (
 	NativeSomeValue(..),
 	NativeListType(..),
 	NativeListValue(..),
+	One(..),
 	Undefined(..))
 import Data.Map.Ordered ((<|), (|<), (<>|), OMap)
 import qualified Data.Map.Ordered as OMap
@@ -53,14 +58,20 @@ import Data.Text.Lazy (pack, unpack)
 import qualified Data.Text.Lazy as Text
 import Data.Typeable (cast)
 
+emptyParameterMatchResults :: ParameterMatchResults
+emptyParameterMatchResults = ParameterMatchResults {
+	candidateMatches = mempty,
+	requirementMatches = mempty }
+
 instance Eq Argument where
-	(==) p1 p2 = p1.name == p2.name
+	(==) p1 p2 = p1.pattern.name == p2.pattern.name
 
 instance Show Argument where
-	show p@Argument{..} = "from " ++ show decLoc ++ ", " ++ msg p
+	show p@Argument{pattern = Pattern.Argument{decLoc}, ..} = "from " ++ show decLoc ++ ", " ++ msg p
 
 instance Messagable Argument where
-	msg Argument{..} = wrap "'" name ++ ", " ++ show argType ++ " := " ++ show value
+	msg Argument{pattern = Pattern.Argument{name, argType}, ..} =
+		wrap "'" name ++ ", " ++ show argType ++ " := " ++ show value
 
 deriving instance Eq DelimitedTail
 
@@ -92,6 +103,7 @@ instance Match SomeMatch where
 	getArgs (SomeMatch match) = Match.getArgs match
 	hasPrefix (SomeMatch match) = Match.hasPrefix match
 	hasSuffix (SomeMatch match) = Match.hasSuffix match
+	resolve bindings (SomeMatch match) = Match.resolve bindings match
 
 instance Eq Space where
 	Space{text = text1} == Space{text = text2} = text1 == text2
@@ -177,30 +189,47 @@ instance Match CharClass where
 instance Match NamedText where
 	toCode NamedText{match = SomeMatch match} = Match.toCode match
 	getArgs NamedText{name,decLoc,match = SomeMatch match} = do
-		let argument = Argument { name, decLoc,
-			argType = SomeThing NativeStringType,
+		let argument = Argument {
+			pattern = Pattern.Argument {
+				name,
+				decLoc,
+				argType = SomeParameterizedThing NativeStringType },
+			matchedType = SomeParameterizedThing NativeStringType,
+			parameterMatches = emptyParameterMatchResults,
 			value = SomeThing $ NativeStringValue $ Match.toCode match }
 		OMap.singleton (name, argument)
 	hasPrefix NamedText{match = SomeMatch match} = not $ Text.null $ Match.toCode match
 	hasSuffix NamedText{match = SomeMatch match} = not $ Text.null $ Match.toCode match
+	resolve bindings NamedText{decLoc, name, match} = do
+		resolvedMatch <- Match.resolve bindings match
+		return $ SomeMatch NamedText { decLoc, name, match = resolvedMatch }
 
 instance Match Or where
 	getSubmatches Or{match} = P.singleton match
 	toCode Or{match = SomeMatch match} = Match.toCode match
 	getArgs Or{match = SomeMatch match,misses} = do
-		let matchFalParam = \decLoc name argType value -> Argument {
-			decLoc, name,
-			argType = SomeThing $ NativeOptionalType argType,
+		let matchFalParam = \decLoc name argType value matchedType -> Argument {
+			pattern = Pattern.Argument {
+				decLoc,
+				name,
+				argType = SomeParameterizedThing $ NativeOptionalType argType },
+			matchedType = SomeParameterizedThing $ NativeOptionalType matchedType,
+			parameterMatches = emptyParameterMatchResults,
 			value = SomeThing $ NativeOptionalValue value }
 		let missEntry = \p -> (p.name,
-			matchFalParam p.decLoc p.name p.argType $
-				Error $ Undefined [("", declareLiteral (pack p.name) p.argType p.decLoc)])
-		let falValue = \p -> matchFalParam p.decLoc p.name p.argType $ Falue p.value
+			matchFalParam p.decLoc p.name p.argType
+				(Error $ Undefined [("", declareLiteral (pack p.name) p.argType p.decLoc)])
+				(SomeParameterizedThing $ NativeOptionalType $ SomeParameterizedThing One))
+		let falValue = \p -> matchFalParam p.pattern.decLoc p.pattern.name p.pattern.argType
+			(Falue p.value) (SomeParameterizedThing $ NativeOptionalType p.matchedType)
 
 		OMap.fromList (map missEntry misses) <>|
 			OMap.map falValue (Match.getArgs match)
 	hasPrefix Or{match = SomeMatch match} = Match.hasPrefix match
 	hasSuffix Or{match = SomeMatch match} = Match.hasSuffix match
+	resolve bindings Or{match, matchIndex, misses} = do
+		resolvedMatch <- Match.resolve bindings match
+		return $ SomeMatch Or { match = resolvedMatch, matchIndex, misses }
 
 instance Match And where
 	getSubmatches And{matches} = matches.p1
@@ -208,6 +237,15 @@ instance Match And where
 	getArgs And{matches} = OMap.concat $ P2.map Match.getArgs matches
 	hasPrefix And{matches} = any Match.hasPrefix $ takeUntilIncl hasArgs matches.l
 	hasSuffix And{matches} = any Match.hasSuffix $ takeUntilIncl hasArgs $ reverse matches.l
+	resolve bindings And{matches} = do
+		let resolveMatches = \case
+				P2.Populace2 first second rest -> do
+					resolvedFirst <- Match.resolve bindings first
+					resolvedSecond <- Match.resolve bindings second
+					resolvedRest <- sequence $ map (Match.resolve bindings) rest
+					return $ P2.Populace2 resolvedFirst resolvedSecond resolvedRest
+		resolvedMatches <- resolveMatches matches
+		return $ SomeMatch And { matches = resolvedMatches }
 
 instance Match Delimited where
 	getSubmatches delimited@Delimited{head} = P.Populace head $ case delimited.tail of
@@ -217,16 +255,18 @@ instance Match Delimited where
 	getArgs delimited@Delimited{head = headMatch,tail = tailMatch} = case tailMatch of
 		DelimitedTailMatch _ -> do
 			let revalueParam :: Argument -> Populace SomeThing -> Argument = \p values -> p{
-				argType = SomeThing $ NativeSomeType p.argType,
+				pattern = p.pattern{
+					Pattern.argType = SomeParameterizedThing $ NativeSomeType p.pattern.argType },
+				matchedType = SomeParameterizedThing $ NativeSomeType p.matchedType,
 				value = SomeThing $ NativeSomeValue values }
 			let combineValuesByName
 					:: Argument -> OMap String (Argument, Populace SomeThing) ->
 						OMap String (Argument, Populace SomeThing) =
 					\p prevs -> do
-				let oldValues = case OMap.lookup p.name prevs of
+				let oldValues = case OMap.lookup p.pattern.name prevs of
 					Nothing -> []
 					Just (_, values) -> P.toList values
-				(p.name, (p, Populace p.value oldValues)) |< prevs
+				(p.pattern.name, (p, Populace p.value oldValues)) |< prevs
 			let collateArgs :: ([Argument] -> OMap String Argument) =
 				OMap.map (uncurry revalueParam) . foldr combineValuesByName OMap.empty
 			collateArgs $ concatMap (OMap.values . Match.getArgs) $
@@ -235,21 +275,58 @@ instance Match Delimited where
 			let collateArgsWithMissing
 					:: Pattern.Argument -> OMap String Argument -> OMap String Argument =
 					\Pattern.Argument{..} matches -> do
-				let missingParamMatch = Argument { decLoc, name,
-					argType = SomeThing $ NativeListType argType,
-					value = SomeThing $ NativeListValue [] }
+				let missingParamMatch = Argument {
+					pattern = Pattern.Argument {
+						decLoc,
+						name,
+						argType = SomeParameterizedThing $ NativeListType argType },
+					matchedType = SomeParameterizedThing $ NativeListType $ SomeParameterizedThing One,
+					parameterMatches = emptyParameterMatchResults,
+					value = SomeThing $ NativeListValue ([] :: [SomeThing]) }
 				(name, missingParamMatch) <| matches
 			foldr collateArgsWithMissing (Match.getArgs headMatch) missedParams
 	hasPrefix match =
 		any Match.hasPrefix $ takeUntilIncl hasArgs $ P.toList $ Match.getSubmatches match
 	hasSuffix match =
 		any Match.hasSuffix $ takeUntilIncl hasArgs $ reverse $ P.toList $ Match.getSubmatches match
+	resolve bindings Delimited{head, tail} = do
+		resolvedHead <- Match.resolve bindings head
+		resolvedTail <- case tail of
+			DelimitedTailMissing misses ->
+				return $ DelimitedTailMissing misses
+			DelimitedTailMatch pairs -> do
+				let resolvePair (left, right) = do
+						resolvedLeft <- Match.resolve bindings left
+						resolvedRight <- Match.resolve bindings right
+						return (resolvedLeft, resolvedRight)
+				let resolvedPairs = case pairs of
+						Populace first rest -> do
+							resolvedFirst <- resolvePair first
+							resolvedRest <- sequence $ map resolvePair rest
+							return $ Populace resolvedFirst resolvedRest
+				DelimitedTailMatch <$> resolvedPairs
+		return $ SomeMatch Delimited { head = resolvedHead, tail = resolvedTail }
 
 instance Match Argument where
 	toCode Argument{value} = Thing.toCode value
-	getArgs argument = OMap.singleton (argument.name, argument)
+	getArgs argument = OMap.singleton (argument.pattern.name, argument)
 	hasPrefix _ = False
 	hasSuffix _ = False
+	resolve bindings Argument{pattern, matchedType, parameterMatches, value} = do
+		let resolvedValue = value
+		resolvedType <- case (Thing.castThing resolvedValue :: Maybe SomeInvocation) of
+			Just someInvocation ->
+				return $ ThingType.parameterize someInvocation.returnType
+			Nothing -> case ThingType.resolve bindings matchedType of
+				Falue (ThingType.SomeConcreteThing thing) ->
+					return $ ThingType.parameterize thing
+				Error _ ->
+					return matchedType
+		return $ SomeMatch Argument {
+			pattern,
+			matchedType = resolvedType,
+			parameterMatches,
+			value = resolvedValue }
 
 hasArgs :: SomeMatch -> Bool
 hasArgs (SomeMatch match) = not $ OMap.null $ Match.getArgs match

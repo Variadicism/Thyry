@@ -3,7 +3,9 @@ module Beng.Build.Invocations (
 ) where
 
 import Utils.Messaging (debug, debugEq, debugEqS)
+import Utils.Fallible (FallibleI(..))
 import qualified Utils.Populace as P
+import qualified Data.Map as Map
 
 import Beng.Build.Context (Context(..), comparePrecedence)
 import qualified Beng.Operators as Ops
@@ -12,13 +14,27 @@ import Beng.Errors (parseError)
 import Beng.Parse.Matches ()
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Operators.Declarations (Associativity(..))
-import Beng.Parse.Parsers.Code ((>>>), (@>), (@+>), (>/>), (>/\>), (>^\>), (>\>), Parser, PrefixState(..), State(..), parseAny)
+import Beng.Parse.Parsers.Code (
+	(>>>),
+	(@>),
+	(@+>),
+	(>/>),
+	(>/\>),
+	(>-\>),
+	(>^\>),
+	Parser,
+	PrefixState(..),
+	State(..),
+	parseAny )
 import qualified Beng.Parse.Patterns as Pattern
-import Beng.Invocations (Invocation(..))
+import Beng.Invocations (
+	Invocation(..),
+	collectParameterMatches)
+import qualified Beng.Invocations as Inv
 import qualified Beng.Types.Locations as Location
 import Beng.Types.Invocations (SomeInvocation(..))
-
-import qualified Data.Map as Map
+import qualified Beng.Types.Parse.Matches as MatchType
+import qualified Beng.Types.Things as Thing
 
 -- private
 
@@ -66,18 +82,39 @@ parseForTyped prefixState op = show op @> \initialState ->
 			parent = Just $ SomeOperator op,
 			maxPrecedence = Nothing } >>>
 
-		Pattern.parse (Ops.pattern op) >\>
-		(\match -> SomeInvocation Invocation {
-			operator = op,
-			context = initialState.context,
-			match,
-			location = Location.Code initialState.location }) >/\> (\s invocation -> s{
+		Pattern.parse (Ops.pattern op) >-\>
+		(\match -> do
+			case collectParameterMatches initialState.context op match Map.empty of
+				Falue parameterMatches ->
+					let bindings = Inv.effectiveBindings Map.empty parameterMatches
+					in case MatchType.resolve bindings match of
+						Error resolveError ->
+							Error $ parseError initialState $
+								"Internal match resolve failure in Beng.Build.Invocations.build: " ++
+								show resolveError
+						Falue resolvedMatch -> case Thing.resolve bindings (Ops.returnType op) of
+							Error resolveError ->
+								Error $ parseError initialState $
+									"Internal local return resolve failure in Beng.Build.Invocations.build: " ++
+									show resolveError
+							Falue resolvedReturnType ->
+								return $ SomeInvocation Invocation {
+									operator = op,
+									context = initialState.context,
+									match = resolvedMatch,
+									location = Location.Code initialState.location,
+									returnType = resolvedReturnType }
+				Error mismatch ->
+					Error $ parseError initialState $
+						"Internal local parameter collection failure in " ++ show op ++ ": " ++
+						show mismatch) >/\>
+		(\s invocation -> s{
 			arguments = Map.empty,
 			parent = initialState.parent,
 			maxPrecedence = case invocation of
-				SomeInvocation typedInvocation -> if Match.hasSuffix typedInvocation.match
+				SomeInvocation Invocation{match, operator} -> if Match.hasSuffix match
 					then initialState.maxPrecedence
-					else Just $ SomeOperator typedInvocation.operator }) >^\>
+					else Just $ SomeOperator operator }) >^\>
 
 		buildNonPrefixed >/> \s -> s{
 			arguments = initialState.arguments,
@@ -97,7 +134,7 @@ buildNonPrefixed predecessor = "non-prefixed op for " ++ show predecessor @> \st
 		filter (not . requiresPrefix) state.context.deck
 	opPopulace <- P.assert nonPrefixedOps $ parseError state
 		"There were no non-prefixed operators applicable in the current Context!"
-	let nonPrefixedParser :: SomeInvocation -> Parser SomeInvocation = \firstArg ->
+	let nonPrefixedParser :: (SomeInvocation -> Parser SomeInvocation) = \firstArg ->
 		parseAny $ P.map (parseFor $ AvoidingFor firstArg) opPopulace
 			
 	state >>> nonPrefixedParser predecessor

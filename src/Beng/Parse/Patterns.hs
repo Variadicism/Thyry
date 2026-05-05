@@ -58,7 +58,11 @@ import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PC
 import {-# SOURCE #-} qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Types.Build.TypeTest (TypeTest)
 import Beng.Types.Parse.Matches (SomeMatch(..))
-import Beng.Types.Things (SomeThing(..), NativeOrType(..), NativeOptionalType(..), castThing)
+import Beng.Types.Things (
+	SomeParameterizedThing(..),
+	NativeOrType(..),
+	NativeOptionalType(..),
+	castParameterizedThing)
 
 import Data.Map.Ordered (OMap)
 import qualified Data.Map.Ordered as OMap
@@ -88,12 +92,12 @@ patConcat = \case
 
 showMismatchUsing :: Bool -> Mismatch -> String
 showMismatchUsing useMsg = \case
-	LeftoverSub{..} ->
-		"sub patterns could not be matched: " ++ show' (patConcat leftover.l)
-	LeftoverSuper{..} ->
-		"required super patterns could not be matched: " ++ show' (patConcat leftover.l)
+	LeftoverCandidate{..} ->
+		"candidate patterns could not be matched: " ++ show' (patConcat leftover.l)
+	LeftoverRequirement{..} ->
+		"required patterns could not be matched: " ++ show' (patConcat leftover.l)
 	Mismatch{..} ->
-		show' nextSub ++ " cannot prefix " ++ show' (patConcat remainingSuper.l)
+		show' nextCandidate ++ " cannot prefix " ++ show' (patConcat remainingRequirement.l)
 	CompoundMismatch{..} ->
 		showCompoundErrorsUsing show' context compound
 	where
@@ -101,9 +105,9 @@ showMismatchUsing useMsg = \case
 		show' = if useMsg then show else msg
 
 instance Eq Mismatch where
-	mm1@Mismatch{} == mm2@Mismatch{} = mm1.nextSub == mm2.nextSub && mm1.remainingSuper == mm2.remainingSuper
-	l1@LeftoverSub{} == l2@LeftoverSub{} = l1.leftover == l2.leftover
-	l1@LeftoverSuper{} == l2@LeftoverSuper{} = l1.leftover == l2.leftover
+	mm1@Mismatch{} == mm2@Mismatch{} = mm1.nextCandidate == mm2.nextCandidate && mm1.remainingRequirement == mm2.remainingRequirement
+	l1@LeftoverCandidate{} == l2@LeftoverCandidate{} = l1.leftover == l2.leftover
+	l1@LeftoverRequirement{} == l2@LeftoverRequirement{} = l1.leftover == l2.leftover
 	_ == _ = False
 
 instance Show Mismatch where
@@ -113,13 +117,13 @@ instance Messagable Mismatch where
 	msg = showMismatchUsing True
 
 instance Ord Mismatch where
-	compare mm1@Mismatch{} mm2@Mismatch{} = compare (length mm1.remainingSuper) (length mm2.remainingSuper)
-	compare l1@LeftoverSub{} l2@LeftoverSub{} = compare (length l1.leftover) (length l2.leftover)
-	compare l1@LeftoverSuper{} l2@LeftoverSuper{} = compare (length l1.leftover) (length l2.leftover)
+	compare mm1@Mismatch{} mm2@Mismatch{} = compare (length mm1.remainingRequirement) (length mm2.remainingRequirement)
+	compare l1@LeftoverCandidate{} l2@LeftoverCandidate{} = compare (length l1.leftover) (length l2.leftover)
+	compare l1@LeftoverRequirement{} l2@LeftoverRequirement{} = compare (length l1.leftover) (length l2.leftover)
 	compare a b = compare (mmIndex a) (mmIndex b)
 		where mmIndex = \case
-			LeftoverSuper{} -> 1
-			LeftoverSub{} -> 2
+			LeftoverRequirement{} -> 1
+			LeftoverCandidate{} -> 2
 			Mismatch{} -> 3
 			CompoundMismatch{} -> 4
 
@@ -180,15 +184,15 @@ getOrArgsUsing getArgs subpatterns = do
 						let bType = bParam.argType
 						let newParam = case aType == bType of
 							True -> aParam
-							False -> case (castThing aType, castThing bType) of
+							False -> case (castParameterizedThing aType, castParameterizedThing bType) of
 								(Just NativeOrType{options=aTypes}, Just NativeOrType{options=bTypes}) -> bParam{
-									argType = SomeThing $ NativeOrType $ P2.concat $ P2.dualton aTypes bTypes }
+									argType = SomeParameterizedThing $ NativeOrType $ P2.concat $ P2.dualton aTypes bTypes }
 								(Just NativeOrType{options=aTypes}, Nothing) -> bParam{
-									argType = SomeThing $ NativeOrType $ P2.snoc aTypes bType }
+									argType = SomeParameterizedThing $ NativeOrType $ P2.snoc aTypes bType }
 								(Nothing, Just NativeOrType{options=bTypes}) -> bParam {
-									argType = SomeThing $ NativeOrType $ P2.cons aType bTypes }
+									argType = SomeParameterizedThing $ NativeOrType $ P2.cons aType bTypes }
 								_ -> bParam{
-									argType = SomeThing $ NativeOrType $ P2.dualton aType bType }
+									argType = SomeParameterizedThing $ NativeOrType $ P2.dualton aType bType }
 						(newParam, aOptional)
 					(Nothing, Nothing) ->
 						error $ "Attempted to retrieve arg '" ++ key ++ " from no options!"
@@ -198,7 +202,7 @@ getOrArgsUsing getArgs subpatterns = do
 		foldl combineTypes start $ map getArgs subpatterns.tail.l
 	let wrapOptionals :: (Argument, Bool) -> (Argument, Bool) = \(arg, optional) -> do
 		let wrappedParam = if optional
-			then arg{ argType = SomeThing $ NativeOptionalType arg.argType }
+			then arg{ argType = SomeParameterizedThing $ NativeOptionalType arg.argType }
 			else arg
 		(wrappedParam, optional)
 	OMap.map wrapOptionals argsWithoutOptionalWrappers
@@ -242,23 +246,28 @@ startingSpaceStates (SomePattern p) = Pattern.startingSpaceStates p
 isOptional :: SomePattern -> Bool
 isOptional (SomePattern p) = Pattern.isOptional p
 
-satisfies :: (TypeTest, SomePattern) -> SomePattern -> FallibleI Mismatch ()
+satisfies ::
+	(TypeTest, SomePattern) ->
+	SomePattern ->
+	FallibleI Mismatch TypeTest
 (test, requirement) `satisfies` candidate = do
-	let rejectIncompleteParses :: PC.Parses -> FallibleI Mismatch () = \parses -> do
-		let errIfIncomplete = \parseResult -> case
-			(parseResult.state.rest.candidate, parseResult.state.rest.requirement)
-			of
-			([], []) -> Falue ()
+	let rejectIncompleteParses :: PC.Parses -> FallibleI Mismatch TypeTest =
+			\parses -> do
+		let testIfComplete = \parseResult -> case
+			(parseResult.state.rest.candidate, parseResult.state.rest.requirement) of
+			([], []) -> Falue parseResult.state.test
 			(nextCandidate:candidateLeft, []) ->
-				Error $ LeftoverSub $ P.Populace nextCandidate candidateLeft
+				Error $ LeftoverCandidate $ P.Populace nextCandidate candidateLeft
 			([], nextRequirement:requirementLeft) ->
-				Error $ LeftoverSuper $ P.Populace nextRequirement requirementLeft
+				Error $ LeftoverRequirement $ P.Populace nextRequirement requirementLeft
 			(nextCandidate:_, nextRequirement:requirementLeft) ->
 				Error $ Mismatch nextCandidate $ P.Populace nextRequirement requirementLeft
 
-		let errorOfIncompletion = sequenceAny $ map errIfIncomplete parses.parses.l
-		case (errorOfIncompletion, parses.bestError) of
-			(Falue _, _) -> Falue ()
+		let completionResult = sequenceAny $ map testIfComplete parses.parses.l
+		case (completionResult, parses.bestError) of
+			(Falue completeTests, _) -> case completeTests of
+				completeTest:_ -> Falue completeTest
+				[] -> Falue test
 			(Error _, Just bestError) -> Error bestError
 			(Error incomplete, Nothing) -> Error incomplete
 

@@ -28,22 +28,22 @@ digit = c [cr '0' '9']
 -- tests
 
 testOr :: TestCategory
-testOr = TestCategories "Or sub" [
-	TestCategories "Or super" [
+testOr = TestCategories "Or candidate" [
+	TestCategories "Or requirement" [
 		PureTests "satisfies" [
 			("exact", o [zero, two] `assertSatisfies` o [zero, two]),
-			("one subpattern sub", o [zero, low] `assertSatisfies` o [zero, two]),
-			("all subpatterns subs", o [digit, low] `assertSatisfies` o [zero, two]),
+			("one subpattern candidate", o [zero, low] `assertSatisfies` o [zero, two]),
+			("all subpatterns candidates", o [digit, low] `assertSatisfies` o [zero, two]),
 			("exact reversed", o [zero, two] `assertSatisfies` o [two, zero]),
-			("one subpattern sub reversed", o [zero, low] `assertSatisfies` o [two, zero]),
-			("all subpattern subs reversed", o [digit, low] `assertSatisfies` o [two, zero]) ],
+			("one subpattern candidate reversed", o [zero, low] `assertSatisfies` o [two, zero]),
+			("all subpattern candidates reversed", o [digit, low] `assertSatisfies` o [two, zero]) ],
 		PureTests "does not satisfy" [
-			("all super subpatterns subs", o [zero, two] `assertDoesNotSatisfy` o [low, digit]),
-			("one super subpattern sub", o [zero, two] `assertDoesNotSatisfy` o [zero, digit]),
+			("all requirement subpatterns candidates", o [zero, two] `assertDoesNotSatisfy` o [low, digit]),
+			("one requirement subpattern candidate", o [zero, two] `assertDoesNotSatisfy` o [zero, digit]),
 			("one subpattern disparate", o [zero, SomePattern Space] `assertDoesNotSatisfy` o [zero, digit]) ]],
-	TestCategories "end of super" [
-		-- I cannot pass an empty super into `satisfies`, so each super and sub share a prefix.
-		-- This means that the second super subpattern, the Or, will match against [] on the second pass.
+	TestCategories "end of requirement" [
+		-- I cannot pass an empty requirement into `satisfies`, so each requirement and candidate share a prefix.
+		-- This means that the second requirement subpattern, the Or, will match against [] on the second pass.
 		PureTests "satisfies" [
 			("one optional", patConcat [zero, o [e, zero]] `assertSatisfies` zero),
 			("all optional", patConcat [zero, o [e, e]] `assertSatisfies` zero) ],
@@ -51,7 +51,7 @@ testOr = TestCategories "Or sub" [
 			("none optional", patConcat [zero, o [zero, two]] `assertDoesNotSatisfy` zero)]],
 	TestCategories "disparate" [
 		PureTests "satisfies" [
-			("super in one", digit `assertSatisfies` o [zero, two]) ],
+			("requirement in one", digit `assertSatisfies` o [zero, two]) ],
 		PureTests "does not satisfy" [
 			("misses one", low `assertDoesNotSatisfy` o [zero, two]),
 			("misses all", zero `assertDoesNotSatisfy` o [low, two]) ]]]

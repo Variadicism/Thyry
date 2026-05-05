@@ -44,4 +44,7 @@ mustHaveSuffix :: SomePattern -> Bool
 canMatchEmpty :: SomePattern -> Bool
 startingSpaceStates :: SomePattern -> Set Code.SpaceState
 isOptional :: SomePattern -> Bool
-satisfies :: (TypeTest, SomePattern) -> SomePattern -> FallibleI Mismatch ()
+satisfies ::
+	(TypeTest, SomePattern) ->
+	SomePattern ->
+	FallibleI Mismatch TypeTest

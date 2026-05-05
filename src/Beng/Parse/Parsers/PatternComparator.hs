@@ -1,15 +1,15 @@
 module Beng.Parse.Parsers.PatternComparator (
 	startState,
-	swapSub,
-	swapSuper,
+	swapCandidate,
+	swapRequirement,
 	acceptRest,
-	acceptSuperOnly,
+	acceptRequirementOnly,
 	acceptUsing,
 	accept,
 	parseAll,
 	parseWhile,
 	internallySatisfies,
-	compareAsSuperDefault,
+	compareAsRequirementDefault,
 	comparator,
 	module Beng.Types.Parse.Parsers.PatternComparator
 ) where
@@ -110,11 +110,13 @@ takeAs = Parser.takeAsUsing takeAs1
 takeAsNull :: Show t => t -> Parser.ParseRunner Mismatch Comparison ComparatorState t
 takeAsNull = takeAs Comparison { candidate = [], requirement = [] }
 
-compareAsSubPattern :: SomePattern -> Parser
-compareAsSubPattern (SomePattern pattern) = Pattern.compareAsSub pattern >:> comparator >\> const ()
+compareAsCandidatePattern :: SomePattern -> Parser
+compareAsCandidatePattern (SomePattern pattern) =
+	Pattern.compareAsCandidate pattern >:> comparator >\> const ()
 
-compareAsSuperPattern :: SomePattern -> Parser
-compareAsSuperPattern (SomePattern pattern) = Pattern.compareAsSuper pattern >:> comparator >\> const ()
+compareAsRequirementPattern :: SomePattern -> Parser
+compareAsRequirementPattern (SomePattern pattern) =
+	Pattern.compareAsRequirement pattern >:> comparator >\> const ()
 
 startState :: Bool -> TypeTest -> SomePattern -> SomePattern -> ComparatorState
 startState checkArgTypes test requirement candidate =
@@ -126,17 +128,17 @@ startState checkArgTypes test requirement candidate =
 		checkArgTypes,
 		test }
 
-swapSub :: [SomePattern] -> ComparatorState -> ComparatorState
-swapSub newCandidate s = s{ rest = s.rest{ candidate = newCandidate }}
+swapCandidate :: [SomePattern] -> ComparatorState -> ComparatorState
+swapCandidate newCandidate s = s{ rest = s.rest{ candidate = newCandidate }}
 
-swapSuper :: [SomePattern] -> ComparatorState -> ComparatorState
-swapSuper newRequirement s = s{ rest = s.rest{ requirement = newRequirement }}
+swapRequirement :: [SomePattern] -> ComparatorState -> ComparatorState
+swapRequirement newRequirement s = s{ rest = s.rest{ requirement = newRequirement }}
 
 acceptRest :: ParseRunner
 acceptRest state = takeAs state.rest () state
 
-acceptSuperOnly :: [SomePattern] -> ParseRunner
-acceptSuperOnly fromRequirement = takeAs Comparison {
+acceptRequirementOnly :: [SomePattern] -> ParseRunner
+acceptRequirementOnly fromRequirement = takeAs Comparison {
 	candidate = [],
 	requirement = fromRequirement } ()
 
@@ -150,7 +152,7 @@ acceptUsing fromRequirement test = \state -> case state.rest.candidate of
 			", but no pattern remained in the candidate to match it to!"
 
 accept :: [SomePattern] -> ParseRunner
-accept fromSuper = \state -> acceptUsing fromSuper state.test state
+accept fromRequirement = \state -> acceptUsing fromRequirement state.test state
 
 parseAll :: Parser -> Parser
 parseAll = (>\> const ()) . Parser.parseAllUsing takeAsNull
@@ -160,21 +162,23 @@ parseWhile desc checker pieceParser =
 	Parser.parseWhileUsing takeAsNull desc checker pieceParser >\> const ()
 
 internallySatisfies :: (ComparatorState, SomePattern) -> SomePattern -> FallibleI Mismatch Parses
-internallySatisfies (state, super) sub = swapSub [sub] (swapSuper [super] state) >>> comparator
+internallySatisfies (state, requirement) candidate =
+	swapCandidate [candidate] (swapRequirement [requirement] state) >>> comparator
 
-compareAsSuperDefault :: SomePattern -> Parser
-compareAsSuperDefault self = "default super comparator for " ++ show self @> \state ->
+compareAsRequirementDefault :: SomePattern -> Parser
+compareAsRequirementDefault self = "default requirement comparator for " ++ show self @> \state ->
 	case state.rest.requirement of
 		nextRequirement:requirementLeft ->
 			if isOptional nextRequirement && not state.atStart then do
 				let skipThenCompare = "skipping optional " ++ show nextRequirement @> \state' ->
-					swapSuper requirementLeft state' >>> comparator
-				state >>> compareAsSuperDefault self >|> skipThenCompare
+					swapRequirement requirementLeft state' >>> comparator
+				state >>> compareAsRequirementDefault self >|> skipThenCompare
 			else case state.rest.candidate of
-				nextSub:_ -> state >>> compareAsSubPattern nextSub
-				[] -> Error $ LeftoverSuper $ P.Populace nextRequirement requirementLeft
+				nextCandidate:_ -> state >>> compareAsCandidatePattern nextCandidate
+				[] -> Error $ LeftoverRequirement $ P.Populace nextRequirement requirementLeft
 		[] -> case state.rest.candidate of
-			nextSub:subLeft -> Error $ LeftoverSub $ P.Populace nextSub subLeft
+			nextCandidate:candidateLeft ->
+				Error $ LeftoverCandidate $ P.Populace nextCandidate candidateLeft
 			[] -> acceptRest state
 
 comparator :: Parser
@@ -186,6 +190,6 @@ comparator = do
 				if all isOptional requirement then
 					acceptRest state
 				else
-					Error $ LeftoverSuper $ P.Populace nextRequirement requirementLeft
-			(nextSuper:_, _) -> state >>> compareAsSuperPattern nextSuper
-			([], nextSub:_) -> state >>> compareAsSubPattern nextSub
+					Error $ LeftoverRequirement $ P.Populace nextRequirement requirementLeft
+			(nextRequirement:_, _) -> state >>> compareAsRequirementPattern nextRequirement
+			([], nextCandidate:_) -> state >>> compareAsCandidatePattern nextCandidate

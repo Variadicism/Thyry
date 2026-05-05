@@ -20,12 +20,14 @@ class (Show op, Messagable op) => Operator op where
 	location :: op -> Location
 	decLoc :: op -> Location
 	pattern :: op -> SomePattern
-	returnType :: op -> Thing.SomeThing
+	returnType :: op -> Thing.SomeParameterizedThing
 	associativity :: op -> Associativity
 	precedence :: op -> PrecedenceBound
 	contextualize :: op -> ArgContextBuilder
 	inlineDefinition :: op -> Maybe Definition
-	hasProp :: TypeTest -> op -> FallibleI Thing.Mismatch ()
+	hasProp
+		:: TypeTest -> op -> FallibleI Thing.Mismatch TypeTest
+	resolve :: Thing.ParameterMatches -> op -> SomeOperator
 	runUsing :: Invocation op -> Fallible Thing.SomeThing
 
 data SomeOperator = forall op. Operator op => SomeOperator op

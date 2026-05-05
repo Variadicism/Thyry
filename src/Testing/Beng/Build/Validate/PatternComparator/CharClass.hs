@@ -10,26 +10,26 @@ import Beng.Build.Context.Builders (c, cr, l)
 import Beng.Types.Parse.Patterns (Delimited(..), SomePattern(..), Space(..))
 
 testCharClass :: TestCategory
-testCharClass = TestCategories "CharClass sub" do
+testCharClass = TestCategories "CharClass candidate" do
 	let ints = c [cr '0' '9']
 	let letters = c [cr 'a' 'z', cr 'A' 'Z']
 	let alphaNum = c [cr '0' '9', cr 'a' 'z', cr 'A' 'Z']
 	let splitInts = c [cr '0' '2', cr '3' '9']
 	let words = c [cr 'a' 'z', cr 'A' 'Z', cr ' ' ' ', cr '-' '-']
 	[
-		TestCategories "CharClass super" [
+		TestCategories "CharClass requirement" [
 			PureTests "satisfies" [
 				("exact", ints `assertSatisfies` ints),
-				("super split but equal", splitInts `assertSatisfies` ints),
-				("sub split but equal", ints `assertSatisfies` splitInts),
-				("super superset", alphaNum `assertSatisfies` ints) ],
+				("requirement split but equal", splitInts `assertSatisfies` ints),
+				("candidate split but equal", ints `assertSatisfies` splitInts),
+				("requirement superset", alphaNum `assertSatisfies` ints) ],
 			PureTests "does not satisfy" [
 				("disparate", ints `assertDoesNotSatisfy` letters),
-				("sub superset", ints `assertDoesNotSatisfy` alphaNum) ]],
-		PureTests "Literal super" [
+				("candidate superset", ints `assertDoesNotSatisfy` alphaNum) ]],
+		PureTests "Literal requirement" [
 			("satisfies", ints `assertSatisfies` l "0"),
 			("err does not satisfy", ints `assertDoesNotSatisfy` l "f") ],
-		PureTests "Space super" [
+		PureTests "Space requirement" [
 			("satisfies", SomePattern Space `assertSatisfies` words),
 			("err does not satisfy", SomePattern Space `assertDoesNotSatisfy` alphaNum) ],
 		PureTests "disparate" [

@@ -4,19 +4,21 @@ module Beng.Build.Context.Builtin (
 
 import Prelude hiding (subtract)
 
+import qualified Utils.Populace as P
 import qualified Utils.Populace.Populace2 as P2
 
 import Beng.Types.Operators (SomeOperator(..))
+import Beng.Types.Invocations (SomeInvocation(..))
 import Beng.Build.Context (Context(..), PrecedenceBound(..))
-import Beng.Build.Context.Builders (c, cr, e, nc, s, l, multi, argAt, asBits, asInt, asNativeString, asInv, bitType, bitValue, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf, intType, intValue, stringType, stringValue, textAt)
-import Beng.Types.Parse.Matches (value)
+import Beng.Build.Context.Builders (c, cr, e, nc, s, l, multi, argAt, asBits, asInt, asList, asNativeString, asInv, asSome, bitType, bitValue, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf, intType, intValue, listOfP, orTP, someOfP, stringType, stringValue, textAt, thingP)
+import Beng.Types.Parse.Matches (matchedType, value)
 import Beng.Types.Parse.Patterns (And(..), Delimited(..), Or(..), SomePattern(..))
 import Beng.Run (run, runWhileOp)
 import Beng.Types.Operators.Declarations (Associativity(..), Declaration)
 import Beng.Types.Operators.Definitions (Definition(..))
 import Beng.Types.Locations (Location(..))
 import Beng.Things (PreOpType(..))
-import Beng.Types.Things (SomeThing(..), NativeBitsType(..))
+import Beng.Types.Things (NativeListValue(..), NativeSomeValue(..), Parameter(..), SomeConcreteThing(..), SomeParameterizedThing(..), SomeThing(..), NativeBitsType(..), parameterize)
 
 import qualified Data.ByteString as BS
 import Data.Int (Int32)
@@ -48,10 +50,13 @@ valueName = do
    Java or Beng, this wouldn't be such a pain. -}
 
 data BuiltinOp =
+	LineComment | LineCommentEnd |
 	Ints | Strings | Yes | No |
 	IntType | BitType |
-	Add | Subtract |
+	Add | Subtract | Equal |
 	StartsWith |
+	EmptyList | ConcatLists |
+	Only | First | ConcatListSome |
 	DefineValue | If
 	deriving (Show, Eq, Enum, Ord)
 
@@ -65,6 +70,16 @@ hangingDefinitionOf :: BuiltinOp -> Location -> Definition
 hangingDefinitionOf opEnum location = case opEnum of
 	-- Types of the arguments and the values in these definitions are disjointed,
 	-- losing all type guarantees. This will not be an issue in Beng! :)
+	LineComment -> define Default
+		[l "#", t "Content" $ multi $ nc [cr '\n' '\n'], l "\n", a "Value" (p "V" thingP)]
+		(p "V" thingP)
+		(\args -> return $ args ! "Value")
+		location
+	LineCommentEnd -> define Default
+		[a "Value" (p "V" thingP), l "#", t "Content" $ multi $ nc [cr '\n' '\n']]
+		(p "V" thingP)
+		(\args -> return $ args ! "Value")
+		location
 	Ints -> define None
 		[t "Integer" $ multi $ c [cr '0' '9']]
 		intType
@@ -84,24 +99,24 @@ hangingDefinitionOf opEnum location = case opEnum of
 	IntType -> define None
 		[l "an int"]
 		intType
-		(\_ -> return intType)
+		(\_ -> return $ SomeThing $ NativeBitsType 32)
 		location
 	BitType -> define None
 		[l "a bit"]
 		bitType
-		(\_ -> return bitType)
+		(\_ -> return $ SomeThing $ NativeBitsType 1)
 		location
 	Yes -> define None
 		[l "yes"]
-		(SomeThing $ NativeBitsType 1)
+		(SomeParameterizedThing $ NativeBitsType 1)
 		(\_ -> return $ bitValue True)
 		location
 	No -> define None
 		[l "no"]
-		(SomeThing $ NativeBitsType 1)
+		(SomeParameterizedThing $ NativeBitsType 1)
 		(\_ -> return $ bitValue False)
 		location
-	Add -> define Default
+	Add -> define (Above $ SomeOperator $ dec LineComment)
 		[a "Augend" intType, s, l "+", s, a "Addend" intType]
 		intType
 		(\args -> do
@@ -117,6 +132,45 @@ hangingDefinitionOf opEnum location = case opEnum of
 			subtrahend <- asInt $ args ! "Subtrahend"
 			return $ intValue $ minuend - subtrahend)
 		location
+	Equal -> define (Below $ SomeOperator $ dec Subtract)
+		[a "Left" thingP, s, l "=", s, a "Right" thingP]
+		bitType
+		(\args -> return $ bitValue $ args ! "Left" == args ! "Right")
+		location
+	EmptyList -> define None
+		[l "nothing"]
+		(listOfP thingP)
+		(const $ return $ SomeThing $ NativeListValue ([] :: [SomeConcreteThing]))
+		location
+	ConcatLists -> define (Above $ SomeOperator $ dec Equal)
+		[a "Init" (p "L" $ listOfP thingP), s, l "and", s, a "Tail" $ (p "L" $ listOfP thingP)]
+		(p "L" $ listOfP thingP)
+		(\args -> do
+			initL <- asList $ args ! "Init"
+			tailL <- asList $ args ! "Tail"
+			return $ SomeThing $ NativeListValue $ initL ++ tailL)
+		location
+	Only -> define (Above $ SomeOperator $ dec Add)
+		[l "only", s, a "Only" $ p "O" thingP]
+		(someOfP $ p "O" thingP)
+		(\args -> return $ SomeThing $ NativeSomeValue $ P.singleton $ args ! "Only")
+		location
+	First -> define (Above $ SomeOperator $ dec Add)
+		[l "First", s, l "of", s, a "Some" $ someOfP $ p "E" thingP]
+		(p "E" thingP)
+		(\args -> do
+			someValue <- asSome $ args ! "Some"
+			case P.uncons someValue of
+				(first, _) -> return first)
+		location
+	ConcatListSome -> define (At $ SomeOperator $ dec ConcatLists)
+		[a "Init" (p "L" $ listOfP thingP), s, l "and", s, a "Tail" $ (p "L" $ someOfP thingP)]
+		(p "L" $ listOfP thingP)
+		(\args -> do
+			initL <- asList $ args ! "Init"
+			tailSome <- asSome $ args ! "Tail"
+			return $ SomeThing $ NativeSomeValue $ P.assume $ initL ++ tailSome.l)
+		location
 	StartsWith -> define (Below $ SomeOperator $ dec Add)
 		[a "Target" stringType, s, l "starts", s, l "with", s, a "Prefix" stringType]
 		bitType
@@ -126,34 +180,42 @@ hangingDefinitionOf opEnum location = case opEnum of
 			return $ bitValue $ prefix `Text.isPrefixOf` target)
 		location
 	DefineValue -> defineUsing (Below $ SomeOperator $ dec Add) Righty
-		[t "Name" valueName, s, l ":=", s, a "Thing" intType, s,
-			a "Scope" (SomeThing $ PreOpType intType)]
-		intType
+		[t "Name" valueName, s, l ":=", s, a "Value" thingP, s,
+			a "Scope" (SomeParameterizedThing $ PreOpType $ p "R" thingP)]
+		(p "R" thingP)
 		(\name args location -> case name of
 			"Scope" -> do
 				name <- asNativeString $ (args ! "Name").value
-				let value = (args ! "Thing").value
-				return [SomeOperator $ defineLiteral name intType value location]
+				let value = (args ! "Value").value
+				let valueType = parameterize $ (args ! "Value").matchedType
+				return [SomeOperator $ defineLiteral name valueType value location]
 			_ -> return [])
-		(\args -> run $ asInv $ args ! "Scope")
+		(\args -> case asInv $ args ! "Scope" of
+			SomeInvocation invocation -> run invocation)
 		location
 	If -> define (Below $ SomeOperator $ dec DefineValue)
-		[l "if", s, a "Condition" (SomeThing $ NativeBitsType 1), l ",",
-			s, a "Y" intType, s,
-			l "else", s, a "N" intType]
-		intType
+		[l "if", s, a "Condition" bitType, l ",", s,
+			a "Yes Value" (p "Y" thingP), s,
+			l "else", s,
+			a "No Value" (p "N" thingP)]
+		((p "Y" thingP) `orTP` (p "N" thingP))
 		(\args -> do
 			conditionValue <- runWhileOp $ args ! "Condition"
 			bytestring <- asBits 1 conditionValue
 			let [bit] = BS.unpack bytestring
-			return $ args ! (if bit > 0 then "Y" else "N"))
+			return $ args ! (if bit > 0 then "Yes Value" else "No Value"))
 		location
 	where
+		a :: String -> SomeParameterizedThing -> SomePattern
 		a name = do
 			-- Since we're building the builtin ops, it must be a Builtin location.
 			-- I wish I could just declare that in the type. DataKinds, maybe? I can't figure that out.
 			let (Builtin parentIndex) = location
 			argAt BuiltinArg { name, parentIndex } name
+		p :: String -> SomeParameterizedThing -> SomeParameterizedThing
+		p name baseType = do
+			let (Builtin parentIndex) = location
+			SomeParameterizedThing Parameter { name, baseType, decLoc = BuiltinArg { name, parentIndex }}
 		t name = do
 			let (Builtin parentIndex) = location
 			textAt BuiltinArg { name, parentIndex } name
@@ -162,4 +224,4 @@ hangingDefinitionOf opEnum location = case opEnum of
 -- exported
 
 context :: Context
-context = buildContextFrom hangingDefinitionOf Ints
+context = buildContextFrom hangingDefinitionOf LineComment

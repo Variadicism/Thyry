@@ -9,14 +9,14 @@ import Utils.Messaging (msg)
 import Utils.Testing
 
 import Beng.Build.Context.Builders (asInt)
-import Beng.Types.Invocations (SomeInvocation)
+import Beng.Types.Invocations (SomeInvocation(..))
 import qualified Beng.Run as Beng
 import Beng.Types.Things (SomeThing)
 
 -- exported
 
 run :: SomeInvocation -> Fallible SomeThing
-run = mapError msg . Beng.run
+run (SomeInvocation invocation) = mapError msg $ Beng.run invocation
 
 assertEval :: Int -> SomeInvocation -> Fallible ()
 assertEval expected op = do

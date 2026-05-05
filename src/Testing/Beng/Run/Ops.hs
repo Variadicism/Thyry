@@ -22,6 +22,7 @@ import Beng.Parse.Matches ()
 import qualified Beng.Types.Parse.Matches as M
 import Beng.Parse.Patterns (Argument(..))
 import Beng.Run (run)
+import Beng.Types.Build.TypeTest (ParameterMatchResults(..))
 import Beng.Types.Locations (FileLocation(..), Location(..))
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import Beng.Types.Parse.Matches (SomeMatch(..))
@@ -30,16 +31,28 @@ import Beng.Things (
 	SomeThing(..),
 	NativeOptionalValue(..),
 	NativeSomeValue(..) )
-import Beng.Types.Things (castThing)
+import Beng.Types.Things (
+	SomeConcreteThing(..),
+	SomeParameterizedThing,
+	Thing(..),
+	NativeBitsType(..),
+	castThing )
 
 import Data.Map ((!))
 
 -- constants
 
-argMatchOf :: Int -> String -> SomeThing -> SomeInvocation -> SomeMatch
+argMatchOf :: Int -> String -> SomeParameterizedThing -> SomeInvocation -> SomeMatch
 argMatchOf parentIndex name argType inv = SomeMatch $ M.Argument {
-	argType, name, value = SomeThing inv,
-	decLoc = BuiltinArg name parentIndex }
+	pattern = Argument { argType, name, decLoc = BuiltinArg name parentIndex },
+	matchedType = parameterize inv.returnType,
+	parameterMatches = ParameterMatchResults {
+		candidateMatches = mempty,
+		requirementMatches = mempty },
+	value = SomeThing inv }
+
+runInv value = case asInv value of
+	SomeInvocation invocation -> run invocation
 
 someOrNone :: Definition
 someOrNone = define Default
@@ -49,7 +62,7 @@ someOrNone = define Default
 		let Just NativeOptionalValue{fal=maybeSome} = castThing $ args ! "Some"
 		case maybeSome of
 			Error _ -> return $ intValue 0
-			Falue value -> run $ asInv value)
+			Falue value -> runInv value)
 	(Builtin 0)
 
 sumCommas :: Definition
@@ -60,7 +73,7 @@ sumCommas = define Default
 		let Just NativeSomeValue{valuesP=elements} = castThing $ args ! "Element"
 		return $ intValue $ sum $
 			assume $ sequence $ map (>>= asInt) $
-			map (run . asInv) elements)
+			map runInv elements)
 	(Builtin 1)
 
 noneOp :: SomeInvocation
@@ -68,6 +81,7 @@ noneOp = SomeInvocation Invocation {
 	operator = someOrNone,
 	context = Context.empty,
 	location = Builtin 2,
+	returnType = SomeConcreteThing $ NativeBitsType 32,
 	match = SomeMatch $ M.Or { matchIndex = 0,
 		misses = [Argument "Some" intType (BuiltinArg "Some" 2)],
 		match = SomeMatch $ M.Literal "none" }}
@@ -79,6 +93,7 @@ someOp inv = SomeInvocation Invocation {
 	operator = someOrNone,
 	context = Context.empty,
 	location = Builtin 3,
+	returnType = SomeConcreteThing $ NativeBitsType 32,
 	match = SomeMatch $ M.Or {
 		matchIndex = 1, misses = [],
 		match = argMatchOf 3 "Some" intType inv }}
@@ -88,6 +103,7 @@ sumCommasOp firstArgInv invsTail = SomeInvocation Invocation {
 	operator = sumCommas,
 	context = Context.empty,
 	location = Builtin 4,
+	returnType = SomeConcreteThing $ NativeBitsType 32,
 	match = SomeMatch $ M.Delimited {
 		M.head = argMatchOf 4 "Element" intType firstArgInv,
 		M.tail = toTail invsTail }}
@@ -126,5 +142,6 @@ testRunOps = TestCategories "evaluate" [
 				operator = declaration,
 				context = Context.empty,
 				location,
+				returnType = SomeConcreteThing $ NativeBitsType 32,
 				match = SomeMatch $ M.Literal "test" }
 			assertUndefinedError inv)]]

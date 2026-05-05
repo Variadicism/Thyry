@@ -72,15 +72,15 @@ parseSingleSpace = "parse whitespace" @> \state ->
 		Nothing -> Error $ parseError state
 			"The end of the text was reached while trying to parse whitespace!"
 
-compareAsSubSpace :: Space -> PatternComparator.Parser
-compareAsSubSpace _ = "space comparator" @> \state ->
+compareAsCandidateSpace :: Space -> PatternComparator.Parser
+compareAsCandidateSpace _ = "space comparator" @> \state ->
 	case state.rest.requirement of
 		[] -> case state.rest.candidate of
 			[_] -> PatternComparator.accept [] state
 			_ -> Error $ Mismatch (SomePattern Space) $ P.assume state.rest.candidate
-		nextSuper:superLeft -> do
-			let nextIsSpace = maybe False (const True) (asPattern nextSuper :: Maybe Space)
-			let states = startingSpaceStates nextSuper
+		nextRequirement:requirementLeft -> do
+			let nextIsSpace = maybe False (const True) (asPattern nextRequirement :: Maybe Space)
+			let states = startingSpaceStates nextRequirement
 			let canSatisfyBoundary =
 				not state.atStart &&
 				not (Set.null states) &&
@@ -90,49 +90,52 @@ compareAsSubSpace _ = "space comparator" @> \state ->
 			else if canSatisfyBoundary then
 				PatternComparator.accept [] state
 			else
-				Error $ Mismatch (SomePattern Space) $ P.Populace nextSuper superLeft
+				Error $ Mismatch (SomePattern Space) $ P.Populace nextRequirement requirementLeft
 
-compareAsSuperSpace :: Space -> PatternComparator.Parser
-compareAsSuperSpace _ = "space super comparator" @> \state -> do
+compareAsRequirementSpace :: Space -> PatternComparator.Parser
+compareAsRequirementSpace _ = "space requirement comparator" @> \state -> do
 	case state.rest.requirement of
-		nextSuper:superLeft -> do
-			let headSubIsSpace = case state.rest.candidate of
-				nextSub:_ -> maybe False (const True) (asPattern nextSub :: Maybe Space)
+		nextRequirement:requirementLeft -> do
+			let headCandidateIsSpace = case state.rest.candidate of
+				nextCandidate:_ -> maybe False (const True) (asPattern nextCandidate :: Maybe Space)
 				[] -> False
-			let headSubConsumesWhitespace = case state.rest.candidate of
-				nextSub:_ -> Set.member Code.Space $ startingSpaceStates nextSub
+			let headCandidateConsumesWhitespace = case state.rest.candidate of
+				nextCandidate:_ -> Set.member Code.Space $ startingSpaceStates nextCandidate
 				[] -> False
 			let canConsumeBoundary =
-				not headSubIsSpace &&
-				not headSubConsumesWhitespace &&
+				not headCandidateIsSpace &&
+				not headCandidateConsumesWhitespace &&
 				not state.atStart &&
-				case superLeft of
+				case requirementLeft of
 					next:_ -> do
 						let states = startingSpaceStates next
 						not (Set.null states) && all (Code.formsBoundary state.spaceState) states
 					[] -> False
 			if canConsumeBoundary then
-				state >>> ("consume boundary super Space" @>
-						PatternComparator.acceptSuperOnly [nextSuper]) >:>
+				state >>> ("consume boundary requirement Space" @>
+						PatternComparator.acceptRequirementOnly [nextRequirement]) >:>
 					PatternComparator.comparator >\> const ()
 			else
 				case state.rest.candidate of
-					nextSub:_ -> dispatchCurrentSub nextSub state
-					[] -> Error $ LeftoverSuper $ P.Populace nextSuper superLeft
+					nextCandidate:_ -> dispatchCurrentCandidate nextCandidate state
+					[] -> Error $ LeftoverRequirement $ P.Populace nextRequirement requirementLeft
 		[] -> case state.rest.candidate of
-			nextSub:subLeft -> Error $ LeftoverSub $ P.Populace nextSub subLeft
+			nextCandidate:candidateLeft -> Error $ LeftoverCandidate $ P.Populace nextCandidate candidateLeft
 			[] -> PatternComparator.acceptRest state
 	where
-		dispatchCurrentSub (SomePattern pattern) state =
-			state >>> Pattern.compareAsSub pattern >:> PatternComparator.comparator >\> const ()
+		dispatchCurrentCandidate (SomePattern pattern) state =
+			state >>> Pattern.compareAsCandidate pattern >:> PatternComparator.comparator >\> const ()
+
+instance Show Space where
+	show _ = " "
 
 instance Messagable Space where
 	msg = show
 
 instance Pattern Match.Space Space where
 	parse _ = parseSpace
-	compareAsSub = compareAsSubSpace
-	compareAsSuper = compareAsSuperSpace
+	compareAsCandidate = compareAsCandidateSpace
+	compareAsRequirement = compareAsRequirementSpace
 	mustHavePrefix _ = False
 	mustHaveSuffix _ = False
 	canHavePrefix _ = True

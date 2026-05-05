@@ -69,10 +69,10 @@ instance Eq Declaration where
 	(==) d1 d2 = d1.location == d2.location
 
 instance Show Declaration where
-	show dec = show dec.location ++ msg dec.pattern ++ " => " ++ msg dec.returnType
+	show dec = show dec.location ++ "\\" ++ msg dec.pattern ++ " => " ++ msg dec.returnType
 
 instance Messagable Declaration where
-	msg Declaration{..} = msg pattern ++ " => " ++ msg returnType
+	msg Declaration{..} = "\\" ++ msg pattern ++ " => " ++ msg returnType
 
 instance Ord Declaration where
 	compare d1 d2 = compare d1.location d2.location

@@ -24,19 +24,19 @@ digit = c [cr '0' '9']
 -- tests
 
 testNamedText :: TestCategory
-testNamedText = TestCategories "NamedText sub" [
-	TestCategories "NamedText super" [
+testNamedText = TestCategories "NamedText candidate" [
+	TestCategories "NamedText requirement" [
 		PureTests "satisfies" [
 			("exact", nt "Zero" zero `assertSatisfies` nt "Zero" zero),
-			("sub subpattern", nt "Zero" digit `assertSatisfies` nt "Zero" zero) ],
+			("candidate subpattern", nt "Zero" digit `assertSatisfies` nt "Zero" zero) ],
 		PureTests "does not satisfy" [
 			("misnamed", nt "Number" zero `assertDoesNotSatisfy` nt "Zero" zero),
-			("super subpattern", nt "Zero" zero `assertDoesNotSatisfy` nt "Zero" digit),
+			("requirement subpattern", nt "Zero" zero `assertDoesNotSatisfy` nt "Zero" digit),
 			("disparate subpattern", nt "Zero" (SomePattern Space) `assertDoesNotSatisfy` nt "Zero" zero) ]],
-	TestCategories "disparate super" [
+	TestCategories "disparate requirement" [
 		PureTests "satisfies" [
 			("unnamed exact subpattern", zero `assertSatisfies` nt "Zero" zero),
-			("unnamed super subpattern", digit `assertSatisfies` nt "Zero" zero) ],
+			("unnamed requirement subpattern", digit `assertSatisfies` nt "Zero" zero) ],
 		PureTests "does not satisfy" [
-			("unnamed sub subpattern", zero `assertDoesNotSatisfy` nt "Number" digit),
+			("unnamed candidate subpattern", zero `assertDoesNotSatisfy` nt "Number" digit),
 			("Space", SomePattern Space `assertDoesNotSatisfy` nt "Zero" zero) ]]]

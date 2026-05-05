@@ -1,23 +1,51 @@
 module Beng.Types.Build.TypeTest (
+	Binding(..),
+	ParameterMatches,
+	ParameterMatchResults(..),
 	Contest(..),
 	TypeTest(..),
-	TypeTestResult
+	TypeTestProgressResult,
+	TypeTestResult,
+	matchesOf
 ) where
 
 import Utils.Fallible (FallibleI)
 
 import Beng.Types.Build.Context (Context)
-import Beng.Types.Things (Mismatch, SomeThing)
+import Beng.Types.Things (
+	Binding(..),
+	Mismatch,
+	ParameterMatches,
+	SomeParameterizedThing)
 
 data Contest = Contest {
-	candidate :: SomeThing,
+	candidate :: SomeParameterizedThing,
 	candidateName :: Maybe String,
-	requirement :: SomeThing,
+	requirement :: SomeParameterizedThing,
 	requirementName :: Maybe String }
 
 data TypeTest = TypeTest {
 	context :: Context,
 	ongoing :: [Contest],  -- prevents infinite recursion
-	current :: Contest }
+	current :: Contest,
+	candidateParameterMatches :: ParameterMatches,
+	requirementParameterMatches :: ParameterMatches }
 
-type TypeTestResult = FallibleI Mismatch ()
+data ParameterMatchResults = ParameterMatchResults {
+	candidateMatches :: ParameterMatches,
+	requirementMatches :: ParameterMatches }
+
+instance Show ParameterMatchResults where
+	show ParameterMatchResults{candidateMatches, requirementMatches} =
+		"[candidate matches: " ++ show (length candidateMatches) ++
+			", requirement matches: " ++ show (length requirementMatches) ++ "]"
+
+type TypeTestProgressResult = FallibleI Mismatch TypeTest
+
+type TypeTestResult = FallibleI Mismatch ParameterMatchResults
+
+matchesOf :: (TypeTest -> ParameterMatchResults)
+matchesOf TypeTest{candidateParameterMatches, requirementParameterMatches} =
+	ParameterMatchResults {
+		candidateMatches = candidateParameterMatches,
+		requirementMatches = requirementParameterMatches }

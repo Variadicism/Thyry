@@ -35,8 +35,8 @@ data Delimited
 
 class (Match m, Eq p, Show p, Messagable p, Typeable p) => Pattern m p | p -> m where
 	parse :: p -> Code.Parser m
-	compareAsSub :: p -> Comparator
-	compareAsSuper :: p -> Comparator
+	compareAsCandidate :: p -> Comparator
+	compareAsRequirement :: p -> Comparator
 	getSubpatterns :: p -> Populace SomePattern
 	getSubpatterns = P.singleton . SomePattern
 	mustHavePrefix :: p -> Bool

@@ -9,18 +9,19 @@ import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, ass
 import Beng.Types.Locations (Location(Builtin))
 import Beng.Types.Parse.Patterns (Argument(..), SomePattern(..))
 import Beng.Things (NativeBitsType(..), PatternType(..))
-import Beng.Types.Things (SomeThing(..))
+import Beng.Types.Things (SomeParameterizedThing(..))
 
 testArg :: TestCategory
 testArg = TestCategories "Arg" do
 	let a name argType = SomePattern Argument { name, argType, decLoc = Builtin 1 {- unused -}}
-	let intType = SomeThing $ NativeBitsType 32
-	let bitType = SomeThing $ NativeBitsType 1
+	let intType = SomeParameterizedThing $ NativeBitsType 32
+	let bitType = SomeParameterizedThing $ NativeBitsType 1
 	[
 		PureTests "satisfies" [
 			("exact", a "Int" intType `assertSatisfies` a "Int" intType),
-			("super type", a "Bit" intType `assertSatisfies` a "Bit" bitType),
+			("requirement type", a "Bit" intType `assertSatisfies` a "Bit" bitType),
 			("wrong name", a "Int" intType `assertSatisfies` a "Number" intType) ],
 		PureTests "does not satisfy" [
-			("sub type", a "Int" bitType `assertDoesNotSatisfy` a "Int" intType),
-			("disparate type", a "Int" intType `assertDoesNotSatisfy` a "Int" (SomeThing PatternType)) ]]
+			("candidate type", a "Int" bitType `assertDoesNotSatisfy` a "Int" intType),
+			("disparate type", a "Int" intType `assertDoesNotSatisfy`
+				a "Int" (SomeParameterizedThing PatternType)) ]]

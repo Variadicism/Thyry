@@ -9,6 +9,7 @@ import Utils.Messaging (Messagable(..), msg)
 import qualified Utils.Populace as P
 
 import Beng.Locations ()
+import Beng.Types.Build.TypeTest (ParameterMatchResults(..))
 import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>:>), (>\>), (>/\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
@@ -19,7 +20,7 @@ import qualified Beng.Types.Parse.Matches as Match
 import Beng.Parse.Patterns (asPattern)
 import qualified Beng.Parse.Patterns as Pattern
 import Beng.Things (NativeStringType(..), NativeStringValue(..))
-import Beng.Types.Things (SomeThing(..))
+import Beng.Types.Things (SomeParameterizedThing(..), SomeThing(..))
 import qualified Beng.Types.Parse.Patterns as TypePattern
 import Beng.Types.Parse.Patterns (
 	Argument(..),
@@ -33,6 +34,11 @@ import Beng.Types.Parse.Patterns (
 import qualified Data.Map as Map
 import qualified Data.Map.Ordered as OMap
 
+emptyParameterMatchResults :: ParameterMatchResults
+emptyParameterMatchResults = ParameterMatchResults {
+	candidateMatches = mempty,
+	requirementMatches = mempty }
+
 canBeEmpty :: SomePattern -> Bool
 canBeEmpty = Pattern.canMatchEmpty
 
@@ -40,45 +46,51 @@ parseNamedText :: NamedText -> Code.Parser Match.NamedText
 parseNamedText NamedText{..} = "named text " ++ wrap "\"" name @+>
 	Pattern.parse subpattern >/\> (\s match -> do
 		let argument = Match.Argument {
-			decLoc, name, argType = SomeThing NativeStringType,
+			pattern = Argument {
+				decLoc,
+				name,
+				argType = SomeParameterizedThing NativeStringType },
+			matchedType = SomeParameterizedThing NativeStringType,
+			parameterMatches = emptyParameterMatchResults,
 			value = SomeThing $ NativeStringValue $ Match.toCode match }
 		s{ Code.arguments = Map.insert name argument s.arguments }) >\> \match ->
 	Match.NamedText { decLoc, name, match }
 
-compareAsSubNamedText :: NamedText -> PatternComparator.Parser
-compareAsSubNamedText NamedText{..} = "named text " ++ wrap "\"" name ++ " comparator" @> \state ->
+compareAsCandidateNamedText :: NamedText -> PatternComparator.Parser
+compareAsCandidateNamedText NamedText{..} = "named text " ++ wrap "\"" name ++ " comparator" @> \state ->
 	case state.rest.candidate of
-		_:subLeft -> case state.rest.requirement of
-			next:superLeft -> case asPattern next :: Maybe NamedText of
+		_:candidateLeft -> case state.rest.requirement of
+			next:requirementLeft -> case asPattern next :: Maybe NamedText of
 				Just nt@NamedText{} -> if nt.name == name then do
 						(state, nt.subpattern) `internallySatisfies` subpattern
 						PatternComparator.accept [next] state
 					else
-						Error $ Mismatch next $ P.Populace next superLeft
-				Nothing -> state{ rest = state.rest{ candidate = subpattern : subLeft }} >>> comparator
-			_ -> state{ rest = state.rest{ candidate = subpattern : subLeft }} >>> comparator
+						Error $ Mismatch next $ P.Populace next requirementLeft
+				Nothing -> state{ rest = state.rest{ candidate = subpattern : candidateLeft }} >>> comparator
+			_ -> state{ rest = state.rest{ candidate = subpattern : candidateLeft }} >>> comparator
 		[] -> case state.rest.requirement of
-			next:superLeft -> do
+			next:requirementLeft -> do
 				let self = NamedText { name, subpattern, decLoc }
-				Error $ Mismatch (SomePattern self) $ P.Populace next superLeft
+				Error $ Mismatch (SomePattern self) $ P.Populace next requirementLeft
 			[] -> PatternComparator.acceptRest state
 
-compareAsSuperNamedText :: NamedText -> PatternComparator.Parser
-compareAsSuperNamedText nt@NamedText{..} = "named text " ++ wrap "\"" name ++ " super comparator" @> \state ->
+compareAsRequirementNamedText :: NamedText -> PatternComparator.Parser
+compareAsRequirementNamedText nt@NamedText{..} =
+	"named text " ++ wrap "\"" name ++ " requirement comparator" @> \state ->
 	case state.rest.candidate of
-		nextSub:_ -> case asPattern nextSub :: Maybe NamedText of
-			Just NamedText{} -> dispatchCurrentSub nextSub state
+		nextCandidate:_ -> case asPattern nextCandidate :: Maybe NamedText of
+			Just NamedText{} -> dispatchCurrentCandidate nextCandidate state
 			Nothing -> exposeSubpattern nt state
 		[] -> exposeSubpattern nt state
 	where
-		dispatchCurrentSub (SomePattern pattern) state =
-			state >>> TypePattern.compareAsSub pattern >:> comparator >\> const ()
+		dispatchCurrentCandidate (SomePattern pattern) state =
+			state >>> TypePattern.compareAsCandidate pattern >:> comparator >\> const ()
 
 		exposeSubpattern NamedText{..} state = case state.rest.requirement of
-			_:superLeft ->
-				state{ rest = state.rest{ requirement = subpattern:superLeft }} >>> comparator
+			_:requirementLeft ->
+				state{ rest = state.rest{ requirement = subpattern:requirementLeft }} >>> comparator
 			[] -> case state.rest.candidate of
-				nextSub:subLeft -> Error $ LeftoverSub $ P.Populace nextSub subLeft
+				nextCandidate:candidateLeft -> Error $ LeftoverCandidate $ P.Populace nextCandidate candidateLeft
 				[] -> PatternComparator.acceptRest state
 
 instance Eq NamedText where
@@ -92,8 +104,8 @@ instance Messagable NamedText where
 
 instance Pattern Match.NamedText NamedText where
 	parse = parseNamedText
-	compareAsSub = compareAsSubNamedText
-	compareAsSuper = compareAsSuperNamedText
+	compareAsCandidate = compareAsCandidateNamedText
+	compareAsRequirement = compareAsRequirementNamedText
 	mustHavePrefix NamedText{..} = not $ canBeEmpty subpattern
 	mustHaveSuffix NamedText{..} = Pattern.mustHavePrefix subpattern
 	canHavePrefix _ = True
@@ -103,7 +115,10 @@ instance Pattern Match.NamedText NamedText where
 	isOptional NamedText{..} = Pattern.isOptional subpattern
 	getSubpatterns NamedText{..} = P.singleton subpattern
 	getArgsUsing getArgs NamedText{..} =
-		(name, Argument { name, decLoc, argType = SomeThing NativeStringType }) OMap.|<
+		(name, Argument {
+			name,
+			decLoc,
+			argType = SomeParameterizedThing NativeStringType }) OMap.|<
 			getArgs subpattern
 
 parse :: NamedText -> Code.Parser Match.NamedText

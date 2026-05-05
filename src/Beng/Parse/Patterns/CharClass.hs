@@ -20,7 +20,7 @@ import Beng.Errors (parseError)
 import {-# SOURCE #-} Beng.Parse.Matches ()
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>:>))
 import qualified Beng.Parse.Parsers.Code as Code
-import Beng.Parse.Parsers.PatternComparator (compareAsSuperDefault)
+import Beng.Parse.Parsers.PatternComparator (compareAsRequirementDefault)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import qualified Beng.Types.Parse.Matches as Match
 import {-# SOURCE #-} Beng.Parse.Patterns (asPattern)
@@ -79,26 +79,26 @@ parseCharClass CharClass{..} = do
 				Error $ parseError state $
 					shown ++ " was expected, but '" ++ [firstChar] ++ "' was found!"
 
-compareAsSubCharClass :: CharClass -> PatternComparator.Parser
-compareAsSubCharClass self@CharClass{..} = showClass ranges negate ++ " comparator" @> \state -> do
+compareAsCandidateCharClass :: CharClass -> PatternComparator.Parser
+compareAsCandidateCharClass self@CharClass{..} = showClass ranges negate ++ " comparator" @> \state -> do
 	case uncons state.rest.requirement of
-		Nothing -> Error $ LeftoverSub $ P.assume state.rest.candidate
-		Just (next, superLeft) -> do
-			let superP = P.Populace next superLeft
+		Nothing -> Error $ LeftoverCandidate $ P.assume state.rest.candidate
+		Just (next, requirementLeft) -> do
+			let requirementP = P.Populace next requirementLeft
 			let compareAgainstSpace = case asPattern next :: Maybe Space of
 				Just Space -> if any isSpace ranges negate
 					then PatternComparator.accept [next] state
-					else Error $ Mismatch (SomePattern self) superP
-				Nothing -> Error $ Mismatch (SomePattern self) superP
+					else Error $ Mismatch (SomePattern self) requirementP
+				Nothing -> Error $ Mismatch (SomePattern self) requirementP
 			case asPattern next :: Maybe CharClass of
 				Just cc -> if Prelude.all (\c -> has c cc.ranges cc.negate) $ enumerate ranges then
 					PatternComparator.accept [next] state
 				else
-					Error $ Mismatch (SomePattern self) superP
+					Error $ Mismatch (SomePattern self) requirementP
 				Nothing -> case asPattern next :: Maybe Literal of
 					Just (Literal literal) -> if Text.null literal then
 						state >>> ("skip empty literal for " ++ showClass ranges negate @> PatternComparator.accept [next]) >:>
-							compareAsSubCharClass self >\> const ()
+							compareAsCandidateCharClass self >\> const ()
 					else if has (Text.head literal) ranges negate then
 						PatternComparator.accept [next] state
 					else
@@ -116,8 +116,8 @@ instance Messagable CharClass where
 
 instance Pattern Match.CharClass CharClass where
 	parse = parseCharClass
-	compareAsSub = compareAsSubCharClass
-	compareAsSuper self = compareAsSuperDefault (SomePattern self)
+	compareAsCandidate = compareAsCandidateCharClass
+	compareAsRequirement self = compareAsRequirementDefault (SomePattern self)
 	mustHavePrefix _ = True
 	mustHaveSuffix _ = True
 	canHavePrefix _ = True

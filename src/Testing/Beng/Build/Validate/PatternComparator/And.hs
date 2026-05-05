@@ -21,5 +21,5 @@ testAnd = PureTests "And" do
 	let ifThenElse = a [l "if", l "then", l "else"]
 	[
 		("exact", ifThen `assertSatisfies` ifThen),
-		("err extra super", ifThenElse `assertDoesNotSatisfy` ifThen),
-		("err extra sub", ifThen `assertDoesNotSatisfy` ifThenElse) ]
+		("err extra requirement", ifThenElse `assertDoesNotSatisfy` ifThen),
+		("err extra candidate", ifThen `assertDoesNotSatisfy` ifThenElse) ]

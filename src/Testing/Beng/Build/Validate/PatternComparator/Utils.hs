@@ -13,14 +13,17 @@ import Beng.Parse.Patterns (satisfies)
 import qualified Beng.Build.TypeTest as TypeTest
 import Beng.Types.Parse.Patterns (SomePattern)
 import Beng.Things (One(..))
-import Beng.Types.Things (SomeThing(..))
+import Beng.Types.Things (SomeParameterizedThing(..))
 
 type Pattern = SomePattern
 
 assertSatisfies :: Pattern -> Pattern -> Fallible ()
 assertSatisfies requirement candidate = do
-	 let test = TypeTest.fromContext mockNothing (SomeThing One) (SomeThing One)
-	 mapError msg $ (test, requirement) `satisfies` candidate
+	 let test = TypeTest.fromContext
+			mockNothing
+			(SomeParameterizedThing One)
+			(SomeParameterizedThing One)
+	 () <$ mapError msg ((test, requirement) `satisfies` candidate)
 
 assertDoesNotSatisfy :: Pattern -> Pattern -> Fallible ()
 assertDoesNotSatisfy requirement candidate =

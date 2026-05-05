@@ -4,13 +4,38 @@ module Testing.Beng.Build.Code (
 
 import Utils.Fallible
 import qualified Utils.Populace as P
+import qualified Utils.Populace.Populace2 as P2
 import Utils.Testing
 
 import Testing.Beng.Utils.Mocks (a, b, assertDiv, mockABCD)
 import Testing.Beng.Utils.Ops ()
 
 import Beng.Build (buildCodeUsing)
-import Beng.Types.Invocations (SomeInvocation)
+import qualified Beng.Build.Context as Context
+import Beng.Build.Context.Builders (
+	argOfBuiltin,
+	define,
+	defineLiteral,
+	intType,
+	intValue,
+	l,
+	s,
+	stringType,
+	stringValue )
+import Beng.Types.Build.Context (PrecedenceBound(..))
+import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
+import Beng.Types.Locations (Location(..))
+import Beng.Types.Operators (SomeOperator(..))
+import Beng.Types.Things (
+	CombinedThings(..),
+	NativeBitsType(..),
+	NativeStringType(..),
+	NativeType(..),
+	Parameter(..),
+	PreOpType(..),
+	SomeConcreteThing(..),
+	SomeParameterizedThing(..),
+	SomeThing(..) )
 
 import Control.Monad (void)
 import Data.Text.Lazy (Text, unpack)
@@ -20,8 +45,60 @@ import Data.Text.Lazy (Text, unpack)
 build :: Text -> Fallible [SomeInvocation]
 build mockCode = fmap P.toList $ buildCodeUsing mockABCD (unpack mockCode) mockCode
 
+buildUsing :: Context.Context -> Text -> Fallible [SomeInvocation]
+buildUsing context mockCode = fmap P.toList $ buildCodeUsing context (unpack mockCode) mockCode
+
 noBuild :: Text -> Fallible ()
 noBuild mockCode = build mockCode `hasErrorElse` "Building should have failed!"
+
+paramContext :: Context.Context
+paramContext = do
+	let thingType = SomeParameterizedThing $ NativeType $ const []
+	let valueType = SomeParameterizedThing $ Parameter {
+			decLoc = BuiltinArg { name = "Value", parentIndex = 50 },
+			name = "Value",
+			baseType = thingType }
+	let rightValueType = SomeParameterizedThing $ Parameter {
+			decLoc = BuiltinArg { name = "Right", parentIndex = 52 },
+			name = "Right",
+			baseType = thingType }
+	let identity = define None
+			[l "id", s, argOfBuiltin 50 "Value" valueType]
+			valueType
+			(\_ -> return $ SomeThing $ NativeStringType)
+			(Builtin 50)
+	let tagged = define Default
+			[argOfBuiltin 51 "Value" valueType, s, l "tagged"]
+			valueType
+			(\_ -> return $ SomeThing $ NativeStringType)
+			(Builtin 51)
+	let either = define Default
+			[argOfBuiltin 52 "Value" valueType, s, l "or", s,
+				argOfBuiltin 52 "Right" rightValueType]
+			(SomeParameterizedThing $ CombinedThings $
+				P2.dualton valueType rightValueType)
+			(\_ -> return $ SomeThing $ NativeStringType)
+			(Builtin 52)
+	let scope = SomeParameterizedThing $ PreOpType valueType
+	let capture = define None
+			[l "capture", s, argOfBuiltin 53 "Scope" scope]
+			valueType
+			(\_ -> return $ SomeThing $ NativeStringType)
+			(Builtin 53)
+	let literalName = defineLiteral "Name" stringType (stringValue "Name") (Builtin 54)
+	let literalA = defineLiteral "a" intType (intValue 3) (Builtin 55)
+	Context.fromOps $ map SomeOperator [
+		identity,
+		tagged,
+		either,
+		capture,
+		literalName,
+		literalA ]
+
+assertReturnType :: SomeInvocation -> SomeConcreteThing -> Fallible ()
+assertReturnType (SomeInvocation invocation) expected =
+	(invocation.returnType, expected) `isEqualElse`
+		"Invocation return type was not resolved as expected!"
 
 -- tests
 
@@ -39,6 +116,22 @@ testBuildCode = TestCategories "buildCode" [
 			b.null op2),
 		("err two smushed", do
 			build "ab" `hasErrorElse` "Ops should require a Space separator!")],
+	PureTests "parameterized invocation returns" [
+		("prefix argument resolves return parameter", do
+			op <- assert1 "op" =<< buildUsing paramContext "id Name"
+			op `assertReturnType` SomeConcreteThing NativeStringType),
+		("non-prefixed argument resolves return parameter", do
+			op <- assert1 "op" =<< buildUsing paramContext "Name tagged"
+			op `assertReturnType` SomeConcreteThing NativeStringType),
+		("two parameters resolve combined return type", do
+			op <- assert1 "op" =<< buildUsing paramContext "Name or a"
+			op `assertReturnType` SomeConcreteThing (CombinedThings $
+				P2.dualton
+					(SomeConcreteThing NativeStringType)
+					(SomeConcreteThing $ NativeBitsType 32))),
+		("preop argument resolves return parameter", do
+			op <- assert1 "op" =<< buildUsing paramContext "capture id Name"
+			op `assertReturnType` SomeConcreteThing NativeStringType)],
 	PureTests "nonprefixed ops" [
 		("one division", do
 			ops <- build "a/b"

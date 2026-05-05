@@ -13,13 +13,21 @@ module Beng.Build.Context.Builders (
 	noContext,
 	multi,
 	optional,
+	orP,
 	patConcat,
 	bitType,
 	intType,
+	orT,
+	orTP,
+	listOfP,
+	someOfP,
+	thingP,
 	asInv,
 	asInvOf,
 	asNativeString,
 	asBits,
+	asList,
+	asSome,
 	bitsValue,
 	asInt,
 	bitValue,
@@ -40,11 +48,12 @@ module Beng.Build.Context.Builders (
 import Utils.Fallible (FallibleI(..))
 
 import qualified Utils.Populace as P
+import Utils.Populace (Populace)
 import qualified Utils.Populace.Populace2 as P2
 
 import Beng.Build.Context (Context(..), push)
 import qualified Beng.Build.Context as Context
-import Beng.Types.Invocations (SomeInvocation)
+import Beng.Types.Invocations (SomeInvocation(..))
 import Beng.Operators.Declarations (ArgContextBuilder, Associativity(..), Declaration(..), PrecedenceBound(..))
 import Beng.Operators.Definitions (Definition(..), Runner)
 import qualified Beng.Operators.Definitions as Definition
@@ -61,12 +70,20 @@ import Beng.Run (run)
 import Beng.Errors (Fallible)
 import Beng.Types.Things (
 	SomeThing(..),
+	SomeParameterizedThing(..),
 	NativeBitsValue(..),
 	NativeStringValue(..),
 	NativeBitsType(..),
+	NativeListType(..),
+	NativeListValue(..),
+	NativeOrType(..),
+	NativeSomeType(..),
+	NativeSomeValue(..),
 	NativeStringType(..),
-	castThing )
+	castThing,
+	parameterize)
 import Beng.Types.Locations (Location(..))
+import Beng.Things (thing)
 
 import Control.Composition ((.*))
 import Data.Bits ((.&.), (.|.), shiftL, shiftR)
@@ -74,13 +91,14 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.Int (Int32)
 import Data.Text.Lazy (Text)
+import Data.Typeable (cast)
 
 -- exported
 
-argAt :: Location -> String -> SomeThing -> SomePattern
+argAt :: Location -> String -> SomeParameterizedThing -> SomePattern
 argAt decLoc name argType = SomePattern Argument { name, argType, decLoc }
 
-argOfBuiltin :: Int -> String -> SomeThing -> SomePattern
+argOfBuiltin :: Int -> String -> SomeParameterizedThing -> SomePattern
 argOfBuiltin builtinIndex name argType =
 	SomePattern Argument { name, argType, decLoc = BuiltinArg name builtinIndex }
 
@@ -120,16 +138,19 @@ multi = SomePattern . Delimited e
 optional :: SomePattern -> SomePattern
 optional = SomePattern . Or . P2.dualton e
 
+orP :: SomePattern -> SomePattern -> SomePattern
+orP first second = SomePattern $ Or $ P2.dualton first second
+
 patConcat :: [SomePattern] -> SomePattern
 patConcat = \case
 	[] -> e
 	[solo] -> solo
 	(first:(second:rest)) -> SomePattern $ And $ P2.Populace2 first second rest
 
-bitType = SomeThing $ NativeBitsType 1
+bitType = SomeParameterizedThing $ NativeBitsType 1
 
 -- TODO: replace with an "integer" type operator that returns the type.
-intType = SomeThing $ NativeBitsType 32
+intType = SomeParameterizedThing $ NativeBitsType 32
 
 bitsValue :: Int -> [Int] -> SomeThing
 bitsValue size byteValues =
@@ -142,9 +163,25 @@ intValue :: Int32 -> SomeThing
 intValue int = bitsValue 32 $
 	map ((.&. 0xFF) . shiftR (fromInteger $ toInteger int)) [24, 16, 8, 0]
 
-stringType = SomeThing NativeStringType  -- TODO: replace with language-level string type when available
+stringType = SomeParameterizedThing NativeStringType
+	-- TODO: replace with language-level string type when available
 
 stringValue = SomeThing . NativeStringValue
+
+orT :: SomeThing -> SomeThing -> SomeThing
+orT first second = SomeThing $ NativeOrType $ P2.dualton first second
+
+orTP :: SomeParameterizedThing -> SomeParameterizedThing -> SomeParameterizedThing
+orTP first second = SomeParameterizedThing $ NativeOrType $ P2.dualton first second
+
+listOfP :: SomeParameterizedThing -> SomeParameterizedThing
+listOfP = SomeParameterizedThing . NativeListType
+
+someOfP :: SomeParameterizedThing -> SomeParameterizedThing
+someOfP = SomeParameterizedThing . NativeSomeType
+
+thingP :: SomeParameterizedThing
+thingP = parameterize thing
 
 asInv :: (SomeThing -> SomeInvocation)
 asInv value = case castThing value of
@@ -155,7 +192,7 @@ asInv value = case castThing value of
 
 asInvOf :: String -> (SomeThing -> Fallible a) -> SomeThing -> Fallible a
 asInvOf expectedDesc get value = case castThing value of
-	Just op -> run op >>= get
+	Just (SomeInvocation invocation) -> run invocation >>= get
 	Nothing -> error $ "A(n) " ++ expectedDesc ++
 		" or invocation of such was expected, but instead, it's a(n) " ++ show value ++ "!"
 
@@ -164,7 +201,7 @@ asNativeString value = case castThing value of
 	Just NativeStringValue{text} -> return text
 	Nothing -> asInvOf "native string" asNativeString value
 
-asBits :: Int -> (SomeThing -> Fallible ByteString)
+asBits :: Int -> SomeThing -> Fallible ByteString
 asBits size value = case castThing value of
 	Just bitsValue@(NativeBitsValue{bytes=bytestring}) ->
 		if BS.length bytestring == ceiling (fromIntegral size / 8.0) then
@@ -185,13 +222,29 @@ asInt value = do  -- TODO TEMPORARY
 		(shiftL (fromIntegral b3) 8) .|.
 		(fromIntegral b4)
 
-declare :: PrecedenceBound -> [SomePattern] -> SomeThing -> Location -> Declaration
+asList :: SomeThing -> Fallible [SomeThing]
+asList (SomeThing value) = case cast value of
+	Just NativeListValue{values} -> return values
+	Nothing -> case cast value of
+		Just NativeSomeValue{valuesP} -> return valuesP.l
+		Nothing -> asInvOf "list" asList $ SomeThing value
+
+asSome :: SomeThing -> Fallible (Populace SomeThing)
+asSome (SomeThing value) = case cast value of
+	Just NativeSomeValue{valuesP=values} -> return values
+	Nothing -> case cast value of
+		Just NativeListValue{values = first:rest} -> return $ P.Populace first rest
+		Just NativeListValue{values = []} ->
+			error "A builtin invocation expected some things, but found an empty list!"
+		Nothing -> asInvOf "some things" asSome $ SomeThing value
+
+declare :: PrecedenceBound -> [SomePattern] -> SomeParameterizedThing -> Location -> Declaration
 declare precedence subpatterns returnType location =
 	Declaration { precedence, location, returnType,
 		pattern = patConcat subpatterns,
 		associativity = Lefty, contextualize = noContext }
 
-declareLiteral :: Text -> SomeThing -> Location -> Declaration
+declareLiteral :: Text -> SomeParameterizedThing -> Location -> Declaration
 declareLiteral literal returnType location = Declaration {
 	location,
 	pattern = SomePattern $ Literal literal,
@@ -202,21 +255,23 @@ declareLiteral literal returnType location = Declaration {
 
 defineUsing ::
 	PrecedenceBound -> Associativity ->
-	[SomePattern] -> SomeThing -> ArgContextBuilder -> Runner -> Location -> Definition
+	[SomePattern] -> SomeParameterizedThing -> ArgContextBuilder -> Runner -> Location -> Definition
 defineUsing precedence associativity subpatterns returnType contextualize runWith location =
 	Definition { location, runWith,
 		declaration = Declaration {
 			precedence, location, contextualize, associativity, returnType,
 			pattern = patConcat subpatterns }}
 
-define :: PrecedenceBound -> [SomePattern] -> SomeThing -> (Runner -> Location -> Definition)
+define ::
+	PrecedenceBound -> [SomePattern] -> SomeParameterizedThing -> (Runner -> Location -> Definition)
 define precedence subpatterns returnType =
 	defineUsing precedence Lefty subpatterns returnType noContext
 
-defineRighty :: PrecedenceBound -> [SomePattern] -> SomeThing -> (Runner -> Location -> Definition)
+defineRighty ::
+	PrecedenceBound -> [SomePattern] -> SomeParameterizedThing -> (Runner -> Location -> Definition)
 defineRighty precedence subpatterns returnType = defineUsing precedence Righty subpatterns returnType noContext
 
-defineLiteral :: Text -> SomeThing -> SomeThing -> Location -> Definition
+defineLiteral :: Text -> SomeParameterizedThing -> SomeThing -> Location -> Definition
 defineLiteral literal valueType value location = Definition {
 	runWith = const $ Falue value,
 	location,

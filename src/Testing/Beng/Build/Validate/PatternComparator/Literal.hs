@@ -9,25 +9,25 @@ import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, ass
 import Beng.Build.Context.Builders (c, cr, e, l, s, optional, patConcat)
 
 testLiteral :: TestCategory
-testLiteral = TestCategories "Literal sub" [
-	TestCategories "Literal super" [
+testLiteral = TestCategories "Literal candidate" [
+	TestCategories "Literal requirement" [
 		PureTests "satisfies" [
 			("exact", assertSatisfies (l "if") (l "if")),
-			("super split", assertSatisfies (patConcat [l "i", l "f"]) (l "if")),
-			("sub split", assertSatisfies (l "if") (patConcat [l "i", l "f"])) ],
+			("requirement split", assertSatisfies (patConcat [l "i", l "f"]) (l "if")),
+			("candidate split", assertSatisfies (l "if") (patConcat [l "i", l "f"])) ],
 		PureTests "does not satisfy" [
 			("total mismatch", assertDoesNotSatisfy (l "then") (l "if")),
 			("prefix but not total", assertDoesNotSatisfy (l "i") (l "if")) ],
-	PureTests "CharClass super" [
+	PureTests "CharClass requirement" [
 		("satisfies", c [cr 'a' 'b'] `assertSatisfies` l "a"),
 		("does not satisfy", c [cr '0' '9'] `assertDoesNotSatisfy` l "a") ],
-	PureTests "Space super" [
+	PureTests "Space requirement" [
 		("satisfies", patConcat [s, l "test"] `assertSatisfies` l " test"),
 		("err does not satisfy", patConcat [s, l "test"] `assertDoesNotSatisfy` l "test") ],
-	PureTests "optional super sequence" [
+	PureTests "optional requirement sequence" [
 		("skips optional middle", patConcat [l "a", optional (l "b"), l "c"] `assertSatisfies` l "ac"),
 		("matches optional middle", patConcat [l "a", optional (l "b"), l "c"] `assertSatisfies` l "abc") ],
-	PureTests "direct optional super sequence" [
+	PureTests "direct optional requirement sequence" [
 		("Space middle", patConcat [l "a", s, l "c"] `assertDoesNotSatisfy` l "ac"),
 		("Space boundary and whitespace",
 			patConcat [l "a", s, l "/", s, l "c"] `assertSatisfies` l "a /c"),

@@ -16,10 +16,16 @@ import Utils.Messaging (Messagable)
 import Utils.Populace (Populace)
 import qualified Utils.Populace as P
 import Utils.Populace.Populace2 (Populace2)
+import Utils.Fallible (FallibleI(..))
 
 import qualified Beng.Types.Parse.PatternArguments as Pattern
+import {-# SOURCE #-} Beng.Types.Build.TypeTest (ParameterMatchResults)
 import Beng.Types.Locations (Location)
-import {-# SOURCE #-} Beng.Types.Things (SomeThing)
+import {-# SOURCE #-} Beng.Types.Things (
+	ParameterMatches,
+	ResolveError,
+	SomeParameterizedThing,
+	SomeThing)
 
 import Data.Map.Ordered (OMap)
 import qualified Data.Map.Ordered as OMap
@@ -27,9 +33,9 @@ import Data.Text.Lazy (Text)
 import Data.Typeable (Typeable)
 
 data Argument = Argument {
-	decLoc :: Location,
-	name :: String,
-	argType :: SomeThing,
+	pattern :: Pattern.Argument,
+	matchedType :: SomeParameterizedThing,
+	parameterMatches :: ParameterMatchResults,
 	value :: SomeThing }
 
 data SomeMatch = forall m. Match m => SomeMatch m
@@ -64,3 +70,6 @@ class (Eq m, Show m, Messagable m, Typeable m) => Match m where
 	hasPrefix :: m -> Bool
 
 	hasSuffix :: m -> Bool
+
+	resolve :: ParameterMatches -> m -> FallibleI ResolveError SomeMatch
+	resolve _ = Falue . SomeMatch

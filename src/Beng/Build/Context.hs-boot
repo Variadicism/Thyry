@@ -10,4 +10,7 @@ import Beng.Types.Things (SomeThing)
 
 fromThings :: [SomeThing] -> Context
 
-has :: Operator op => TypeTest -> op -> FallibleI Declaration.Mismatch ()
+concat :: [Context] -> Context
+
+has ::
+	Operator op => TypeTest -> op -> FallibleI Declaration.Mismatch TypeTest

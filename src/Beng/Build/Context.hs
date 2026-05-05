@@ -22,10 +22,12 @@ import qualified Beng.Operators as Ops
 import Beng.Operators (Operator, SomeOperator(..))
 import Beng.Operators.Declarations (isReturnTypeMismatch)
 import {-# SOURCE #-} Beng.Things (propsOf)
+import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Types.Build.Context (Context(..), PrecedenceBound(..))
 import Beng.Types.Build.TypeTest (TypeTest(..))
 import Beng.Types.Things (SomeThing)
 import qualified Beng.Types.Operators.Declarations as Declaration
+import qualified Utils.Populace as P
 
 import Data.List (findIndex)
 import Data.Maybe (fromMaybe, isJust)
@@ -51,18 +53,25 @@ findPrecedence context op =
 
 -- I wrote this tail recursion because Fallible.sequenceAny still runs _all_ Fallibles before
 -- checking the results for any, causing every single operator to be checked even after a match is found.
-hasIn :: Operator op => [SomeOperator] -> TypeTest -> op -> FallibleI Declaration.Mismatch ()
-hasIn [] _ _ = Falue ()
-hasIn [op] test requirement = (test, op) `Ops.satisfies` requirement
-hasIn (op:rest) test requirement = case (test, op) `Ops.satisfies` requirement of
-	{- If an operator satisfies the declaration's pattern, it will be the one called. So, even if another op deeper
-		in the context stack can satisfy the declaration with pattern and return type, it doesn't matter: the
-		one with the wrong return type will be called, so the declaration cannot be satisfied. -}
-	Error e | isReturnTypeMismatch e -> Error e
-	Error e1 -> case hasIn rest test requirement of
-		Error e2 -> Error $ e1 <!> e2
-		Falue _ -> Falue ()
-	Falue _ -> Falue ()
+hasIn ::
+	Operator op => [SomeOperator] -> TypeTest -> op -> FallibleI Declaration.Mismatch TypeTest
+hasIn [] _ requirement = Error $ Declaration.PatternMismatch $ Pattern.LeftoverRequirement $
+	P.singleton $ Ops.pattern requirement
+hasIn (op:contextRest) test requirement = do
+	let satisfies = (test, op) `Ops.satisfies` requirement
+	if null contextRest then case satisfies of
+		Error e -> Error e
+		Falue _ -> Falue test
+	else case satisfies of
+		{- If an operator satisfies the declaration's pattern, it will be the one called. So, even if
+			another op deeper in the context stack can satisfy the declaration with pattern and return type,
+			it doesn't matter: the one with the wrong return type will be called, so the declaration
+			cannot be satisfied. -}
+		Error e | isReturnTypeMismatch e -> Error e
+		Error e1 -> case hasIn contextRest test requirement of
+			Error e2 -> Error $ e1 <!> e2
+			Falue nextTest -> Falue nextTest
+		Falue _ -> Falue test
 
 -- instances
 
@@ -154,6 +163,7 @@ concat (c1:rest) = foldl (flip push) c1 $ concatMap deck rest
 fromThings :: ([SomeThing] -> Context)
 fromThings = fromOps . concatMap propsOf
 
-has :: Operator op => TypeTest -> op -> FallibleI Declaration.Mismatch ()
+has ::
+	Operator op => TypeTest -> op -> FallibleI Declaration.Mismatch TypeTest
 -- TODO: don't let `hasIn` be called with an empty context or it will accept anything.
 has test = hasIn test.context.deck test

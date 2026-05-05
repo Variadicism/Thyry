@@ -62,6 +62,7 @@ import Beng.Parse.Matches ()
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Parse.Matches (SomeMatch(..), value)
 import Beng.Types.Parse.Patterns (Argument(..), SomePattern(..))
+import Beng.Types.Build.TypeTest (ParameterMatchResults(..))
 import Beng.Types.Operators (SomeOperator(..))
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import Beng.Types.Operators.Declarations (Associativity(..), Declaration)
@@ -69,8 +70,13 @@ import Beng.Types.Operators.Definitions (Definition(..))
 import Beng.Types.Locations (Location(..))
 import Beng.Run (run)
 import Beng.Types.Things (
+	SomeParameterizedThing(..),
 	SomeThing(..),
-	PreOpType(..) )
+	PreOpType(..),
+	SomeConcreteThing(..),
+	Thing(..),
+	NativeBitsType(..),
+	NativeStringType(..) )
 
 import Control.Composition ((.*))
 import Data.Bits (complement)
@@ -102,20 +108,29 @@ type Pattern = SomePattern
 type Op = SomeInvocation
 type Operator = SomeOperator
 
+emptyParameterMatchResults :: ParameterMatchResults
+emptyParameterMatchResults = ParameterMatchResults {
+	candidateMatches = mempty,
+	requirementMatches = mempty }
+
+runInv value = case asInv value of
+	SomeInvocation invocation -> run invocation
+
 defineStaticNameValue :: Text -> Location -> Definition
 defineStaticNameValue name location = do
 	let (Builtin parentIndex) = location  -- All locations in mocks are Builtin-type.
 	let a name argType = SomePattern Argument {
 		decLoc = BuiltinArg { name, parentIndex }, name, argType }
 	defineUsing (Below $ SomeOperator $ declarationOf App) Righty
-		[l name, s, l ":=", s, a "Thing" intType, s, a "Scope" (SomeThing $ PreOpType intType)]
+		[l name, s, l ":=", s, a "Thing" intType, s, a "Scope" $
+			SomeParameterizedThing $ PreOpType intType]
 		intType
 		(\argName args location -> return case argName of
 			"Scope" -> do
 				let value = (args ! "Thing").value
 				[SomeOperator $ defineLiteral name intType value location]
 			_ -> [])
-		(\args -> run $ asInv $ args ! "Scope")
+		(\args -> runInv $ args ! "Scope")
 		location
 
 defineLiteralInt :: Text -> Int -> (Location -> Definition)
@@ -130,24 +145,24 @@ hangingDefinitionOf enum location = case enum of
 		[a "Dividend" intType, l "/", a "Divisor" intType]
 		intType
 		(\args -> do
-			dividend <- asInt =<< (run $ asInv $ args ! "Dividend")
-			divisor <- asInt =<< (run $ asInv $ args ! "Divisor")
+			dividend <- asInt =<< runInv (args ! "Dividend")
+			divisor <- asInt =<< runInv (args ! "Divisor")
 			return $ intValue $ dividend `div` divisor)
 		location
 	DivideWords -> define (At $ SomeOperator $ declarationOf Divide)
 		[a "Dividend" intType, s, l "and", s, a "Divisor" intType, s, l "divided"]
 		intType
 		(\args -> do
-			dividend <- asInt =<< (run $ asInv $ args ! "Dividend")
-			divisor <- asInt =<< (run $ asInv $ args ! "Divisor")
+			dividend <- asInt =<< runInv (args ! "Dividend")
+			divisor <- asInt =<< runInv (args ! "Divisor")
 			return $ intValue $ dividend `div` divisor)
 		location
 	Exp -> define (Above $ SomeOperator $ declarationOf Divide)
 		[a "Base" intType, l "^", a "Exponent" intType]
 		intType
 		(\args -> do
-			base <- asInt =<< (run $ asInv $ args ! "Base")
-			exponent <- asInt =<< (run $ asInv $ args ! "Exponent")
+			base <- asInt =<< runInv (args ! "Base")
+			exponent <- asInt =<< runInv (args ! "Exponent")
 			return $ intValue $ base ^ exponent)
 		location
 	App ->
@@ -158,36 +173,36 @@ hangingDefinitionOf enum location = case enum of
 		defineRighty (Below $ SomeOperator $ declarationOf Divide)
 			[a "Left" intType, l "$", a "Right" intType]
 			intType
-			(run . asInv . (! "Left"))
+			(runInv . (! "Left"))
 			location
 	AddWords -> define (At $ SomeOperator $ declarationOf App)
 		[a "Augend" intType, s, l "and", s, a "Addend" intType, s, l "added"]
 		intType
 		(\args -> do
-			augend <- asInt =<< (run $ asInv $ args ! "Augend")
-			addend <- asInt =<< (run $ asInv $ args ! "Addend")
+			augend <- asInt =<< runInv (args ! "Augend")
+			addend <- asInt =<< runInv (args ! "Addend")
 			return $ intValue $ augend + addend)
 		location
 	Add -> define (At $ SomeOperator $ declarationOf AddWords)
 		[a "Augend" intType, l "+", a "Addend" intType]
 		intType
 		(\args -> do
-			augend <- asInt =<< (run $ asInv $ args ! "Augend")
-			addend <- asInt =<< (run $ asInv $ args ! "Addend")
+			augend <- asInt =<< runInv (args ! "Augend")
+			addend <- asInt =<< runInv (args ! "Addend")
 			return $ intValue $ augend + addend)
 		location
 	Not -> define (Above $ SomeOperator $ declarationOf Divide)
 		[l "!", a "Thing" intType]  -- I couldn't come up with a cool name for this one.
 		intType
 		(\args -> do
-			value <- asInt =<< (run $ asInv $ args ! "Thing")
+			value <- asInt =<< runInv (args ! "Thing")
 			return $ intValue (-value))
 		location
 	Negate -> define (Above $ SomeOperator $ declarationOf Not)
 		[l "~", a "Negend" intType]  -- That's probably not a word. Too bad! It is now!
 		intType
 		(\args -> do
-			negend <- asInt =<< (run $ asInv $ args ! "Negend")
+			negend <- asInt =<< runInv (args ! "Negend")
 			return $ intValue $ complement negend)
 		location
 	C -> defineStaticNameValue "C" location
@@ -206,16 +221,16 @@ hangingDefinitionOf enum location = case enum of
 		[a "Target" stringType, s, l "starts", s, l "with", s, a "Prefix" stringType]
 		bitType
 		(\args -> do
-			target <- asNativeString =<< (run $ asInv $ args ! "Target")
-			prefix <- asNativeString =<< (run $ asInv $ args ! "Prefix")
+			target <- asNativeString =<< runInv (args ! "Target")
+			prefix <- asNativeString =<< runInv (args ! "Prefix")
 			return $ bitValue $ prefix `Text.isPrefixOf` target)
 		location
 	Concat -> define (At $ SomeOperator $ declarationOf Add)
 		[a "Prefix" stringType, s, l "+", s, a "Suffix" stringType]
 		stringType
 		(\args -> do
-			prefix <- asNativeString =<< (run $ asInv $ args ! "Prefix")
-			suffix <- asNativeString =<< (run $ asInv $ args ! "Suffix")
+			prefix <- asNativeString =<< runInv (args ! "Prefix")
+			suffix <- asNativeString =<< runInv (args ! "Suffix")
 			return $ stringValue $ Text.concat [prefix, suffix])
 		location
 	where
@@ -231,7 +246,7 @@ hangingABDivDefinitionOf :: ABDiv -> (Location -> Definition)
    definition maker passed as an argument, which will add tons of boilerplate. -}
 hangingABDivDefinitionOf e = hangingDefinitionOf $ toEnum $ fromEnum e
 
-argOf :: ABCD -> String -> SomeThing -> Pattern
+argOf :: ABCD -> String -> SomeParameterizedThing -> Pattern
 argOf abcd name argType = do
 	let (Builtin locationIndex) = locationOf abcd
 	argAt (BuiltinArg name locationIndex) name argType
@@ -253,19 +268,52 @@ opOf a = \match -> SomeInvocation Invocation {
 	operator = definitionOf a,
 	context = mockABCD,
 	location = locationOf a,
-	match }
+	match,
+	returnType = returnTypeOf a }
 
-prefixedUnaryOpMatch :: ABCD -> Text -> String -> SomeThing -> Op -> SomeMatch
+returnTypeOf :: ABCD -> SomeConcreteThing
+returnTypeOf abcd = case abcd of
+	A -> SomeConcreteThing $ NativeBitsType 32
+	B -> SomeConcreteThing $ NativeBitsType 32
+	Divide -> SomeConcreteThing $ NativeBitsType 32
+	DivideWords -> SomeConcreteThing $ NativeBitsType 32
+	Exp -> SomeConcreteThing $ NativeBitsType 32
+	App -> SomeConcreteThing $ NativeBitsType 32
+	AddWords -> SomeConcreteThing $ NativeBitsType 32
+	Add -> SomeConcreteThing $ NativeBitsType 32
+	Not -> SomeConcreteThing $ NativeBitsType 32
+	Negate -> SomeConcreteThing $ NativeBitsType 32
+	C -> SomeConcreteThing $ NativeBitsType 32
+	D -> SomeConcreteThing $ NativeBitsType 32
+	Name -> SomeConcreteThing NativeStringType
+	Initial -> SomeConcreteThing NativeStringType
+	StartsWith -> SomeConcreteThing $ NativeBitsType 1
+	Concat -> SomeConcreteThing NativeStringType
+
+prefixedUnaryOpMatch :: ABCD -> Text -> String -> SomeParameterizedThing -> Op -> SomeMatch
 prefixedUnaryOpMatch abcd prefix argName argType op =
 	SomeMatch $ Match.And $ dualton (SomeMatch $ Match.Literal prefix) $ SomeMatch $ Match.Argument {
-		decLoc = (locationOf abcd), name = argName, argType, value = SomeThing op }
+		pattern = Argument { decLoc = locationOf abcd, name = argName, argType },
+		matchedType = parameterize op.returnType,
+		parameterMatches = emptyParameterMatchResults,
+		value = SomeThing op }
 
-infixOpMatch :: ABCD -> String -> SomeThing -> Text -> String -> SomeThing -> Op -> Op -> SomeMatch
+infixOpMatch ::
+	ABCD -> String -> SomeParameterizedThing -> Text -> String -> SomeParameterizedThing -> Op -> Op ->
+	SomeMatch
 infixOpMatch abcd leftName leftType literal rightName rightType leftOp rightOp =
 	SomeMatch $ Match.And $ P2.Populace2
-		(SomeMatch $ Match.Argument (locationOf abcd) leftName leftType $ SomeThing leftOp)
+		(SomeMatch $ Match.Argument {
+			pattern = Argument { decLoc = locationOf abcd, name = leftName, argType = leftType },
+			matchedType = parameterize leftOp.returnType,
+			parameterMatches = emptyParameterMatchResults,
+			value = SomeThing leftOp })
 		(SomeMatch $ Match.Literal literal)
-		[SomeMatch $ Match.Argument (locationOf abcd) rightName rightType $ SomeThing rightOp]
+		[SomeMatch $ Match.Argument {
+			pattern = Argument { decLoc = locationOf abcd, name = rightName, argType = rightType },
+			matchedType = parameterize rightOp.returnType,
+			parameterMatches = emptyParameterMatchResults,
+			value = SomeThing rightOp }]
 
 type AssertOneArg = (SomeThing -> Fallible ()) -> Op -> Fallible ()
 

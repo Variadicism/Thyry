@@ -45,9 +45,9 @@ data SomePattern = forall p m. Pattern m p => SomePattern p
 
 data Mismatch =
 	-- \/ closest to success
-	LeftoverSuper { leftover :: Populace SomePattern } |
-	LeftoverSub { leftover :: Populace SomePattern } |
-	Mismatch { nextSub :: SomePattern, remainingSuper :: Populace SomePattern } |
+	LeftoverRequirement { leftover :: Populace SomePattern } |
+	LeftoverCandidate { leftover :: Populace SomePattern } |
+	Mismatch { nextCandidate :: SomePattern, remainingRequirement :: Populace SomePattern } |
 	-- /\ furthest from success
 	CompoundMismatch { context :: String, compound :: Populace Mismatch }
 
@@ -72,9 +72,9 @@ type Comparator = General.Parser Mismatch Comparison ComparatorState ()
 -- I could implement this with Haskell ranges, but I want to Show them nicely.
 data CharRange = CharRange { start :: Char, end :: Char }
 
-data Space = Space deriving (Eq, Show)
+data Space = Space deriving (Eq)
 
-data Literal = Literal { literal :: Text } deriving (Eq, Show)
+data Literal = Literal { literal :: Text } deriving (Eq)
 
 data CharClass = CharClass { ranges :: Populace CharRange, negate :: Bool }
 
@@ -89,8 +89,8 @@ data Delimited = Delimited { delimiter :: SomePattern, delimitend :: SomePattern
 
 class (Match m, Eq p, Show p, Messagable p, Typeable p) => Pattern m p | p -> m where
 	parse :: p -> Code.Parser m
-	compareAsSub :: p -> Comparator
-	compareAsSuper :: p -> Comparator
+	compareAsCandidate :: p -> Comparator
+	compareAsRequirement :: p -> Comparator
 
 	getSubpatterns :: p -> Populace SomePattern
 	getSubpatterns = P.singleton . SomePattern

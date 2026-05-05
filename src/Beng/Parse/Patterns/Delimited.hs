@@ -13,11 +13,11 @@ import {-# SOURCE #-} Beng.Parse.Matches ()
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Parse.Parsers ((@>), (@+>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
-import Beng.Parse.Parsers.PatternComparator (compareAsSuperDefault)
+import Beng.Parse.Parsers.PatternComparator (compareAsRequirementDefault)
 import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import Beng.Things (NativeSomeType(..), NativeListType(..))
-import Beng.Types.Things (SomeThing(..))
+import Beng.Types.Things (SomeParameterizedThing(..))
 import Beng.Types.Parse.Patterns (
 	Argument(..),
 	Comparison(..),
@@ -37,17 +37,17 @@ parseDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter 
 		firstMatch:matchTail -> Match.DelimitedTailMatch $ P.Populace firstMatch matchTail) >\>
 	(\(head, tail) -> Match.Delimited { head, tail })
 
-compareAsSubDelimited :: Delimited -> PatternComparator.Parser
-compareAsSubDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter ++ " comparator" @> \state -> do
+compareAsCandidateDelimited :: Delimited -> PatternComparator.Parser
+compareAsCandidateDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter ++ " comparator" @> \state -> do
 	case state.rest.requirement of
-		[] -> Error $ LeftoverSub $ P.assume state.rest.candidate
-		next:superLeft -> case asPattern next :: Maybe Delimited of
-			Just nextSuper@Delimited{} -> do
+		[] -> Error $ LeftoverCandidate $ P.assume state.rest.candidate
+		next:requirementLeft -> case asPattern next :: Maybe Delimited of
+			Just nextRequirement@Delimited{} -> do
 				sequence [
-					(state, nextSuper.delimitend) `internallySatisfies` delimitend,
-					(state, nextSuper.delimiter) `internallySatisfies` delimiter]
+					(state, nextRequirement.delimitend) `internallySatisfies` delimitend,
+					(state, nextRequirement.delimiter) `internallySatisfies` delimiter]
 				PatternComparator.accept [next] state
-			Nothing -> Error $ Mismatch (SomePattern self) $ P.Populace next superLeft
+			Nothing -> Error $ Mismatch (SomePattern self) $ P.Populace next requirementLeft
 
 instance Eq Delimited where
 	a == b = a.delimiter == b.delimiter && a.delimitend == b.delimitend
@@ -60,8 +60,8 @@ instance Messagable Delimited where
 
 instance Pattern Match.Delimited Delimited where
 	parse = parseDelimited
-	compareAsSub = compareAsSubDelimited
-	compareAsSuper self = compareAsSuperDefault (SomePattern self)
+	compareAsCandidate = compareAsCandidateDelimited
+	compareAsRequirement self = compareAsRequirementDefault (SomePattern self)
 	getSubpatterns Delimited{..} = P.Populace delimitend [delimiter]
 	mustHavePrefix Delimited{..} = Pattern.mustHavePrefix delimitend
 	mustHaveSuffix Delimited{..} = Pattern.mustHaveSuffix delimitend
@@ -71,5 +71,6 @@ instance Pattern Match.Delimited Delimited where
 	startingSpaceStates Delimited{..} = Pattern.startingSpaceStates delimitend
 	isOptional Delimited{..} = Pattern.isOptional delimitend
 	getArgsUsing getArgs Delimited{..} = do
-		let wrapTypes wrapper = OMap.map (\p -> p{ argType = SomeThing $ wrapper p.argType })
+		let wrapTypes wrapper =
+				OMap.map (\p -> p{ argType = SomeParameterizedThing $ wrapper p.argType })
 		wrapTypes NativeSomeType (getArgs delimiter) <>| wrapTypes NativeListType (getArgs delimitend)

@@ -42,35 +42,37 @@ parserForSubpattern subpatterns matchIndex pattern =
 			OMap.concat $ map Pattern.getArgs missedSubpatterns
 		Match.Or { match, matchIndex, misses }
 
-compareAsSubOr :: Or -> PatternComparator.Parser
-compareAsSubOr self@(Or subpatterns) = show (length subpatterns) ++ " possible pattern comparator" @> \state ->
+compareAsCandidateOr :: Or -> PatternComparator.Parser
+compareAsCandidateOr self@(Or subpatterns) = show (length subpatterns) ++ " possible pattern comparator" @> \state ->
 	case state.rest.requirement of
-		[] -> Error $ LeftoverSub $ P.singleton $ SomePattern self
-		nextSuper:_ -> do
-			sequence $ P2.map ((state, nextSuper) `internallySatisfies`) subpatterns
-			PatternComparator.accept [nextSuper] state
+		[] -> Error $ LeftoverCandidate $ P.singleton $ SomePattern self
+		nextRequirement:_ -> do
+			sequence $ P2.map ((state, nextRequirement) `internallySatisfies`) subpatterns
+			PatternComparator.accept [nextRequirement] state
 
-compareAsSuperOr :: Or -> PatternComparator.Parser
-compareAsSuperOr (Or subpatterns) = show (length subpatterns) ++ " possible super comparator" @> \state ->
+compareAsRequirementOr :: Or -> PatternComparator.Parser
+compareAsRequirementOr (Or subpatterns) =
+	show (length subpatterns) ++ " possible requirement comparator" @> \state ->
 	case state.rest.candidate of
-		nextSub:_ -> case Pattern.asPattern nextSub :: Maybe Or of
-			Just Or{} -> dispatchCurrentSub nextSub state
+		nextCandidate:_ -> case Pattern.asPattern nextCandidate :: Maybe Or of
+			Just Or{} -> dispatchCurrentCandidate nextCandidate state
 			Nothing -> branchOptions state
 		[] -> branchOptions state
 	where
-		dispatchCurrentSub (SomePattern pattern) state =
-			state >>> TypePattern.compareAsSub pattern >:> PatternComparator.comparator >\> const ()
+		dispatchCurrentCandidate (SomePattern pattern) state =
+			state >>> TypePattern.compareAsCandidate pattern >:> PatternComparator.comparator >\> const ()
 
 		branchOptions state = do
 			case state.rest.requirement of
-				_:superLeft -> do
+				_:requirementLeft -> do
 					let parserFor i option =
-							"possible super pattern " ++ show (i + 1) ++ "/" ++ show (length subpatterns) ++
+							"possible requirement pattern " ++
+								show (i + 1) ++ "/" ++ show (length subpatterns) ++
 								" " ++ show option @> \state' ->
-									PatternComparator.swapSuper (option:superLeft) state' >>> PatternComparator.comparator
+									PatternComparator.swapRequirement (option:requirementLeft) state' >>> PatternComparator.comparator
 					state >>> parseAny (P2.toP1 $ P2.mapIndexed parserFor subpatterns)
 				[] -> case state.rest.candidate of
-					nextSub:subLeft -> Error $ LeftoverSub $ P.Populace nextSub subLeft
+					nextCandidate:candidateLeft -> Error $ LeftoverCandidate $ P.Populace nextCandidate candidateLeft
 					[] -> PatternComparator.acceptRest state
 
 instance Eq Or where
@@ -84,8 +86,8 @@ instance Messagable Or where
 
 instance Pattern Match.Or Or where
 	parse = parseOr
-	compareAsSub = compareAsSubOr
-	compareAsSuper = compareAsSuperOr
+	compareAsCandidate = compareAsCandidateOr
+	compareAsRequirement = compareAsRequirementOr
 	getSubpatterns (Or subpatterns) = subpatterns.p1
 	mustHavePrefix (Or subpatterns) = all Pattern.mustHavePrefix subpatterns.l
 	mustHaveSuffix (Or subpatterns) = all Pattern.mustHaveSuffix subpatterns.l

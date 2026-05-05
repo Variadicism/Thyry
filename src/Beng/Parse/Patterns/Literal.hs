@@ -12,7 +12,7 @@ import qualified Beng.Types.Parse.Matches as Match
 import Beng.Parse.Parsers ((@>), (>>>))
 import Beng.Parse.Parsers.Code (PrefixState(..))
 import qualified Beng.Parse.Parsers.Code as Code
-import Beng.Parse.Parsers.PatternComparator (compareAsSuperDefault)
+import Beng.Parse.Parsers.PatternComparator (compareAsRequirementDefault)
 import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
 import {-# SOURCE #-} Beng.Parse.Patterns (asPattern)
 import qualified Beng.Parse.Patterns.CharClass as CC
@@ -43,50 +43,53 @@ parseLiteral (Literal literal) = "literal " ++ show literal @> \state ->
 		_ -> Code.takeAs literal (Match.Literal literal)
 			state{ Code.prefixState = Unneeded }
 
-compareAsSubLiteral :: Literal -> PatternComparator.Parser
-compareAsSubLiteral self@(Literal literal) = show literal ++ " comparator" @> \state ->
+compareAsCandidateLiteral :: Literal -> PatternComparator.Parser
+compareAsCandidateLiteral self@(Literal literal) = show literal ++ " comparator" @> \state ->
 	if Text.null literal then
 		PatternComparator.accept [] state
 	else case state.rest.requirement of
-		[] -> Error $ LeftoverSub $ P.assume state.rest.candidate
-		next:superLeft -> do
-			let superP = P.Populace next superLeft
-			let swapSub newSub s = s{ rest = s.rest{ candidate = newSub }}
-			let swapSuper newSuper s = s{ rest = s.rest{ requirement = newSuper }}
+		[] -> Error $ LeftoverCandidate $ P.assume state.rest.candidate
+		next:requirementLeft -> do
+			let requirementP = P.Populace next requirementLeft
+			let swapCandidate newCandidate s = s{ rest = s.rest{ candidate = newCandidate }}
+			let swapRequirement newRequirement s = s{ rest = s.rest{ requirement = newRequirement }}
 			case asPattern next :: Maybe Literal of
-				Just (Literal superLiteral) -> if superLiteral == literal then
+				Just (Literal requirementLiteral) -> if requirementLiteral == literal then
 					PatternComparator.accept [next] state
-				else if literal `Text.isPrefixOf` superLiteral then do
-					let remainingSuper = UtilsText.dropPrefix literal superLiteral
-					let splitSuper = [SomePattern self, SomePattern (Literal remainingSuper)] ++ superLeft
-					PatternComparator.accept [SomePattern self] $ swapSuper splitSuper state
-				else if superLiteral `Text.isPrefixOf` literal then do
-					let remainingSub = UtilsText.dropPrefix superLiteral literal
-					let splitSub = next : SomePattern (Literal remainingSub) :
+				else if literal `Text.isPrefixOf` requirementLiteral then do
+					let remainingRequirement = UtilsText.dropPrefix literal requirementLiteral
+					let splitRequirement = [SomePattern self, SomePattern (Literal remainingRequirement)] ++ requirementLeft
+					PatternComparator.accept [SomePattern self] $ swapRequirement splitRequirement state
+				else if requirementLiteral `Text.isPrefixOf` literal then do
+					let remainingCandidate = UtilsText.dropPrefix requirementLiteral literal
+					let splitCandidate = next : SomePattern (Literal remainingCandidate) :
 						tail state.rest.candidate
-					PatternComparator.accept [next] $ swapSub splitSub state
+					PatternComparator.accept [next] $ swapCandidate splitCandidate state
 				else
-					compareAgainstNonLiteral self literal next state superP swapSub
-				Nothing -> compareAgainstNonLiteral self literal next state superP swapSub
+					compareAgainstNonLiteral self literal next state requirementP swapCandidate
+				Nothing -> compareAgainstNonLiteral self literal next state requirementP swapCandidate
 
-compareAsSuperLiteral :: Literal -> PatternComparator.Parser
-compareAsSuperLiteral self@(Literal literal) = show literal ++ " super comparator" @> \state ->
+compareAsRequirementLiteral :: Literal -> PatternComparator.Parser
+compareAsRequirementLiteral self@(Literal literal) = show literal ++ " requirement comparator" @> \state ->
 	if Text.null literal then
 		case state.rest.requirement of
-			_:superLeft -> PatternComparator.swapSuper superLeft state >>> PatternComparator.comparator
+			_:requirementLeft -> PatternComparator.swapRequirement requirementLeft state >>> PatternComparator.comparator
 			[] -> case state.rest.candidate of
-				nextSub:subLeft -> Error $ LeftoverSub $ P.Populace nextSub subLeft
+				nextCandidate:candidateLeft -> Error $ LeftoverCandidate $ P.Populace nextCandidate candidateLeft
 				[] -> PatternComparator.acceptRest state
 	else
-		state >>> compareAsSuperDefault (SomePattern self)
+		state >>> compareAsRequirementDefault (SomePattern self)
+
+instance Show Literal where
+	show Literal{literal} = Text.unpack literal
 
 instance Messagable Literal where
 	msg = show
 
 instance Pattern Match.Literal Literal where
 	parse = parseLiteral
-	compareAsSub = compareAsSubLiteral
-	compareAsSuper = compareAsSuperLiteral
+	compareAsCandidate = compareAsCandidateLiteral
+	compareAsRequirement = compareAsRequirementLiteral
 	mustHavePrefix (Literal literal) = not $ Text.null literal
 	mustHaveSuffix (Literal literal) = not $ Text.null literal
 	canHavePrefix = Pattern.mustHavePrefix
@@ -110,15 +113,15 @@ compareAgainstNonLiteral
 	-> P.Populace SomePattern
 	-> ([SomePattern] -> ComparatorState -> ComparatorState)
 	-> FallibleI Mismatch PatternComparator.Parses
-compareAgainstNonLiteral self literal next state superP swapSub =
+compareAgainstNonLiteral self literal next state requirementP swapCandidate =
 	case asPattern next :: Maybe CharClass of
 		Just CharClass{..} -> if CC.has (Text.head literal) ranges negate then do
-			let splitSub = next : SomePattern (Literal (Text.tail literal)) :
+			let splitCandidate = next : SomePattern (Literal (Text.tail literal)) :
 				tail state.rest.candidate
-			PatternComparator.accept [next] $ swapSub splitSub state
+			PatternComparator.accept [next] $ swapCandidate splitCandidate state
 		else
-			compareAgainstSpace self literal next state superP swapSub
-		Nothing -> compareAgainstSpace self literal next state superP swapSub
+			compareAgainstSpace self literal next state requirementP swapCandidate
+		Nothing -> compareAgainstSpace self literal next state requirementP swapCandidate
 
 compareAgainstSpace
 	:: Literal
@@ -128,15 +131,15 @@ compareAgainstSpace
 	-> P.Populace SomePattern
 	-> ([SomePattern] -> ComparatorState -> ComparatorState)
 	-> FallibleI Mismatch PatternComparator.Parses
-compareAgainstSpace self literal next state superP swapSub =
+compareAgainstSpace self literal next state requirementP swapCandidate =
 	case (asPattern next :: Maybe Space, Text.uncons literal) of
 		(Just Space, Just (firstChar, _)) -> if isSpace firstChar then do
-			let splitSub = next : SomePattern (Literal (Text.dropWhile isSpace literal)) :
+			let splitCandidate = next : SomePattern (Literal (Text.dropWhile isSpace literal)) :
 				tail state.rest.candidate
-			PatternComparator.accept [next] $ swapSub splitSub state{ spaceState = SpaceState.Space }
+			PatternComparator.accept [next] $ swapCandidate splitCandidate state{ spaceState = SpaceState.Space }
 		else
-			Error $ Mismatch (SomePattern self) superP
-		_ -> Error $ Mismatch (SomePattern self) superP
+			Error $ Mismatch (SomePattern self) requirementP
+		_ -> Error $ Mismatch (SomePattern self) requirementP
 
 parse :: Literal -> Code.Parser Match.Literal
 parse = parseLiteral

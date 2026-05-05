@@ -7,8 +7,6 @@ import Utils.Messaging (Messagable, msg)
 import Utils.Strings (parenthesize)
 
 import Beng.Types.Locations (FileLocation(..), Location(..))
-import {-# SOURCE #-} Beng.Things ()
-
 import Data.List (intercalate)
 import Data.Ord (comparing)
 

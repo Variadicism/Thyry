@@ -22,11 +22,11 @@ testDelimited = TestCategories "Delimited" do
 	[
 		PureTests "satisfies" [
 			("exact", d digit comma `assertSatisfies` d digit comma),
-			("super delimitend", d alphaNum comma `assertSatisfies` d digit comma),
-			("super delimiter", d digit punct `assertSatisfies` d digit comma),
-			("super both", d alphaNum punct `assertSatisfies` d digit comma) ],
+			("requirement delimitend", d alphaNum comma `assertSatisfies` d digit comma),
+			("requirement delimiter", d digit punct `assertSatisfies` d digit comma),
+			("requirement both", d alphaNum punct `assertSatisfies` d digit comma) ],
 		PureTests "does not satisfy" [
-			("sub", d digit comma `assertDoesNotSatisfy` d alphaNum punct),
+			("candidate", d digit comma `assertDoesNotSatisfy` d alphaNum punct),
 			("disparate delimitend", d (SomePattern Space) punct `assertDoesNotSatisfy` d alphaNum punct),
 			("disparate delimiter", d alphaNum (SomePattern Space) `assertDoesNotSatisfy` d alphaNum punct),
 			("disparate", SomePattern Space `assertDoesNotSatisfy` d alphaNum punct) ]]

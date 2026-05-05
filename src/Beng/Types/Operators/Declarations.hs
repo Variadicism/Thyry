@@ -15,7 +15,7 @@ import Beng.Types.Parse.Patterns (SomePattern)
 import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Types.Errors (Fallible)
 import Beng.Types.Locations (Location)
-import {-# SOURCE #-} Beng.Types.Things (SomeThing)
+import {-# SOURCE #-} Beng.Types.Things (SomeParameterizedThing)
 import {-# SOURCE #-} qualified Beng.Types.Things as Thing
 
 import Data.Map (Map)
@@ -51,7 +51,7 @@ type ArgContextBuilder =
 data Declaration = Declaration {
 	location :: Location,
 	pattern :: SomePattern,
-	returnType :: SomeThing,  -- TODO: use types from args to formulate the return type
+	returnType :: SomeParameterizedThing,  -- TODO: use types from args to formulate the return type
 	associativity :: Associativity,
 	precedence :: PrecedenceBound,
 	contextualize :: ArgContextBuilder }
