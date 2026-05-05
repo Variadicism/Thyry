@@ -7,8 +7,11 @@ Follow the existing project style, even when another Haskell form would also be 
 - Avoid partial functions like `head`. Prefer `uncons` and other complete functions.
 - Avoid `error`. Prefer the `Fallible` type, which is a monad with constructors `Falue a` and `Error e`.
 - Break lines that are longer than 100 characters where tabs are considered 4 characters long.
+- Prefer record syntax for both type declarations and pattern matching when the type has more than one argument.
 - Prefer record name punning; avoid `{ operator = operator }`, for example.
 - Prefer `case` over function guards.
+- Prefer `do` blocks containing `let` over `let...in` blocks.
+- Avoid `case` blocks with only one alternative; use `let` bindings in `do` blocks instead.
 - Prefer `if ... then ... else` over `case` when branching only on `True` and `False`.
 - Prefer `do` with `let` bindings over `where` clauses.
 - Prefer `do` with `let` bindings over `let ... in`.
