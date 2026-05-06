@@ -22,7 +22,6 @@ import Beng.Parse.Matches ()
 import qualified Beng.Types.Parse.Matches as M
 import Beng.Parse.Patterns (Argument(..))
 import Beng.Run (run)
-import Beng.Types.Build.TypeTest (ParameterMatchResults(..))
 import Beng.Types.Locations (FileLocation(..), Location(..))
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import Beng.Types.Parse.Matches (SomeMatch(..))
@@ -46,9 +45,7 @@ argMatchOf :: Int -> String -> SomeParameterizedThing -> SomeInvocation -> SomeM
 argMatchOf parentIndex name argType inv = SomeMatch $ M.Argument {
 	pattern = Argument { argType, name, decLoc = BuiltinArg name parentIndex },
 	matchedType = parameterize inv.returnType,
-	parameterMatches = ParameterMatchResults {
-		candidateMatches = mempty,
-		requirementMatches = mempty },
+	parameterMatches = mempty,
 	value = SomeThing inv }
 
 runInv value = case asInv value of

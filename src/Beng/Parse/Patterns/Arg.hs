@@ -71,14 +71,6 @@ msgArg name argType = do
 parseArg :: Argument -> Code.Parser Match.Argument
 parseArg Argument{..} = msgArg name argType @> \state -> do
 	let (Just parent) = state.parent
-	let emptyParameterMatchResults = ParameterMatchResults {
-			candidateMatches = mempty,
-			requirementMatches = mempty }
-	let
-		mergeMatches :: ParameterMatchResults -> ParameterMatchResults -> ParameterMatchResults
-		mergeMatches left right = ParameterMatchResults {
-			candidateMatches = Map.unionWith (<>) left.candidateMatches right.candidateMatches,
-			requirementMatches = Map.unionWith (<>) left.requirementMatches right.requirementMatches }
 	let
 		trimMatches :: ParameterMatchResults -> ParameterMatchResults -> ParameterMatchResults
 		trimMatches oldMatches newMatches = do
@@ -97,8 +89,8 @@ parseArg Argument{..} = msgArg name argType @> \state -> do
 					oldMatches.requirementMatches
 					newMatches.requirementMatches }
 	let matchesOfArguments = foldl
-			(\matches argument -> mergeMatches matches argument.parameterMatches)
-			emptyParameterMatchResults
+			(\matches argument -> matches <> argument.parameterMatches)
+			mempty
 			(Map.elems state.arguments)
 	let typeToSatisfy = case castParameterizedThing argType of
 		Just PreOpType{resolvedType} -> resolvedType

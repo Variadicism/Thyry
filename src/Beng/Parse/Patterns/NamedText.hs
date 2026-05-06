@@ -9,7 +9,6 @@ import Utils.Messaging (Messagable(..), msg)
 import qualified Utils.Populace as P
 
 import Beng.Locations ()
-import Beng.Types.Build.TypeTest (ParameterMatchResults(..))
 import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>:>), (>\>), (>/\>))
 import qualified Beng.Parse.Parsers.Code as Code
 import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
@@ -34,11 +33,6 @@ import Beng.Types.Parse.Patterns (
 import qualified Data.Map as Map
 import qualified Data.Map.Ordered as OMap
 
-emptyParameterMatchResults :: ParameterMatchResults
-emptyParameterMatchResults = ParameterMatchResults {
-	candidateMatches = mempty,
-	requirementMatches = mempty }
-
 canBeEmpty :: SomePattern -> Bool
 canBeEmpty = Pattern.canMatchEmpty
 
@@ -51,7 +45,7 @@ parseNamedText NamedText{..} = "named text " ++ wrap "\"" name @+>
 				name,
 				argType = SomeParameterizedThing NativeStringType },
 			matchedType = SomeParameterizedThing NativeStringType,
-			parameterMatches = emptyParameterMatchResults,
+			parameterMatches = mempty,
 			value = SomeThing $ NativeStringValue $ Match.toCode match }
 		s{ Code.arguments = Map.insert name argument s.arguments }) >\> \match ->
 	Match.NamedText { decLoc, name, match }

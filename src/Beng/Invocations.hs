@@ -125,16 +125,9 @@ collectParameterMatchesFromArguments ::
 	Map.Map String Argument ->
 	FallibleI Thing.Mismatch ParameterMatchResults
 collectParameterMatchesFromArguments outerBindings _context _partialRequirement arguments = do
-	let
-		mergeMatches :: ParameterMatchResults -> ParameterMatchResults -> ParameterMatchResults
-		mergeMatches left right = ParameterMatchResults {
-			candidateMatches = Map.unionWith (<>) left.candidateMatches right.candidateMatches,
-			requirementMatches = Map.unionWith (<>) left.requirementMatches right.requirementMatches }
-	let initialMatches = ParameterMatchResults {
-			candidateMatches = outerBindings,
-			requirementMatches = Map.empty }
+	let initialMatches = mempty { candidateMatches = outerBindings }
 	return $ foldl
-		(\matches argument -> mergeMatches matches argument.parameterMatches)
+		(\matches argument -> matches <> argument.parameterMatches)
 		initialMatches
 		(Map.elems arguments)
 

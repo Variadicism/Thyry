@@ -35,7 +35,6 @@ import qualified Beng.Things as Thing
 import qualified Beng.Types.Things as ThingType
 import Beng.Locations ()
 import Beng.Types.Invocations (SomeInvocation)
-import Beng.Types.Build.TypeTest (ParameterMatchResults(..))
 import {-# SOURCE #-} Beng.Parse.Patterns ()
 import {-# SOURCE #-} Beng.Parse.Patterns.Literal ()
 import qualified Beng.Types.Parse.Patterns as Pattern
@@ -57,11 +56,6 @@ import qualified Data.Map.Ordered as OMap
 import Data.Text.Lazy (pack, unpack)
 import qualified Data.Text.Lazy as Text
 import Data.Typeable (cast)
-
-emptyParameterMatchResults :: ParameterMatchResults
-emptyParameterMatchResults = ParameterMatchResults {
-	candidateMatches = mempty,
-	requirementMatches = mempty }
 
 instance Eq Argument where
 	(==) p1 p2 = p1.pattern.name == p2.pattern.name
@@ -195,7 +189,7 @@ instance Match NamedText where
 				decLoc,
 				argType = SomeParameterizedThing NativeStringType },
 			matchedType = SomeParameterizedThing NativeStringType,
-			parameterMatches = emptyParameterMatchResults,
+			parameterMatches = mempty,
 			value = SomeThing $ NativeStringValue $ Match.toCode match }
 		OMap.singleton (name, argument)
 	hasPrefix NamedText{match = SomeMatch match} = not $ Text.null $ Match.toCode match
@@ -214,7 +208,7 @@ instance Match Or where
 				name,
 				argType = SomeParameterizedThing $ NativeOptionalType argType },
 			matchedType = SomeParameterizedThing $ NativeOptionalType matchedType,
-			parameterMatches = emptyParameterMatchResults,
+			parameterMatches = mempty,
 			value = SomeThing $ NativeOptionalValue value }
 		let missEntry = \p -> (p.name,
 			matchFalParam p.decLoc p.name p.argType
@@ -281,7 +275,7 @@ instance Match Delimited where
 						name,
 						argType = SomeParameterizedThing $ NativeListType argType },
 					matchedType = SomeParameterizedThing $ NativeListType $ SomeParameterizedThing One,
-					parameterMatches = emptyParameterMatchResults,
+					parameterMatches = mempty,
 					value = SomeThing $ NativeListValue ([] :: [SomeThing]) }
 				(name, missingParamMatch) <| matches
 			foldr collateArgsWithMissing (Match.getArgs headMatch) missedParams

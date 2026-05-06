@@ -62,7 +62,6 @@ import Beng.Parse.Matches ()
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Parse.Matches (SomeMatch(..), value)
 import Beng.Types.Parse.Patterns (Argument(..), SomePattern(..))
-import Beng.Types.Build.TypeTest (ParameterMatchResults(..))
 import Beng.Types.Operators (SomeOperator(..))
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import Beng.Types.Operators.Declarations (Associativity(..), Declaration)
@@ -107,11 +106,6 @@ data ABCD = A | B | Divide |
 type Pattern = SomePattern
 type Op = SomeInvocation
 type Operator = SomeOperator
-
-emptyParameterMatchResults :: ParameterMatchResults
-emptyParameterMatchResults = ParameterMatchResults {
-	candidateMatches = mempty,
-	requirementMatches = mempty }
 
 runInv value = case asInv value of
 	SomeInvocation invocation -> run invocation
@@ -295,7 +289,7 @@ prefixedUnaryOpMatch abcd prefix argName argType op =
 	SomeMatch $ Match.And $ dualton (SomeMatch $ Match.Literal prefix) $ SomeMatch $ Match.Argument {
 		pattern = Argument { decLoc = locationOf abcd, name = argName, argType },
 		matchedType = parameterize op.returnType,
-		parameterMatches = emptyParameterMatchResults,
+		parameterMatches = mempty,
 		value = SomeThing op }
 
 infixOpMatch ::
@@ -306,13 +300,13 @@ infixOpMatch abcd leftName leftType literal rightName rightType leftOp rightOp =
 		(SomeMatch $ Match.Argument {
 			pattern = Argument { decLoc = locationOf abcd, name = leftName, argType = leftType },
 			matchedType = parameterize leftOp.returnType,
-			parameterMatches = emptyParameterMatchResults,
+			parameterMatches = mempty,
 			value = SomeThing leftOp })
 		(SomeMatch $ Match.Literal literal)
 		[SomeMatch $ Match.Argument {
 			pattern = Argument { decLoc = locationOf abcd, name = rightName, argType = rightType },
 			matchedType = parameterize rightOp.returnType,
-			parameterMatches = emptyParameterMatchResults,
+			parameterMatches = mempty,
 			value = SomeThing rightOp }]
 
 type AssertOneArg = (SomeThing -> Fallible ()) -> Op -> Fallible ()
