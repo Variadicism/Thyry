@@ -25,7 +25,7 @@ import Utils.Populace.Populace2 (Populace2)
 import Beng.Types.Locations (Location)
 import Beng.Types.Parse.Matches (Match)
 import Beng.Types.Parse.PatternArguments (Argument(..), Arguments)
-import {-# SOURCE #-} qualified Beng.Types.Parse.Parsers.PatternComparator as PatternComparator
+import {-# SOURCE #-} Beng.Types.Parse.Parsers.PatternComparator (Comparator)
 import qualified Beng.Types.Parse.Parsers.Code as Code
 
 import qualified Data.Map.Ordered as OMap
@@ -63,8 +63,8 @@ data Delimited = Delimited { delimiter :: SomePattern, delimitend :: SomePattern
 
 class (Match m, Eq p, Show p, Messagable p, Typeable p) => Pattern m p | p -> m where
 	parse :: p -> Code.Parser m
-	compareAsCandidate :: p -> PatternComparator.Comparator
-	compareAsRequirement :: p -> PatternComparator.Comparator
+	compareAsCandidate :: p -> Comparator
+	compareAsRequirement :: p -> Comparator
 
 	getSubpatterns :: p -> Populace SomePattern
 	getSubpatterns = P.singleton . SomePattern
