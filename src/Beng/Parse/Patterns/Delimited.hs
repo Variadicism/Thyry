@@ -13,15 +13,18 @@ import {-# SOURCE #-} Beng.Parse.Matches ()
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Parse.Parsers ((@>), (@+>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
-import Beng.Parse.Parsers.PatternComparator (compareAsRequirementDefault)
-import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
-import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
-import Beng.Things (NativeSomeType(..), NativeListType(..))
+import Beng.Parse.Parsers.PatternComparator (
+	accept,
+	compareAsRequirementDefault,
+	internallySatisfies)
+import Beng.Things (NativeListType(..), NativeSomeType(..))
 import Beng.Types.Things (SomeParameterizedThing(..))
+import Beng.Types.Parse.Parsers.PatternComparator (
+	Comparator,
+	Comparison(..),
+	ComparatorState(..))
 import Beng.Types.Parse.Patterns (
 	Argument(..),
-	Comparison(..),
-	ComparatorState(..),
 	Delimited(..),
 	Mismatch(..),
 	Pattern(..),
@@ -37,7 +40,7 @@ parseDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter 
 		firstMatch:matchTail -> Match.DelimitedTailMatch $ P.Populace firstMatch matchTail) >\>
 	(\(head, tail) -> Match.Delimited { head, tail })
 
-compareAsCandidateDelimited :: Delimited -> PatternComparator.Parser
+compareAsCandidateDelimited :: Delimited -> Comparator
 compareAsCandidateDelimited self@Delimited{..} = show delimitend ++ " by " ++ show delimiter ++ " comparator" @> \state -> do
 	case state.rest.requirement of
 		[] -> Error $ LeftoverCandidate $ P.assume state.rest.candidate
@@ -46,7 +49,7 @@ compareAsCandidateDelimited self@Delimited{..} = show delimitend ++ " by " ++ sh
 				sequence [
 					(state, nextRequirement.delimitend) `internallySatisfies` delimitend,
 					(state, nextRequirement.delimiter) `internallySatisfies` delimiter]
-				PatternComparator.accept [next] state
+				accept [next] state
 			Nothing -> Error $ Mismatch (SomePattern self) $ P.Populace next requirementLeft
 
 instance Eq Delimited where

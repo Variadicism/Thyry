@@ -16,12 +16,13 @@ import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Parse.Matches (SomeMatch)
 import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
-import Beng.Parse.Parsers.PatternComparator (comparator)
-import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
+import Beng.Parse.Parsers.PatternComparator (acceptRest, comparator)
+import Beng.Types.Parse.Parsers.PatternComparator (
+	Comparator,
+	Comparison(..),
+	ComparatorState(..))
 import Beng.Types.Parse.Patterns (
 	And(..),
-	Comparison(..),
-	ComparatorState(..),
 	Mismatch(..),
 	Pattern(..),
 	SomePattern(..))
@@ -45,7 +46,7 @@ parseAsP p = case p.tailTail of
 		parseAsP (P2.Populace2 p.next tailTailHead tailTailTail) >\>
 		uncurry P2.cons
 
-compareAsCandidateAnd :: And -> PatternComparator.Parser
+compareAsCandidateAnd :: And -> Comparator
 compareAsCandidateAnd self@(And subpatterns) =
 	show (length subpatterns) ++ " pattern comparator" @> \state ->
 		case state.rest.candidate of
@@ -53,9 +54,9 @@ compareAsCandidateAnd self@(And subpatterns) =
 				state{ rest = state.rest{ candidate = subpatterns.l ++ candidateLeft }} >>> comparator
 			[] -> case state.rest.requirement of
 				next:requirementLeft -> Error $ Mismatch (SomePattern self) $ P.Populace next requirementLeft
-				[] -> PatternComparator.acceptRest state
+				[] -> acceptRest state
 
-compareAsRequirementAnd :: And -> PatternComparator.Parser
+compareAsRequirementAnd :: And -> Comparator
 compareAsRequirementAnd (And subpatterns) =
 	show (length subpatterns) ++ " requirement comparator" @> \state ->
 		case state.rest.requirement of
@@ -63,7 +64,7 @@ compareAsRequirementAnd (And subpatterns) =
 				state{ rest = state.rest{ requirement = subpatterns.l ++ requirementLeft }} >>> comparator
 			[] -> case state.rest.candidate of
 				nextCandidate:candidateLeft -> Error $ LeftoverCandidate $ P.Populace nextCandidate candidateLeft
-				[] -> PatternComparator.acceptRest state
+				[] -> acceptRest state
 
 instance Eq And where
 	And a == And b = a == b

@@ -11,20 +11,24 @@ import qualified Utils.Populace as P
 import Beng.Locations ()
 import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>:>), (>\>), (>/\>))
 import qualified Beng.Parse.Parsers.Code as Code
-import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
-import Beng.Parse.Parsers.PatternComparator (comparator)
-import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
+import Beng.Parse.Parsers.PatternComparator (
+	accept,
+	acceptRest,
+	comparator,
+	internallySatisfies)
 import {-# SOURCE #-} Beng.Parse.Matches ()
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Parse.Patterns (asPattern)
 import qualified Beng.Parse.Patterns as Pattern
 import Beng.Things (NativeStringType(..), NativeStringValue(..))
 import Beng.Types.Things (SomeParameterizedThing(..), SomeThing(..))
+import Beng.Types.Parse.Parsers.PatternComparator (
+	Comparator,
+	Comparison(..),
+	ComparatorState(..))
 import qualified Beng.Types.Parse.Patterns as TypePattern
 import Beng.Types.Parse.Patterns (
 	Argument(..),
-	Comparison(..),
-	ComparatorState(..),
 	Mismatch(..),
 	NamedText(..),
 	Pattern,
@@ -50,14 +54,14 @@ parseNamedText NamedText{..} = "named text " ++ wrap "\"" name @+>
 		s{ Code.arguments = Map.insert name argument s.arguments }) >\> \match ->
 	Match.NamedText { decLoc, name, match }
 
-compareAsCandidateNamedText :: NamedText -> PatternComparator.Parser
+compareAsCandidateNamedText :: NamedText -> Comparator
 compareAsCandidateNamedText NamedText{..} = "named text " ++ wrap "\"" name ++ " comparator" @> \state ->
 	case state.rest.candidate of
 		_:candidateLeft -> case state.rest.requirement of
 			next:requirementLeft -> case asPattern next :: Maybe NamedText of
 				Just nt@NamedText{} -> if nt.name == name then do
 						(state, nt.subpattern) `internallySatisfies` subpattern
-						PatternComparator.accept [next] state
+						accept [next] state
 					else
 						Error $ Mismatch next $ P.Populace next requirementLeft
 				Nothing -> state{ rest = state.rest{ candidate = subpattern : candidateLeft }} >>> comparator
@@ -66,9 +70,9 @@ compareAsCandidateNamedText NamedText{..} = "named text " ++ wrap "\"" name ++ "
 			next:requirementLeft -> do
 				let self = NamedText { name, subpattern, decLoc }
 				Error $ Mismatch (SomePattern self) $ P.Populace next requirementLeft
-			[] -> PatternComparator.acceptRest state
+			[] -> acceptRest state
 
-compareAsRequirementNamedText :: NamedText -> PatternComparator.Parser
+compareAsRequirementNamedText :: NamedText -> Comparator
 compareAsRequirementNamedText nt@NamedText{..} =
 	"named text " ++ wrap "\"" name ++ " requirement comparator" @> \state ->
 	case state.rest.candidate of
@@ -85,7 +89,7 @@ compareAsRequirementNamedText nt@NamedText{..} =
 				state{ rest = state.rest{ requirement = subpattern:requirementLeft }} >>> comparator
 			[] -> case state.rest.candidate of
 				nextCandidate:candidateLeft -> Error $ LeftoverCandidate $ P.Populace nextCandidate candidateLeft
-				[] -> PatternComparator.acceptRest state
+				[] -> acceptRest state
 
 instance Eq NamedText where
 	a == b = a.name == b.name && a.subpattern == b.subpattern && a.decLoc == b.decLoc

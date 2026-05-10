@@ -14,12 +14,18 @@ import {-# SOURCE #-} Beng.Parse.Matches ()
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>:>), (>\>), parseAny)
 import qualified Beng.Parse.Parsers.Code as Code
-import Beng.Parse.Parsers.PatternComparator (internallySatisfies)
-import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
+import Beng.Parse.Parsers.PatternComparator (
+	accept,
+	acceptRest,
+	comparator,
+	internallySatisfies,
+	swapRequirement)
+import Beng.Types.Parse.Parsers.PatternComparator (
+	Comparator,
+	Comparison(..),
+	ComparatorState(..))
 import qualified Beng.Types.Parse.Patterns as TypePattern
 import Beng.Types.Parse.Patterns (
-	Comparison(..),
-	ComparatorState(..),
 	Mismatch(..),
 	Or(..),
 	Pattern,
@@ -42,15 +48,15 @@ parserForSubpattern subpatterns matchIndex pattern =
 			OMap.concat $ map Pattern.getArgs missedSubpatterns
 		Match.Or { match, matchIndex, misses }
 
-compareAsCandidateOr :: Or -> PatternComparator.Parser
+compareAsCandidateOr :: Or -> Comparator
 compareAsCandidateOr self@(Or subpatterns) = show (length subpatterns) ++ " possible pattern comparator" @> \state ->
 	case state.rest.requirement of
 		[] -> Error $ LeftoverCandidate $ P.singleton $ SomePattern self
 		nextRequirement:_ -> do
 			sequence $ P2.map ((state, nextRequirement) `internallySatisfies`) subpatterns
-			PatternComparator.accept [nextRequirement] state
+			accept [nextRequirement] state
 
-compareAsRequirementOr :: Or -> PatternComparator.Parser
+compareAsRequirementOr :: Or -> Comparator
 compareAsRequirementOr (Or subpatterns) =
 	show (length subpatterns) ++ " possible requirement comparator" @> \state ->
 	case state.rest.candidate of
@@ -60,7 +66,7 @@ compareAsRequirementOr (Or subpatterns) =
 		[] -> branchOptions state
 	where
 		dispatchCurrentCandidate (SomePattern pattern) state =
-			state >>> TypePattern.compareAsCandidate pattern >:> PatternComparator.comparator >\> const ()
+			state >>> TypePattern.compareAsCandidate pattern >:> comparator >\> const ()
 
 		branchOptions state = do
 			case state.rest.requirement of
@@ -69,11 +75,11 @@ compareAsRequirementOr (Or subpatterns) =
 							"possible requirement pattern " ++
 								show (i + 1) ++ "/" ++ show (length subpatterns) ++
 								" " ++ show option @> \state' ->
-									PatternComparator.swapRequirement (option:requirementLeft) state' >>> PatternComparator.comparator
+									swapRequirement (option:requirementLeft) state' >>> comparator
 					state >>> parseAny (P2.toP1 $ P2.mapIndexed parserFor subpatterns)
 				[] -> case state.rest.candidate of
 					nextCandidate:candidateLeft -> Error $ LeftoverCandidate $ P.Populace nextCandidate candidateLeft
-					[] -> PatternComparator.acceptRest state
+					[] -> acceptRest state
 
 instance Eq Or where
 	Or a == Or b = a == b

@@ -3,12 +3,6 @@
 
 module Beng.Types.Parse.Patterns (
 	Mismatch(..),
-	Comparison(..),
-	ComparatorState(..),
-	ComparatorParse,
-	ComparatorParses,
-	ComparatorRunner,
-	Comparator,
 	SomePattern(..),
 	CharRange(..),
 	Argument(..),
@@ -31,10 +25,8 @@ import Utils.Populace.Populace2 (Populace2)
 import Beng.Types.Locations (Location)
 import Beng.Types.Parse.Matches (Match)
 import Beng.Types.Parse.PatternArguments (Argument(..), Arguments)
+import {-# SOURCE #-} qualified Beng.Types.Parse.Parsers.PatternComparator as PatternComparator
 import qualified Beng.Types.Parse.Parsers.Code as Code
-import Beng.Types.Parse.Parsers.Code (SpaceState)
-import Beng.Types.Build.TypeTest (TypeTest)
-import qualified Beng.Types.Parse.Parsers as General
 
 import qualified Data.Map.Ordered as OMap
 import Data.Set (Set)
@@ -50,24 +42,6 @@ data Mismatch =
 	Mismatch { nextCandidate :: SomePattern, remainingRequirement :: Populace SomePattern } |
 	-- /\ furthest from success
 	CompoundMismatch { context :: String, compound :: Populace Mismatch }
-
-data Comparison = Comparison {
-	candidate :: [SomePattern],
-	requirement :: [SomePattern] }
-
-data ComparatorState = ComparatorState {
-	indentation :: Int,
-	-- Temporary comparator heuristic to distinguish leading optionals from interior ones.
-	atStart :: Bool,
-	spaceState :: SpaceState,
-	rest :: Comparison,
-	checkArgTypes :: Bool,
-	test :: TypeTest }
-
-type ComparatorParse = General.Parse Comparison ComparatorState ()
-type ComparatorParses = General.Parses Mismatch Comparison ComparatorState ()
-type ComparatorRunner = General.ParseRunner Mismatch Comparison ComparatorState ()
-type Comparator = General.Parser Mismatch Comparison ComparatorState ()
 
 -- I could implement this with Haskell ranges, but I want to Show them nicely.
 data CharRange = CharRange { start :: Char, end :: Char }
@@ -89,8 +63,8 @@ data Delimited = Delimited { delimiter :: SomePattern, delimitend :: SomePattern
 
 class (Match m, Eq p, Show p, Messagable p, Typeable p) => Pattern m p | p -> m where
 	parse :: p -> Code.Parser m
-	compareAsCandidate :: p -> Comparator
-	compareAsRequirement :: p -> Comparator
+	compareAsCandidate :: p -> PatternComparator.Comparator
+	compareAsRequirement :: p -> PatternComparator.Comparator
 
 	getSubpatterns :: p -> Populace SomePattern
 	getSubpatterns = P.singleton . SomePattern

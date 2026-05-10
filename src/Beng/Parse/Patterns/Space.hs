@@ -12,16 +12,22 @@ import Beng.Errors (Fallible, parseError)
 import {-# SOURCE #-} Beng.Parse.Matches ()
 import Beng.Parse.Parsers ((@>), (@+>), (>>>), (>|>), (>:>), (>\>))
 import qualified Beng.Parse.Parsers.Code as Code
-import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
+import Beng.Parse.Parsers.PatternComparator (
+	accept,
+	acceptRequirementOnly,
+	acceptRest,
+	comparator)
 import {-# SOURCE #-} Beng.Parse.Patterns (asPattern, startingSpaceStates)
 import qualified Beng.Types.Parse.Parsers.Code as Code
+import Beng.Types.Parse.Parsers.PatternComparator (
+	Comparator,
+	Comparison(..),
+	ComparatorState(..))
 import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Types.Parse.Parsers.Code (PrefixState(..))
 import qualified Beng.Types.Parse.Matches as Match
 import qualified Beng.Types.Parse.Parsers.Code as SpaceState (SpaceState(..))
 import Beng.Types.Parse.Patterns (
-	Comparison(..),
-	ComparatorState(..),
 	Mismatch(..),
 	Pattern,
 	SomePattern(..),
@@ -72,11 +78,11 @@ parseSingleSpace = "parse whitespace" @> \state ->
 		Nothing -> Error $ parseError state
 			"The end of the text was reached while trying to parse whitespace!"
 
-compareAsCandidateSpace :: Space -> PatternComparator.Parser
+compareAsCandidateSpace :: Space -> Comparator
 compareAsCandidateSpace _ = "space comparator" @> \state ->
 	case state.rest.requirement of
 		[] -> case state.rest.candidate of
-			[_] -> PatternComparator.accept [] state
+			[_] -> accept [] state
 			_ -> Error $ Mismatch (SomePattern Space) $ P.assume state.rest.candidate
 		nextRequirement:requirementLeft -> do
 			let nextIsSpace = maybe False (const True) (asPattern nextRequirement :: Maybe Space)
@@ -86,13 +92,13 @@ compareAsCandidateSpace _ = "space comparator" @> \state ->
 				not (Set.null states) &&
 				all (Code.formsBoundary state.spaceState) states
 			if nextIsSpace then
-				PatternComparator.accept [SomePattern Space] state
+				accept [SomePattern Space] state
 			else if canSatisfyBoundary then
-				PatternComparator.accept [] state
+				accept [] state
 			else
 				Error $ Mismatch (SomePattern Space) $ P.Populace nextRequirement requirementLeft
 
-compareAsRequirementSpace :: Space -> PatternComparator.Parser
+compareAsRequirementSpace :: Space -> Comparator
 compareAsRequirementSpace _ = "space requirement comparator" @> \state -> do
 	case state.rest.requirement of
 		nextRequirement:requirementLeft -> do
@@ -112,19 +118,18 @@ compareAsRequirementSpace _ = "space requirement comparator" @> \state -> do
 						not (Set.null states) && all (Code.formsBoundary state.spaceState) states
 					[] -> False
 			if canConsumeBoundary then
-				state >>> ("consume boundary requirement Space" @>
-						PatternComparator.acceptRequirementOnly [nextRequirement]) >:>
-					PatternComparator.comparator >\> const ()
+				state >>> ("consume boundary requirement Space" @> acceptRequirementOnly [nextRequirement]) >:>
+					comparator >\> const ()
 			else
 				case state.rest.candidate of
 					nextCandidate:_ -> dispatchCurrentCandidate nextCandidate state
 					[] -> Error $ LeftoverRequirement $ P.Populace nextRequirement requirementLeft
 		[] -> case state.rest.candidate of
 			nextCandidate:candidateLeft -> Error $ LeftoverCandidate $ P.Populace nextCandidate candidateLeft
-			[] -> PatternComparator.acceptRest state
+			[] -> acceptRest state
 	where
 		dispatchCurrentCandidate (SomePattern pattern) state =
-			state >>> Pattern.compareAsCandidate pattern >:> PatternComparator.comparator >\> const ()
+			state >>> Pattern.compareAsCandidate pattern >:> comparator >\> const ()
 
 instance Show Space where
 	show _ = " "

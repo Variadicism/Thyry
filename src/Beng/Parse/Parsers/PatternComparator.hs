@@ -23,8 +23,14 @@ import {-# SOURCE #-} qualified Beng.Parse.Parsers as Parser
 import Beng.Build.TypeTest (TypeTest)
 import {-# SOURCE #-} Beng.Parse.Patterns (isOptional)
 import qualified Beng.Types.Parse.Parsers.Code as Code
-import Beng.Types.Parse.Parsers.PatternComparator (Comparison(..), Parse, ParseRunner, Parser, Parses)
-import Beng.Types.Parse.Patterns (And(..), ComparatorState(..), Literal(..), Mismatch(..), SomePattern(..))
+import Beng.Types.Parse.Parsers.PatternComparator (
+	Comparison(..),
+	Comparator,
+	ComparatorState(..),
+	Parse,
+	ParseRunner,
+	Parses)
+import Beng.Types.Parse.Patterns (And(..), Literal(..), Mismatch(..), SomePattern(..))
 import qualified Beng.Types.Parse.Patterns as Pattern
 
 import Control.Applicative ((<|>))
@@ -110,11 +116,11 @@ takeAs = Parser.takeAsUsing takeAs1
 takeAsNull :: Show t => t -> Parser.ParseRunner Mismatch Comparison ComparatorState t
 takeAsNull = takeAs Comparison { candidate = [], requirement = [] }
 
-compareAsCandidatePattern :: SomePattern -> Parser
+compareAsCandidatePattern :: SomePattern -> Comparator
 compareAsCandidatePattern (SomePattern pattern) =
 	Pattern.compareAsCandidate pattern >:> comparator >\> const ()
 
-compareAsRequirementPattern :: SomePattern -> Parser
+compareAsRequirementPattern :: SomePattern -> Comparator
 compareAsRequirementPattern (SomePattern pattern) =
 	Pattern.compareAsRequirement pattern >:> comparator >\> const ()
 
@@ -154,10 +160,10 @@ acceptUsing fromRequirement test = \state -> case state.rest.candidate of
 accept :: [SomePattern] -> ParseRunner
 accept fromRequirement = \state -> acceptUsing fromRequirement state.test state
 
-parseAll :: Parser -> Parser
+parseAll :: Comparator -> Comparator
 parseAll = (>\> const ()) . Parser.parseAllUsing takeAsNull
 
-parseWhile :: String -> (ComparatorState -> Bool) -> Parser -> Parser
+parseWhile :: String -> (ComparatorState -> Bool) -> Comparator -> Comparator
 parseWhile desc checker pieceParser =
 	Parser.parseWhileUsing takeAsNull desc checker pieceParser >\> const ()
 
@@ -165,7 +171,7 @@ internallySatisfies :: (ComparatorState, SomePattern) -> SomePattern -> Fallible
 internallySatisfies (state, requirement) candidate =
 	swapCandidate [candidate] (swapRequirement [requirement] state) >>> comparator
 
-compareAsRequirementDefault :: SomePattern -> Parser
+compareAsRequirementDefault :: SomePattern -> Comparator
 compareAsRequirementDefault self = "default requirement comparator for " ++ show self @> \state ->
 	case state.rest.requirement of
 		nextRequirement:requirementLeft ->
@@ -181,7 +187,7 @@ compareAsRequirementDefault self = "default requirement comparator for " ++ show
 				Error $ LeftoverCandidate $ P.Populace nextCandidate candidateLeft
 			[] -> acceptRest state
 
-comparator :: Parser
+comparator :: Comparator
 comparator = do
 	"pattern comparator" @> \state -> do
 		case (state.rest.requirement, state.rest.candidate) of

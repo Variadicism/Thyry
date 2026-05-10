@@ -21,9 +21,10 @@ import {-# SOURCE #-} Beng.Parse.Matches ()
 import Beng.Parse.Parsers ((@>), (>>>), (>\>), (>/\>), (>-\>))
 import Beng.Parse.Parsers.Code (PrefixState(..), State(..))
 import qualified Beng.Parse.Parsers.Code as Code
-import Beng.Parse.Parsers.PatternComparator (compareAsRequirementDefault)
-import Beng.Parse.Parsers.PatternComparator ()
-import qualified Beng.Parse.Parsers.PatternComparator as PatternComparator
+import Beng.Parse.Parsers.PatternComparator (
+	accept,
+	acceptUsing,
+	compareAsRequirementDefault)
 import Beng.Types.Build.TypeTest (ParameterMatchResults(..), TypeTest(..))
 import Beng.Types.Errors (Error(..), Fallible)
 import Beng.Types.Locations (Location)
@@ -33,11 +34,13 @@ import Beng.Types.Invocations (
 	Invocation(..))
 import qualified Beng.Types.Parse.Matches as Match
 import qualified Beng.Types.Parse.Parsers.Code as SpaceState
+import Beng.Types.Parse.Parsers.PatternComparator (
+	Comparator,
+	Comparison(..),
+	ComparatorState(..))
 import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Types.Parse.Patterns (
 	Argument(..),
-	Comparison(..),
-	ComparatorState(..),
 	Mismatch(..),
 	Pattern,
 	SomePattern(..))
@@ -155,7 +158,7 @@ parseArg Argument{..} = msgArg name argType @> \state -> do
 					>\> uncurry argOf
 			state{ Code.context = foldl (flip push) state.context argContext } >>> storedArgument
 
-compareAsCandidateArg :: Argument -> PatternComparator.Parser
+compareAsCandidateArg :: Argument -> Comparator
 compareAsCandidateArg self@Argument{..} = msgArg name argType ++ " comparator" @> \state -> do
 	let normalizeArgType typeToNormalize =
 			case castParameterizedThing typeToNormalize :: Maybe (NamedThing SomeParameterizedThing) of
@@ -169,9 +172,9 @@ compareAsCandidateArg self@Argument{..} = msgArg name argType ++ " comparator" @
 				case (state.test, normalizedArgType) `satisfiesDuring` arg.argType of
 					Error _ -> Error $ Mismatch (SomePattern self) $ P.Populace nextRequirement requirementLeft
 					Falue nextTest ->
-						PatternComparator.acceptUsing [nextRequirement] nextTest state
+						acceptUsing [nextRequirement] nextTest state
 			else
-				PatternComparator.accept [nextRequirement] state
+				accept [nextRequirement] state
 			Nothing -> Error $ Mismatch (SomePattern self) $ P.Populace nextRequirement requirementLeft
 
 instance Pattern Match.Argument Argument where
