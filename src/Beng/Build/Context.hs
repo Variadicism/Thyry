@@ -43,8 +43,8 @@ import qualified Data.Set as Set
    So, precedence's raw value means nothing except to compare two from the same context. -}
 findPrecedenceWith :: (SomeOperator -> Bool) -> Context -> Maybe Int
 findPrecedenceWith matches Context{..} = do
-	opIndex <- findIndex matches deck
-	let precedenceIndex = length deck - 1 - opIndex
+	opIndex <- findIndex matches ops
+	let precedenceIndex = length ops - 1 - opIndex
 	findIndex (precedenceIndex `Set.member`) precedence
 
 findPrecedence :: Operator op => Context -> op -> Maybe Int
@@ -78,7 +78,7 @@ hasIn (op:contextRest) test requirement = do
 deriving instance Eq Context
 
 instance Show Context where
-	show context@Context{..} = concatMap showDec deck
+	show context@Context{..} = concatMap showDec ops
 		where
 			showDec :: SomeOperator -> String
 			showDec op = do
@@ -88,12 +88,12 @@ instance Show Context where
 				"\n\t" ++ precedenceNote ++ show op
 
 instance Messagable Context where
-	msg Context{..} = showWithAnd $ map msg deck
+	msg Context{..} = showWithAnd $ map msg ops
 
 -- exported
 
 empty :: Context
-empty = Context { precedence = [], deck = [] }
+empty = Context { precedence = [], ops = [] }
 
 hasPrecedence :: Operator op => Context -> op -> Bool
 hasPrecedence context = isJust . findPrecedence context
@@ -117,20 +117,20 @@ push op context = do
 			" was not available to push the precedence of " ++ show op ++ "!"
 		fromMaybe (error errorMessage) $ findPrecedence context comparative
 
-	let decIndex = length context.deck
+	let decIndex = length context.ops
 	let updatePrec :: ([Set Int] -> [Set Int]) =
 		case Ops.precedence op of
-			Above minimum -> do
+			Broader minimum -> do
 				let precIndex = forcePrecedence context minimum
 				if precIndex == length context.precedence - 1
 					then (++ [Set.singleton decIndex])
 					else updateAt (precIndex + 1) (Set.insert decIndex)
-			Below maximum -> do
+			Tighter maximum -> do
 				let precIndex = forcePrecedence context maximum
 				if precIndex == 0
 					then (Set.singleton decIndex:)
 					else updateAt (precIndex - 1) (Set.insert decIndex)
-			At sibling -> do
+			SameAs sibling -> do
 				let precIndex = forcePrecedence context sibling
 				updateAt precIndex (Set.insert decIndex)
 			Between bound1 bound2 -> do
@@ -149,7 +149,7 @@ push op context = do
 					else updateAt (length context.precedence - 1) (Set.insert decIndex)
 			None -> id
 	debug ("Pushing " ++ show op ++ " to context...") context{
-		deck = someOp:context.deck,
+		ops = someOp:context.ops,
 		precedence = updatePrec context.precedence }
 
 fromOps :: ([SomeOperator] -> Context)
@@ -158,7 +158,7 @@ fromOps = foldl (flip push) empty
 concat :: [Context] -> Context
 concat [] = empty
 concat [c] = c
-concat (c1:rest) = foldl (flip push) c1 $ concatMap deck rest
+concat (c1:rest) = foldl (flip push) c1 $ concatMap ops rest
 
 fromThings :: ([SomeThing] -> Context)
 fromThings = fromOps . concatMap propsOf
@@ -166,4 +166,4 @@ fromThings = fromOps . concatMap propsOf
 has ::
 	Operator op => TypeTest -> op -> FallibleI Declaration.Mismatch TypeTest
 -- TODO: don't let `hasIn` be called with an empty context or it will accept anything.
-has test = hasIn test.context.deck test
+has test = hasIn test.context.ops test

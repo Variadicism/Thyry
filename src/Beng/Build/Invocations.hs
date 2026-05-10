@@ -131,7 +131,7 @@ buildNonPrefixed predecessor = "non-prefixed op for " ++ show predecessor @> \st
 
 	let nonPrefixedOps =
 		filter meetsPredecenceRequirement $
-		filter (not . requiresPrefix) state.context.deck
+		filter (not . requiresPrefix) state.context.ops
 	opPopulace <- P.assert nonPrefixedOps $ parseError state
 		"There were no non-prefixed operators applicable in the current Context!"
 	let nonPrefixedParser :: (SomeInvocation -> Parser SomeInvocation) = \firstArg ->
@@ -147,7 +147,7 @@ build contextDescription = contextDescription @+>
 	-- Maybe that can wait for the self-hosted rewrite?
 	-- It's an extremely niche edge case that would require a significant refactor of this logic.
 	"prefixed op" @> \state -> do
-		let prefixedOps = filter acceptsPrefix state.context.deck
+		let prefixedOps = filter acceptsPrefix state.context.ops
 		opPopulace <- P.assert prefixedOps $ parseError state
 			"There were no prefixed operators applicable in the current Context!"
 		state >>> (parseAny $ P.map (parseFor Needed) opPopulace)

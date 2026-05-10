@@ -116,7 +116,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 		(SomeParameterizedThing $ NativeBitsType 1)
 		(\_ -> return $ bitValue False)
 		location
-	Add -> define (Above $ SomeOperator $ dec LineComment)
+	Add -> define (Broader $ SomeOperator $ dec LineComment)
 		[a "Augend" intType, s, l "+", s, a "Addend" intType]
 		intType
 		(\args -> do
@@ -124,7 +124,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 			addend <- asInt $ args ! "Addend"
 			return $ intValue $ augend + addend)
 		location
-	Subtract -> define (At $ SomeOperator $ dec Add)
+	Subtract -> define (SameAs $ SomeOperator $ dec Add)
 		[a "Minuend" intType, s, l "-", s, a "Subtrahend" intType]
 		intType
 		(\args -> do
@@ -132,7 +132,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 			subtrahend <- asInt $ args ! "Subtrahend"
 			return $ intValue $ minuend - subtrahend)
 		location
-	Equal -> define (Below $ SomeOperator $ dec Subtract)
+	Equal -> define (Tighter $ SomeOperator $ dec Subtract)
 		[a "Left" thingP, s, l "=", s, a "Right" thingP]
 		bitType
 		(\args -> return $ bitValue $ args ! "Left" == args ! "Right")
@@ -142,7 +142,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 		(listOfP thingP)
 		(const $ return $ SomeThing $ NativeListValue ([] :: [SomeConcreteThing]))
 		location
-	ConcatLists -> define (Above $ SomeOperator $ dec Equal)
+	ConcatLists -> define (Broader $ SomeOperator $ dec Equal)
 		[a "Init" (p "L" $ listOfP thingP), s, l "and", s, a "Tail" $ (p "L" $ listOfP thingP)]
 		(p "L" $ listOfP thingP)
 		(\args -> do
@@ -150,12 +150,12 @@ hangingDefinitionOf opEnum location = case opEnum of
 			tailL <- asList $ args ! "Tail"
 			return $ SomeThing $ NativeListValue $ initL ++ tailL)
 		location
-	Only -> define (Above $ SomeOperator $ dec Add)
+	Only -> define (Broader $ SomeOperator $ dec Add)
 		[l "only", s, a "Only" $ p "O" thingP]
 		(someOfP $ p "O" thingP)
 		(\args -> return $ SomeThing $ NativeSomeValue $ P.singleton $ args ! "Only")
 		location
-	First -> define (Above $ SomeOperator $ dec Add)
+	First -> define (Broader $ SomeOperator $ dec Add)
 		[l "First", s, l "of", s, a "Some" $ someOfP $ p "E" thingP]
 		(p "E" thingP)
 		(\args -> do
@@ -163,7 +163,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 			case P.uncons someValue of
 				(first, _) -> return first)
 		location
-	ConcatListSome -> define (At $ SomeOperator $ dec ConcatLists)
+	ConcatListSome -> define (SameAs $ SomeOperator $ dec ConcatLists)
 		[a "Init" (p "L" $ listOfP thingP), s, l "and", s, a "Tail" $ (p "L" $ someOfP thingP)]
 		(p "L" $ listOfP thingP)
 		(\args -> do
@@ -171,7 +171,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 			tailSome <- asSome $ args ! "Tail"
 			return $ SomeThing $ NativeSomeValue $ P.assume $ initL ++ tailSome.l)
 		location
-	StartsWith -> define (Below $ SomeOperator $ dec Add)
+	StartsWith -> define (Tighter $ SomeOperator $ dec Add)
 		[a "Target" stringType, s, l "starts", s, l "with", s, a "Prefix" stringType]
 		bitType
 		(\args -> do
@@ -179,7 +179,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 			prefix <- asNativeString $ args ! "Prefix"
 			return $ bitValue $ prefix `Text.isPrefixOf` target)
 		location
-	DefineValue -> defineUsing (Below $ SomeOperator $ dec Add) Righty
+	DefineValue -> defineUsing (Tighter $ SomeOperator $ dec Add) Righty
 		[t "Name" valueName, s, l ":=", s, a "Value" thingP, s,
 			a "Scope" (SomeParameterizedThing $ PreOpType $ p "R" thingP)]
 		(p "R" thingP)
@@ -193,7 +193,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 		(\args -> case asInv $ args ! "Scope" of
 			SomeInvocation invocation -> run invocation)
 		location
-	If -> define (Below $ SomeOperator $ dec DefineValue)
+	If -> define (Tighter $ SomeOperator $ dec DefineValue)
 		[l "if", s, a "Condition" bitType, l ",", s,
 			a "Yes Value" (p "Y" thingP), s,
 			l "else", s,

@@ -16,12 +16,12 @@ data Context = Context {
 	precedence :: [Set Int],
 {- Declaration/definition stack of operators
    Lower index -> declared later/closer (first dibs) -}
-	deck :: [SomeOperator] }
+	ops :: [SomeOperator] }
 
 data PrecedenceBound =
-	Above SomeOperator |
-	Below SomeOperator |
-	At SomeOperator |
+	Broader SomeOperator |
+	Tighter SomeOperator |
+	SameAs SomeOperator |
 	Between SomeOperator SomeOperator |
 	Default |
 	None

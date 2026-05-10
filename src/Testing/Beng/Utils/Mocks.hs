@@ -115,7 +115,7 @@ defineStaticNameValue name location = do
 	let (Builtin parentIndex) = location  -- All locations in mocks are Builtin-type.
 	let a name argType = SomePattern Argument {
 		decLoc = BuiltinArg { name, parentIndex }, name, argType }
-	defineUsing (Below $ SomeOperator $ declarationOf App) Righty
+	defineUsing (Tighter $ SomeOperator $ declarationOf App) Righty
 		[l name, s, l ":=", s, a "Thing" intType, s, a "Scope" $
 			SomeParameterizedThing $ PreOpType intType]
 		intType
@@ -143,7 +143,7 @@ hangingDefinitionOf enum location = case enum of
 			divisor <- asInt =<< runInv (args ! "Divisor")
 			return $ intValue $ dividend `div` divisor)
 		location
-	DivideWords -> define (At $ SomeOperator $ declarationOf Divide)
+	DivideWords -> define (SameAs $ SomeOperator $ declarationOf Divide)
 		[a "Dividend" intType, s, l "and", s, a "Divisor" intType, s, l "divided"]
 		intType
 		(\args -> do
@@ -151,7 +151,7 @@ hangingDefinitionOf enum location = case enum of
 			divisor <- asInt =<< runInv (args ! "Divisor")
 			return $ intValue $ dividend `div` divisor)
 		location
-	Exp -> define (Above $ SomeOperator $ declarationOf Divide)
+	Exp -> define (Broader $ SomeOperator $ declarationOf Divide)
 		[a "Base" intType, l "^", a "Exponent" intType]
 		intType
 		(\args -> do
@@ -164,12 +164,12 @@ hangingDefinitionOf enum location = case enum of
 		   Sorry that that's inconsistent with Haskell where application has a very low precedence,
 		   but there aren't many well-known righty operators and Haskell's builtin operators are
 		   designed to never include two associativities in one precedence level. -}
-		defineRighty (Below $ SomeOperator $ declarationOf Divide)
+		defineRighty (Tighter $ SomeOperator $ declarationOf Divide)
 			[a "Left" intType, l "$", a "Right" intType]
 			intType
 			(runInv . (! "Left"))
 			location
-	AddWords -> define (At $ SomeOperator $ declarationOf App)
+	AddWords -> define (SameAs $ SomeOperator $ declarationOf App)
 		[a "Augend" intType, s, l "and", s, a "Addend" intType, s, l "added"]
 		intType
 		(\args -> do
@@ -177,7 +177,7 @@ hangingDefinitionOf enum location = case enum of
 			addend <- asInt =<< runInv (args ! "Addend")
 			return $ intValue $ augend + addend)
 		location
-	Add -> define (At $ SomeOperator $ declarationOf AddWords)
+	Add -> define (SameAs $ SomeOperator $ declarationOf AddWords)
 		[a "Augend" intType, l "+", a "Addend" intType]
 		intType
 		(\args -> do
@@ -185,14 +185,14 @@ hangingDefinitionOf enum location = case enum of
 			addend <- asInt =<< runInv (args ! "Addend")
 			return $ intValue $ augend + addend)
 		location
-	Not -> define (Above $ SomeOperator $ declarationOf Divide)
+	Not -> define (Broader $ SomeOperator $ declarationOf Divide)
 		[l "!", a "Thing" intType]  -- I couldn't come up with a cool name for this one.
 		intType
 		(\args -> do
 			value <- asInt =<< runInv (args ! "Thing")
 			return $ intValue (-value))
 		location
-	Negate -> define (Above $ SomeOperator $ declarationOf Not)
+	Negate -> define (Broader $ SomeOperator $ declarationOf Not)
 		[l "~", a "Negend" intType]  -- That's probably not a word. Too bad! It is now!
 		intType
 		(\args -> do
@@ -211,7 +211,7 @@ hangingDefinitionOf enum location = case enum of
 		stringType
 		(\_ -> return $ stringValue "K")
 		location
-	StartsWith -> define (Below $ SomeOperator $ declarationOf Add)
+	StartsWith -> define (Tighter $ SomeOperator $ declarationOf Add)
 		[a "Target" stringType, s, l "starts", s, l "with", s, a "Prefix" stringType]
 		bitType
 		(\args -> do
@@ -219,7 +219,7 @@ hangingDefinitionOf enum location = case enum of
 			prefix <- asNativeString =<< runInv (args ! "Prefix")
 			return $ bitValue $ prefix `Text.isPrefixOf` target)
 		location
-	Concat -> define (At $ SomeOperator $ declarationOf Add)
+	Concat -> define (SameAs $ SomeOperator $ declarationOf Add)
 		[a "Prefix" stringType, s, l "+", s, a "Suffix" stringType]
 		stringType
 		(\args -> do

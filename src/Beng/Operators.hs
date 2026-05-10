@@ -139,7 +139,7 @@ instance Operator Declaration where
 					Error _ -> False
 		let outerContext = Context.Context {
 			precedence = test.context.precedence,
-			deck = filter satisfiesOne test.context.deck }
+			ops = filter satisfiesOne test.context.ops }
 		let propsTest = debug "Restricting declaration prop lookup to candidate props"
 			test { Test.context = propsContext }
 		let outerTest = debug "Restricting declaration prop lookup to applicable outer props"
@@ -161,7 +161,7 @@ instance Operator Declaration where
 		let args = OMap.toMap $ OMap.map (\argument -> argument.value) $ Match.getArgs match
 		let sameDeclaration :: SomeOperator -> Bool = \candidate ->
 			candidate.decLoc == Dec.location declaration
-		case find sameDeclaration context.deck of
+		case find sameDeclaration context.ops of
 			Nothing -> Error $ UndefinedError { caller = SomeInvocation invocation }
 			Just (SomeOperator candidate) -> case Ops.inlineDefinition candidate of
 				Nothing -> Error $ UndefinedError { caller = SomeInvocation invocation }
@@ -204,7 +204,7 @@ instance Operator Definition where
 					Falue _ -> Just candidateDefinition
 					Error _ -> Nothing
 		let matchingDefinition = do
-			matchingOp <- find (isJust . samePropDefinition) propsContext.deck
+			matchingOp <- find (isJust . samePropDefinition) propsContext.ops
 			samePropDefinition matchingOp
 		let mismatchedBitValue = do
 			guard $ onlyOneArg definition
