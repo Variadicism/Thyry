@@ -48,8 +48,7 @@ import Beng.Things (PreOpType(..))
 import Beng.Types.Things (
 	NamedThing(..),
 	SomeParameterizedThing(..),
-	SomeThing(..),
-	castParameterizedThing)
+	SomeThing(..))
 import qualified Beng.Types.Things as Thing
 
 import qualified Data.Map as Map
@@ -59,6 +58,7 @@ import Data.List (uncons)
 import Data.List.Extra (dropPrefix)
 import Control.Monad (when)
 import qualified Data.Set as Set
+import Data.Typeable (cast)
 
 showArg :: String -> SomeParameterizedThing -> Location -> String
 showArg name argType decLoc = show decLoc ++ ":" ++ msgArg name argType
@@ -95,9 +95,10 @@ parseArg Argument{..} = msgArg name argType @> \state -> do
 			(\matches argument -> matches <> argument.parameterMatches)
 			mempty
 			(Map.elems state.arguments)
-	let typeToSatisfy = case castParameterizedThing argType of
-		Just PreOpType{resolvedType} -> resolvedType
-		Nothing -> argType
+	let typeToSatisfy = case argType of
+		SomeParameterizedThing thing -> case cast thing of
+			Just PreOpType{resolvedType} -> resolvedType
+			Nothing -> argType
 	let checkSatisfiesArgType :: SomeInvocation -> Fallible ParameterMatchResults =
 			\(SomeInvocation invocation) -> do
 		let (Location.Code opLocation) = invocation.location
@@ -161,9 +162,10 @@ parseArg Argument{..} = msgArg name argType @> \state -> do
 compareAsCandidateArg :: Argument -> Comparator
 compareAsCandidateArg self@Argument{..} = msgArg name argType ++ " comparator" @> \state -> do
 	let normalizeArgType typeToNormalize =
-			case castParameterizedThing typeToNormalize :: Maybe (NamedThing SomeParameterizedThing) of
-				Just _ -> SomeParameterizedThing typeToNormalize
-				Nothing -> Thing.parameterize $ Thing.normalize typeToNormalize
+			case typeToNormalize of
+				SomeParameterizedThing thing -> case cast thing :: Maybe (NamedThing SomeParameterizedThing) of
+					Just _ -> SomeParameterizedThing thing
+					Nothing -> Thing.parameterize $ Thing.normalize thing
 	let normalizedArgType = normalizeArgType argType
 	case state.rest.requirement of
 		[] -> Error $ LeftoverCandidate $ P.assume state.rest.candidate

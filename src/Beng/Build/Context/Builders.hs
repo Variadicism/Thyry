@@ -80,7 +80,6 @@ import Beng.Types.Things (
 	NativeSomeType(..),
 	NativeSomeValue(..),
 	NativeStringType(..),
-	castThing,
 	parameterize)
 import Beng.Types.Locations (Location(..))
 import Beng.Things (thing)
@@ -184,25 +183,25 @@ thingP :: SomeParameterizedThing
 thingP = parameterize thing
 
 asInv :: (SomeThing -> SomeInvocation)
-asInv value = case castThing value of
+asInv (SomeThing value) = case cast value of
 	Just op -> op
 	Nothing -> error $
 		"A builtin invocation assumed that an arg was returning an InvValue, " ++
 		"but it actually captured a(n) " ++ show value ++ "!"
 
 asInvOf :: String -> (SomeThing -> Fallible a) -> SomeThing -> Fallible a
-asInvOf expectedDesc get value = case castThing value of
+asInvOf expectedDesc get (SomeThing value) = case cast value of
 	Just (SomeInvocation invocation) -> run invocation >>= get
 	Nothing -> error $ "A(n) " ++ expectedDesc ++
 		" or invocation of such was expected, but instead, it's a(n) " ++ show value ++ "!"
 
 asNativeString :: SomeThing -> Fallible Text
-asNativeString value = case castThing value of
+asNativeString (SomeThing value) = case cast value of
 	Just NativeStringValue{text} -> return text
-	Nothing -> asInvOf "native string" asNativeString value
+	Nothing -> asInvOf "native string" asNativeString $ SomeThing value
 
 asBits :: Int -> SomeThing -> Fallible ByteString
-asBits size value = case castThing value of
+asBits size (SomeThing value) = case cast value of
 	Just bitsValue@(NativeBitsValue{bytes=bytestring}) ->
 		if BS.length bytestring == ceiling (fromIntegral size / 8.0) then
 			return bytestring
@@ -210,7 +209,7 @@ asBits size value = case castThing value of
 		else error $ show size ++ "b was expected, but " ++
 			show (BS.length bytestring) ++ "B (" ++ show (BS.length bytestring * 8) ++
 			"b) were found instead: " ++ show bitsValue
-	Nothing -> asInvOf (show size ++ "b") (asBits size) value
+	Nothing -> asInvOf (show size ++ "b") (asBits size) $ SomeThing value
 
 asInt :: SomeThing -> Fallible Int32
 asInt value = do  -- TODO TEMPORARY

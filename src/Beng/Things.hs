@@ -1,6 +1,5 @@
 module Beng.Things (
 	thing,
-	toCode,
 	undefined,
 	propsOf,
 	defsOf,
@@ -75,9 +74,7 @@ import Beng.Types.Things (
 	NativeOrType(..),
 	One(..),
 	CombinedThings(..),
-	NamedThing(..),
-	castThing,
-	castConcreteThing )
+	NamedThing(..) )
 import qualified Beng.Types.Things as Mismatch
 
 import qualified Data.ByteString as BS
@@ -87,7 +84,7 @@ import Data.Map (Map, assocs)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Text.Lazy (Text, pack)
+import Data.Text.Lazy (pack)
 import qualified Data.Text.Lazy as Text
 import Data.Typeable (cast)
 import Numeric (showHex)
@@ -141,37 +138,37 @@ propsWithSome :: SomeThing -> SomeThing -> [SomeOperator]
 propsWithSome (SomeThing value) one = value `Thing.propsWith` one
 
 asOpType :: (SomeThing -> Maybe OpType)
-asOpType = castThing
+asOpType (SomeThing value) = cast value
 
 asNativeListValue :: (SomeThing -> Maybe (NativeListValue SomeThing))
-asNativeListValue = castThing
+asNativeListValue (SomeThing value) = cast value
 
 asNativeSomeValue :: (SomeThing -> Maybe (NativeSomeValue SomeThing))
-asNativeSomeValue = castThing
+asNativeSomeValue (SomeThing value) = cast value
 
 asNativeBitsType :: (SomeThing -> Maybe NativeBitsType)
-asNativeBitsType = castThing
+asNativeBitsType (SomeThing value) = cast value
 
 asNativeBitsValue :: (SomeThing -> Maybe NativeBitsValue)
-asNativeBitsValue = castThing
+asNativeBitsValue (SomeThing value) = cast value
 
 asNativeCharValue :: (SomeThing -> Maybe NativeCharValue)
-asNativeCharValue = castThing
+asNativeCharValue (SomeThing value) = cast value
 
 asNativeStringValue :: (SomeThing -> Maybe NativeStringValue)
-asNativeStringValue = castThing
+asNativeStringValue (SomeThing value) = cast value
 
 asNativeListTypeP :: (SomeThing -> Maybe (NativeListType SomeParameterizedThing))
-asNativeListTypeP = castThing
+asNativeListTypeP (SomeThing value) = cast value
 
 asNativeSomeTypeP :: (SomeThing -> Maybe (NativeSomeType SomeParameterizedThing))
-asNativeSomeTypeP = castThing
+asNativeSomeTypeP (SomeThing value) = cast value
 
 asNativeOptionalTypeP :: (SomeThing -> Maybe (NativeOptionalType SomeParameterizedThing))
-asNativeOptionalTypeP = castThing
+asNativeOptionalTypeP (SomeThing value) = cast value
 
 asNativeOptionalValue :: (SomeThing -> Maybe (NativeOptionalValue SomeThing))
-asNativeOptionalValue = castThing
+asNativeOptionalValue (SomeThing value) = cast value
 
 satisfiesProps ::
 	(TypeTest, SomeThing) -> (SomeThing -> [SomeOperator]) -> TypeTestProgressResult
@@ -943,11 +940,12 @@ instance Thing NativeCharType where
 instance ConcreteThing NativeCharType
 
 instance ParameterizedThing NativeCharType where
-	satisfies (test, candidate) requirement = case castThing candidate :: Maybe NativeCharType of
-		Just _ -> Falue test
-		Nothing -> case asNativeCharValue candidate of
+	satisfies (test, candidate) requirement = case candidate of
+		SomeThing thing -> case cast thing :: Maybe NativeCharType of
 			Just _ -> Falue test
-			Nothing -> Error $ PrimitiveMismatch candidate $ SomeThing requirement
+			Nothing -> case asNativeCharValue candidate of
+				Just _ -> Falue test
+				Nothing -> Error $ PrimitiveMismatch candidate $ SomeThing requirement
 	resolve _ nativeCharType = return $ SomeConcreteThing nativeCharType
 
 instance Thing NativeStringType where
@@ -957,11 +955,12 @@ instance Thing NativeStringType where
 instance ConcreteThing NativeStringType
 
 instance ParameterizedThing NativeStringType where
-	satisfies (test, candidate) requirement = case castThing candidate :: Maybe NativeStringType of
-		Just _ -> Falue test
-		Nothing -> case asNativeStringValue candidate of
+	satisfies (test, candidate) requirement = case candidate of
+		SomeThing thing -> case cast thing :: Maybe NativeStringType of
 			Just _ -> Falue test
-			Nothing -> Error $ PrimitiveMismatch candidate $ SomeThing requirement
+			Nothing -> case asNativeStringValue candidate of
+				Just _ -> Falue test
+				Nothing -> Error $ PrimitiveMismatch candidate $ SomeThing requirement
 	resolve _ nativeStringType = return $ SomeConcreteThing nativeStringType
 
 instance Thing thing => Thing (NativeListType thing) where
@@ -1142,9 +1141,6 @@ instance ParameterizedThing (NamedThing SomeParameterizedThing) where
 		return $ SomeConcreteThing $ NamedThing {
 			name = requirement.name,
 			value = resolvedValue }
-
-toCode :: SomeThing -> Text
-toCode (SomeThing value) = Thing.toCode value
 
 undefined :: Declaration -> FallibleI Undefined SomeThing
 undefined declaration = Error $ Undefined [("", declaration)]

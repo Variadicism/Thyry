@@ -14,22 +14,23 @@ import Beng.Operators.Declarations (Declaration(..))
 import Beng.Types.Operators.Definitions (Definition(..))
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import Beng.Types.Parse.Matches (value)
-import Beng.Things (SomeThing)
-import Beng.Types.Things (castThing)
+import Beng.Things (SomeThing(..))
 
 import Data.List (sort)
 import qualified Data.Map as Map
 import qualified Data.Map.Ordered as OMap
+import Data.Typeable (cast)
 
 import GHC.Records (HasField(..))
 
 -- instances
 
 instance HasField "op" (SomeInvocation -> Fallible a) (SomeThing -> Fallible a) where
-	getField assertion value = case castThing value of
+	getField assertion (SomeThing value) = case cast value of
 		Just op -> assertion op
 		Nothing -> Error $
-			"A single InvValue was expected, but I found a(n) " ++ show value ++ "!"
+			"A single InvValue was expected, but I found a(n) " ++
+				show (SomeThing value) ++ "!"
 
 instance HasField "op" (i -> SomeInvocation -> Fallible a) (i -> SomeThing -> Fallible a) where
 	getField assertion = \i -> (assertion i).op

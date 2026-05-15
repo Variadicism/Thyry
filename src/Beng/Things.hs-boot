@@ -19,8 +19,6 @@ import Beng.Types.Things (
 	Thing,
 	Undefined)
 
-import Data.Text.Lazy (Text)
-
 instance Eq Mismatch
 
 instance Show Mismatch
@@ -54,8 +52,6 @@ instance ParameterizedThing SomeParameterizedThing
 instance Thing SomeConcreteThing
 
 instance Thing SomeInvocation
-
-toCode :: SomeThing -> Text
 
 undefined :: Declaration -> FallibleI Undefined SomeThing
 

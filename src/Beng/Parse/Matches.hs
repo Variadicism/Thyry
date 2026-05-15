@@ -31,8 +31,8 @@ import Beng.Types.Parse.Matches (
 	Space(..))
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Things ()
-import qualified Beng.Things as Thing
-import qualified Beng.Types.Things as ThingType
+import qualified Beng.Types.Things as Thing
+import Beng.Types.Things (SomeConcreteThing(..), SomeThing)
 import Beng.Locations ()
 import Beng.Types.Invocations (SomeInvocation)
 import {-# SOURCE #-} Beng.Parse.Patterns ()
@@ -306,21 +306,18 @@ instance Match Argument where
 	getArgs argument = OMap.singleton (argument.pattern.name, argument)
 	hasPrefix _ = False
 	hasSuffix _ = False
-	resolve bindings Argument{pattern, matchedType, parameterMatches, value} = do
-		let resolvedValue = value
-		resolvedType <- case (Thing.castThing resolvedValue :: Maybe SomeInvocation) of
-			Just someInvocation ->
-				return $ ThingType.parameterize someInvocation.returnType
-			Nothing -> case ThingType.resolve bindings matchedType of
-				Falue (ThingType.SomeConcreteThing thing) ->
-					return $ ThingType.parameterize thing
-				Error _ ->
-					return matchedType
+	resolve bindings Argument{pattern,matchedType,parameterMatches,value} = do
+		resolvedType <- case value of
+			SomeThing thing -> case cast thing :: Maybe SomeInvocation of
+				Just someInvocation ->
+					return $ Thing.parameterize someInvocation.returnType
+				Nothing -> case Thing.resolve bindings matchedType of
+					Falue (SomeConcreteThing concreteThing) ->
+						return $ Thing.parameterize concreteThing
+					Error _ ->
+						return matchedType
 		return $ SomeMatch Argument {
-			pattern,
-			matchedType = resolvedType,
-			parameterMatches,
-			value = resolvedValue }
-
+			pattern, value, parameterMatches,
+			matchedType = resolvedType }
 hasArgs :: SomeMatch -> Bool
 hasArgs (SomeMatch match) = not $ OMap.null $ Match.getArgs match

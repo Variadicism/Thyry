@@ -61,8 +61,7 @@ import Beng.Types.Parse.Matches (SomeMatch(..))
 import Beng.Types.Things (
 	SomeParameterizedThing(..),
 	NativeOrType(..),
-	NativeOptionalType(..),
-	castParameterizedThing)
+	NativeOptionalType(..))
 
 import Data.Map.Ordered (OMap)
 import qualified Data.Map.Ordered as OMap
@@ -180,19 +179,19 @@ getOrArgsUsing getArgs subpatterns = do
 					(Nothing, Just bParam) -> (bParam, True)
 					(Just (aParam, _), Nothing) -> (aParam, True)
 					(Just (aParam, aOptional), Just bParam) -> do
-						let aType = aParam.argType
-						let bType = bParam.argType
-						let newParam = case aType == bType of
-							True -> aParam
-							False -> case (castParameterizedThing aType, castParameterizedThing bType) of
-								(Just NativeOrType{options=aTypes}, Just NativeOrType{options=bTypes}) -> bParam{
-									argType = SomeParameterizedThing $ NativeOrType $ P2.concat $ P2.dualton aTypes bTypes }
-								(Just NativeOrType{options=aTypes}, Nothing) -> bParam{
-									argType = SomeParameterizedThing $ NativeOrType $ P2.snoc aTypes bType }
-								(Nothing, Just NativeOrType{options=bTypes}) -> bParam {
-									argType = SomeParameterizedThing $ NativeOrType $ P2.cons aType bTypes }
-								_ -> bParam{
-									argType = SomeParameterizedThing $ NativeOrType $ P2.dualton aType bType }
+						let newParam = case (aParam.argType, bParam.argType) of
+							(aP, bP) | aP == bP -> aParam
+							(SomeParameterizedThing a, SomeParameterizedThing b) ->
+								bParam{ argType = SomeParameterizedThing $ NativeOrType $
+									case (cast a, cast b) of
+										(Just a@NativeOrType{}, Just b@NativeOrType{}) ->
+											P2.concat $ P2.dualton a.options b.options
+										(Just a@NativeOrType{}, Nothing) ->
+											P2.snoc a.options (SomeParameterizedThing b)
+										(Nothing, Just b@NativeOrType{}) ->
+											P2.cons (SomeParameterizedThing a) b.options
+										_ ->
+											P2.dualton (SomeParameterizedThing a) (SomeParameterizedThing b) }
 						(newParam, aOptional)
 					(Nothing, Nothing) ->
 						error $ "Attempted to retrieve arg '" ++ key ++ " from no options!"

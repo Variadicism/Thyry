@@ -34,10 +34,10 @@ import Beng.Types.Things (
 	SomeConcreteThing(..),
 	SomeParameterizedThing,
 	Thing(..),
-	NativeBitsType(..),
-	castThing )
+	NativeBitsType(..) )
 
 import Data.Map ((!))
+import Data.Typeable (cast)
 
 -- constants
 
@@ -56,10 +56,12 @@ someOrNone = define Default
 	[SomePattern $ Or $ dualton (l "none") $ argOfBuiltin 0 "Some" intType]
 	intType
 	(\args -> do
-		let Just NativeOptionalValue{fal=maybeSome} = castThing $ args ! "Some"
-		case maybeSome of
-			Error _ -> return $ intValue 0
-			Falue value -> runInv value)
+		case args ! "Some" of
+			SomeThing someValue -> do
+				let Just NativeOptionalValue{fal=maybeSome} = cast someValue
+				case maybeSome of
+					Error _ -> return $ intValue 0
+					Falue value -> runInv value)
 	(Builtin 0)
 
 sumCommas :: Definition
@@ -67,10 +69,12 @@ sumCommas = define Default
 	[SomePattern Delimited { delimiter = l ",", delimitend = argOfBuiltin 1 "Element" intType }]
 	intType
 	(\args -> do
-		let Just NativeSomeValue{valuesP=elements} = castThing $ args ! "Element"
-		return $ intValue $ sum $
-			assume $ sequence $ map (>>= asInt) $
-			map runInv elements)
+		case args ! "Element" of
+			SomeThing elementValue -> do
+				let Just NativeSomeValue{valuesP=elements} = cast elementValue
+				return $ intValue $ sum $
+					assume $ sequence $ map (>>= asInt) $
+					map runInv elements)
 	(Builtin 1)
 
 noneOp :: SomeInvocation

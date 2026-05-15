@@ -119,8 +119,8 @@ instance Operator Declaration where
 	hasProp test declaration = do
 		let propsContext = C.fromThings [SomeThing test.current.candidate]
 		let namedCandidate = do
-				candidateType <- Thing.castThing (SomeThing test.current.candidate) ::
-					Maybe SomeParameterizedThing
+				candidateType <- case SomeThing test.current.candidate of
+					SomeThing thing -> cast thing :: Maybe SomeParameterizedThing
 				case candidateType of
 					SomeParameterizedThing thing ->
 						cast thing :: Maybe (NamedThing SomeParameterizedThing)

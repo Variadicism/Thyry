@@ -32,10 +32,7 @@ module Beng.Types.Things (
 	NativeOrType(..),
 	One(..),
 	CombinedThings(..),
-	NamedThing(..),
-	castThing,
-	castConcreteThing,
-	castParameterizedThing
+	NamedThing(..)
 ) where
 
 import Utils.Fallible (FallibleI(..))
@@ -53,12 +50,11 @@ import {-# SOURCE #-} qualified Beng.Types.Operators.Declarations as Declaration
 import Data.ByteString (ByteString)
 import Data.Map (Map)
 import Data.Text.Lazy (Text)
-import Data.Typeable (Typeable, cast)
+import Data.Typeable (Typeable)
 
 data SomeThing = forall thing. Thing thing => SomeThing thing
 data SomeConcreteThing = forall thing. ConcreteThing thing => SomeConcreteThing thing
-data SomeParameterizedThing =
-	forall thing. ParameterizedThing thing => SomeParameterizedThing thing
+data SomeParameterizedThing = forall thing. ParameterizedThing thing => SomeParameterizedThing thing
 
 data Mismatch =
 	MismatchedArgument {
@@ -183,13 +179,3 @@ data CombinedThings t = CombinedThings { things :: Populace2 t }
 data NamedThing t = NamedThing {
 	name :: String,
 	value :: t }
-
-castThing :: forall thing. Thing thing => SomeThing -> Maybe thing
-castThing (SomeThing thing) = cast thing
-
-castConcreteThing :: forall thing. ConcreteThing thing => SomeConcreteThing -> Maybe thing
-castConcreteThing (SomeConcreteThing thing) = cast thing
-
-castParameterizedThing
-	:: forall thing. ParameterizedThing thing => SomeParameterizedThing -> Maybe thing
-castParameterizedThing (SomeParameterizedThing thing) = cast thing
