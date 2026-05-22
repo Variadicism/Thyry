@@ -2,8 +2,10 @@ module Main where
 
 import Utils.Testing
 
-import Testing.Beng.EndToEnd.Code (testEndToEndCode)
+import Testing.Beng.EndToEnd.Code (makeCodeTests)
 
 main :: IO ()
-main = test $ TestCategories "end to end" [
-	testEndToEndCode ]
+main = do
+	codeTests <- makeCodeTests
+	test $ TestCategories "end to end" [
+		codeTests ]

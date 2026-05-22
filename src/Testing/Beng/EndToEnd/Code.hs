@@ -1,5 +1,5 @@
 module Testing.Beng.EndToEnd.Code (
-	testEndToEndCode
+	makeCodeTests
 ) where
 
 import Utils.Testing
@@ -11,8 +11,7 @@ import Testing.Beng.Utils.EndToEnd (
 
 import System.Directory (doesDirectoryExist, listDirectory)
 import System.FilePath ((</>), makeRelative)
-import System.IO.Unsafe (unsafePerformIO)
-import Data.List (isPrefixOf, sort)
+import Data.List (isPrefixOf, partition, sort)
 
 discoverFilesRecursively :: FilePath -> IO [FilePath]
 discoverFilesRecursively root = do
@@ -28,30 +27,22 @@ discoverFilesRecursively root = do
 		childPaths
 	return $ concat nestedPaths
 
-fixtureSuccesses :: [(String, FilePath)]
-fixtureSuccesses = unsafePerformIO do
-	paths <- discoverFilesRecursively "test input"
-	let successPaths = filter (not . isPrefixOf "test input/errors") paths
-	let sortedPaths = sort successPaths
-	return $ map (\path -> (makeRelative "test input" path, path)) sortedPaths
-
-fixtureErrors :: [(String, FilePath)]
-fixtureErrors = unsafePerformIO do
-	paths <- discoverFilesRecursively "test input/errors"
-	let sortedPaths = sort paths
-	return $ map (\path -> (makeRelative "test input" path, path)) sortedPaths
-
-testEndToEndCode :: TestCategory
-testEndToEndCode = TestCategories "builtin code" [
-	PureTests "if" [
-		("false branch in DefineValue scope",
-			assertFinalInt 10 "Y := 5\nN := 10\nif no, Y\nelse N"),
-		("true branch in DefineValue scope",
-			assertFinalInt 5 "Y := 5\nN := 10\nif yes, Y\nelse N") ],
-	PureTests "lazy" [
-		("First of Only is forced by addition",
-			assertFinalInt 11 "First of only 3 + 8") ],
-	IOTests "fixture successes" $
-		map (\(name, path) -> (name, assertFileReturns path)) fixtureSuccesses,
-	IOTests "fixture errors" $
-		map (\(name, path) -> (name, assertFileErrors path)) fixtureErrors ]
+makeCodeTests :: IO TestCategory
+makeCodeTests = do
+	inputPaths <- discoverFilesRecursively "test input"
+	let (errorPaths, successPaths) = partition ("test input/errors" `isPrefixOf`) $ sort inputPaths
+	return $ TestCategories "builtin code" [
+		PureTests "if" [
+			("false branch in DefineValue scope",
+				assertFinalInt 10 "Y := 5\nN := 10\nif no, Y\nelse N"),
+			("true branch in DefineValue scope",
+				assertFinalInt 5 "Y := 5\nN := 10\nif yes, Y\nelse N") ],
+		PureTests "lazy" [
+			("First of Only is forced by addition",
+				assertFinalInt 11 "First of only 3 + 8") ],
+		IOTests "fixture success" $
+			flip map successPaths
+				\path -> (makeRelative "test input" path, assertFileReturns path),
+		IOTests "fixture error" $
+			flip map errorPaths
+				\path -> (makeRelative "test input" path, assertFileErrors path) ]
