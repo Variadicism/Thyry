@@ -509,16 +509,16 @@ instance Show NativeCharType where
 instance Show NativeStringType where
 	show NativeStringType = "a native string"
 
-instance Show thing => Show (NativeListType thing) where
+instance Thing thing => Show (NativeListType thing) where
 	show NativeListType{elementType} = "a native list of " ++ show elementType
 
-instance Show thing => Show (NativeSomeType thing) where
+instance Thing thing => Show (NativeSomeType thing) where
 	show NativeSomeType{elementType} = "a native some " ++ show elementType
 
-instance Show thing => Show (NativeOptionalType thing) where
+instance Thing thing => Show (NativeOptionalType thing) where
 	show NativeOptionalType{falueType} = "a native " ++ show falueType ++ "?"
 
-instance Show thing => Show (NativeOrType thing) where
+instance Thing thing => Show (NativeOrType thing) where
 	show NativeOrType{options} = "a native " ++ showWithOr options.l
 
 instance Show One where
@@ -582,17 +582,17 @@ instance Messagable NativeCharType where
 instance Messagable NativeStringType where
 	msg NativeStringType = "a string"
 
-instance Show thing => Messagable (NativeListType thing) where
-	msg NativeListType{elementType} = "a list of " ++ show elementType
+instance Thing thing => Messagable (NativeListType thing) where
+	msg NativeListType{elementType} = "a list of " ++ msg elementType
 
-instance Show thing => Messagable (NativeSomeType thing) where
-	msg NativeSomeType{elementType} = "some " ++ show elementType
+instance Thing thing => Messagable (NativeSomeType thing) where
+	msg NativeSomeType{elementType} = "some " ++ msg elementType
 
-instance Show thing => Messagable (NativeOptionalType thing) where
-	msg NativeOptionalType{falueType} = show falueType ++ "?"
+instance Thing thing => Messagable (NativeOptionalType thing) where
+	msg NativeOptionalType{falueType} = msg falueType ++ "?"
 
-instance Show thing => Messagable (NativeOrType thing) where
-	msg NativeOrType{options} = showWithOr options.l
+instance Thing thing => Messagable (NativeOrType thing) where
+	msg NativeOrType{options} = showWithOr $ map msg options.l
 
 instance Messagable One where
 	msg = show
