@@ -5,3 +5,4 @@ BengI
 dist*/
 cabal.sandbox.config
 cabal.project*
+bwrap-opencode.json
