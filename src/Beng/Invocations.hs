@@ -33,7 +33,8 @@ import Beng.Types.Parse.Matches (
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Things (
 	ParameterMatches,
-	SomeConcreteThing(..))
+	SomeConcreteThing(..),
+	SomeParameterizedThing(..))
 import qualified Beng.Types.Things as Thing
 import qualified Data.Map as Map
 import Data.Map.Ordered (OMap)
@@ -91,7 +92,7 @@ resolveParameterMatches rawMatches = Map.foldlWithKey addResolvedBindings Map.em
 						(expandBinding $ Set.insert parameter visited)
 						bindings.l
 
-		expandBinding visited binding@Thing.Binding{thing = Thing.SomeParameterizedThing thing} = case
+		expandBinding visited binding@Thing.Binding{thing = SomeParameterizedThing thing} = case
 				Thing.asParameter thing of
 			Just boundParameter ->
 				expandParameterBindings visited boundParameter
@@ -121,7 +122,7 @@ collectParameterMatches context operator match outerBindings =
 collectParameterMatchesFromArguments ::
 	ParameterMatches ->
 	Context ->
-	Thing.SomeParameterizedThing ->
+	SomeParameterizedThing ->
 	Map.Map String Argument ->
 	FallibleI Thing.Mismatch ParameterMatchResults
 collectParameterMatchesFromArguments outerBindings _context _partialRequirement arguments = do

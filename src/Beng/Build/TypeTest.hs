@@ -14,6 +14,7 @@ import Beng.Build.Context (Context)
 import Beng.Types.Build.TypeTest
 import Beng.Types.Things (
 	Mismatch(..),
+	SomeConcreteThing(..),
 	SomeParameterizedThing(..),
 	SomeThing(..) )
 import qualified Beng.Types.Things as Thing
@@ -23,13 +24,13 @@ import qualified Data.Map as Map
 resolveCandidate :: TypeTest -> SomeThing
 resolveCandidate test@TypeTest{current = Contest{candidate}} = do
 	case Thing.resolve test.candidateParameterMatches candidate of
-		Falue (Thing.SomeConcreteThing resolved) -> SomeThing resolved
+		Falue (SomeConcreteThing resolved) -> SomeThing resolved
 		Error _ -> SomeThing candidate
 
 resolveRequirement :: TypeTest -> SomeThing
 resolveRequirement test@TypeTest{current = Contest{requirement}} = do
 	case Thing.resolve test.requirementParameterMatches requirement of
-		Falue (Thing.SomeConcreteThing resolved) -> SomeThing resolved
+		Falue (SomeConcreteThing resolved) -> SomeThing resolved
 		Error _ -> SomeThing requirement
 
 showContestUsing :: Bool -> Contest -> String

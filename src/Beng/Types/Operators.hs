@@ -14,13 +14,14 @@ import {-# SOURCE #-} Beng.Types.Invocations (Invocation)
 import {-# SOURCE #-} Beng.Types.Operators.Declarations (ArgContextBuilder, Associativity)
 import {-# SOURCE #-} Beng.Types.Operators.Definitions (Definition)
 import {-# SOURCE #-} Beng.Types.Parse.Patterns (SomePattern)
+import {-# SOURCE #-} Beng.Types.Things (SomeParameterizedThing, SomeThing)
 import {-# SOURCE #-} qualified Beng.Types.Things as Thing
 
 class (Show op, Messagable op) => Operator op where
 	location :: op -> Location
 	decLoc :: op -> Location
 	pattern :: op -> SomePattern
-	returnType :: op -> Thing.SomeParameterizedThing
+	returnType :: op -> SomeParameterizedThing
 	associativity :: op -> Associativity
 	precedence :: op -> PrecedenceBound
 	contextualize :: op -> ArgContextBuilder
@@ -28,6 +29,6 @@ class (Show op, Messagable op) => Operator op where
 	hasProp
 		:: TypeTest -> op -> FallibleI Thing.Mismatch TypeTest
 	resolve :: Thing.ParameterMatches -> op -> SomeOperator
-	runUsing :: Invocation op -> Fallible Thing.SomeThing
+	runUsing :: Invocation op -> Fallible SomeThing
 
 data SomeOperator = forall op. Operator op => SomeOperator op
