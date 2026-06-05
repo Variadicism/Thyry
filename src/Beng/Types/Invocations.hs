@@ -14,6 +14,7 @@ data Invocation op = Invocation {
 	context :: Context,
 	location :: Location,
 	match :: SomeMatch,
+	-- TODO: compute returnType?
 	returnType :: SomeConcreteThing }
 
 data SomeInvocation = forall op. Operator op => SomeInvocation (Invocation op)

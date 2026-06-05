@@ -26,8 +26,7 @@ class (Show op, Messagable op) => Operator op where
 	precedence :: op -> PrecedenceBound
 	contextualize :: op -> ArgContextBuilder
 	inlineDefinition :: op -> Maybe Definition
-	hasProp
-		:: TypeTest -> op -> FallibleI Thing.Mismatch TypeTest
+	hasProp :: TypeTest -> op -> FallibleI Thing.Mismatch TypeTest
 	resolve :: Thing.ParameterMatches -> op -> SomeOperator
 	runUsing :: Invocation op -> Fallible SomeThing
 

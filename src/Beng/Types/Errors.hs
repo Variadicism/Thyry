@@ -20,7 +20,7 @@ data Error =
 		caller :: SomeInvocation } |
 	TypeError {
 		-- TODO: callStack :: Populace (String, Location, Op)
-		-- TODO: when Ops can continue parsing through type errors, make this an Op.
+		-- TODO: when Ops can continue parsing through type errors, make this an Invocation.
 		attemptedCaller :: SomeOperator,
 		argName :: String,
 		-- TODO: mismatchedOp :: Op,
