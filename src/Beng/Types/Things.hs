@@ -41,8 +41,7 @@ import Utils.Populace (Populace)
 import Utils.Populace.Populace2 (Populace2)
 
 import {-# SOURCE #-} Beng.Types.Build.TypeTest (TypeTest)
-import Beng.Locations ()
-import Beng.Types.Locations (Location)
+import Beng.Types.Locations (SomeLocation)
 import Beng.Types.Operators (SomeOperator)
 import {-# SOURCE #-} Beng.Types.Operators.Declarations (Declaration)
 import {-# SOURCE #-} qualified Beng.Types.Operators.Declarations as Declaration
@@ -91,7 +90,7 @@ data ResolveError =
 		compound :: Populace ResolveError }
 
 data Binding = Binding {
-	location :: Location,
+	location :: SomeLocation,
 	thing :: SomeParameterizedThing }
 
 class (Eq thing, Show thing, Messagable thing, Typeable thing) => Thing thing where
@@ -128,17 +127,11 @@ data PatternType = PatternType
 
 -- TODO: move this to the Operator definition and replace this was a placeholder by name.
 data Parameter = Parameter {
-	decLoc :: Location,
+	decLoc :: SomeLocation,
 	name :: String,
 	baseType :: SomeParameterizedThing }
 
 type ParameterMatches = Map Parameter (Populace Binding)
-
-instance Eq Parameter where
-	parameter1 == parameter2 = parameter1.decLoc == parameter2.decLoc
-
-instance Ord Parameter where
-	compare parameter1 parameter2 = compare parameter1.decLoc parameter2.decLoc
 
 data PreOpType t = PreOpType { resolvedType :: t }
 

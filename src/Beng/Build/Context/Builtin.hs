@@ -10,13 +10,13 @@ import qualified Utils.Populace.Populace2 as P2
 import Beng.Types.Operators (SomeOperator(..))
 import Beng.Types.Invocations (SomeInvocation(..))
 import Beng.Build.Context (Context(..), PrecedenceBound(..))
-import Beng.Build.Context.Builders (c, cr, e, nc, s, l, multi, argAt, asBits, asInt, asList, asNativeString, asInv, asSome, bitType, bitValue, buildContextFrom, declarationOf, define, defineUsing, defineLiteral, definitionOf, intType, intValue, listOfP, orTP, someOfP, stringType, stringValue, textAt, thingP)
+import Beng.Build.Context.Builders (c, cr, e, nc, s, l, multi, argAt, asBits, asInt, asList, asNativeString, asInv, asSome, bitType, bitValue, buildContextFrom, declarationOf, define, defineUsing, defineLiteralAt, definitionOf, intType, intValue, listOfP, orTP, someOfP, stringType, stringValue, textAt, thingP)
 import Beng.Types.Parse.Matches (matchedType, value)
 import Beng.Types.Parse.Patterns (And(..), Delimited(..), Or(..), SomePattern(..))
 import Beng.Run (run, runWhileOp)
 import Beng.Types.Operators.Declarations (Associativity(..), Declaration)
 import Beng.Types.Operators.Definitions (Definition(..))
-import Beng.Types.Locations (Location(..))
+import Beng.Types.Locations (Builtin(..), BuiltinArg(..), SomeLocation(..))
 import Beng.Things (PreOpType(..))
 import Beng.Types.Things (NativeListValue(..), NativeSomeValue(..), Parameter(..), SomeConcreteThing(..), SomeParameterizedThing(..), SomeThing(..), NativeBitsType(..), parameterize)
 
@@ -66,7 +66,7 @@ instance HasField "definition" BuiltinOp Definition where
 instance HasField "declaration" BuiltinOp Declaration where
 	getField = declarationOf hangingDefinitionOf
 
-hangingDefinitionOf :: BuiltinOp -> Location -> Definition
+hangingDefinitionOf :: BuiltinOp -> Builtin -> Definition
 hangingDefinitionOf opEnum location = case opEnum of
 	-- Types of the arguments and the values in these definitions are disjointed,
 	-- losing all type guarantees. This will not be an issue in Beng! :)
@@ -188,7 +188,7 @@ hangingDefinitionOf opEnum location = case opEnum of
 				name <- asNativeString $ (args ! "Name").value
 				let value = (args ! "Value").value
 				let valueType = parameterize $ (args ! "Value").matchedType
-				return [SomeOperator $ defineLiteral name valueType value location]
+				return [SomeOperator $ defineLiteralAt name valueType value location]
 			_ -> return [])
 		(\args -> case asInv $ args ! "Scope" of
 			SomeInvocation invocation -> run invocation)
@@ -208,16 +208,17 @@ hangingDefinitionOf opEnum location = case opEnum of
 	where
 		a :: String -> SomeParameterizedThing -> SomePattern
 		a name = do
-			-- Since we're building the builtin ops, it must be a Builtin location.
-			-- I wish I could just declare that in the type. DataKinds, maybe? I can't figure that out.
-			let (Builtin parentIndex) = location
+			let parentIndex = location.index
 			argAt BuiltinArg { name, parentIndex } name
 		p :: String -> SomeParameterizedThing -> SomeParameterizedThing
 		p name baseType = do
-			let (Builtin parentIndex) = location
-			SomeParameterizedThing Parameter { name, baseType, decLoc = BuiltinArg { name, parentIndex }}
+			let parentIndex = location.index
+			SomeParameterizedThing Parameter {
+				name,
+				baseType,
+				decLoc = SomeLocation $ BuiltinArg { name, parentIndex }}
 		t name = do
-			let (Builtin parentIndex) = location
+			let parentIndex = location.index
 			textAt BuiltinArg { name, parentIndex } name
 		dec = declarationOf hangingDefinitionOf
 

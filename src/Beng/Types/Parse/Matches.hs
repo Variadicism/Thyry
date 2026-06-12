@@ -20,7 +20,7 @@ import Utils.Fallible (FallibleI(..))
 
 import qualified Beng.Types.Parse.PatternArguments as Pattern
 import {-# SOURCE #-} Beng.Types.Build.TypeTest (ParameterMatchResults)
-import Beng.Types.Locations (Location)
+import Beng.Types.Locations (SomeLocation)
 import {-# SOURCE #-} Beng.Types.Things (
 	ParameterMatches,
 	ResolveError,
@@ -50,7 +50,7 @@ data Literal = Literal { text :: Text }
 
 data CharClass = CharClass { char :: Char }
 
-data NamedText = NamedText { decLoc :: Location, name :: String, match :: SomeMatch }
+data NamedText = NamedText { decLoc :: SomeLocation, name :: String, match :: SomeMatch }
 
 data Or = Or { match :: SomeMatch, matchIndex :: Int, misses :: [Pattern.Argument] }
 

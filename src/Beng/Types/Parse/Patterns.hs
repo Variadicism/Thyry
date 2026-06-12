@@ -22,7 +22,7 @@ import Utils.Populace (Populace)
 import qualified Utils.Populace as P
 import Utils.Populace.Populace2 (Populace2)
 
-import Beng.Types.Locations (Location)
+import Beng.Types.Locations (SomeLocation)
 import Beng.Types.Parse.Matches (Match)
 import Beng.Types.Parse.PatternArguments (Argument(..), Arguments)
 import {-# SOURCE #-} Beng.Types.Parse.Parsers.PatternComparator (Comparator)
@@ -52,7 +52,7 @@ data Literal = Literal { literal :: Text } deriving (Eq)
 
 data CharClass = CharClass { ranges :: Populace CharRange, negate :: Bool }
 
-data NamedText = NamedText { name :: String, subpattern :: SomePattern, decLoc :: Location }
+data NamedText = NamedText { name :: String, subpattern :: SomePattern, decLoc :: SomeLocation }
 
 data Or = Or { subpatterns :: Populace2 SomePattern }
 

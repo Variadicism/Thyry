@@ -3,7 +3,7 @@ module Beng.Types.Parse.PatternArguments (
 	Arguments
 ) where
 
-import Beng.Types.Locations (Location)
+import Beng.Types.Locations (SomeLocation)
 import {-# SOURCE #-} Beng.Types.Things (SomeParameterizedThing)
 
 import Data.Map.Ordered (OMap)
@@ -11,6 +11,6 @@ import Data.Map.Ordered (OMap)
 data Argument = Argument {
 	name :: String,
 	argType :: SomeParameterizedThing,
-	decLoc :: Location }
+	decLoc :: SomeLocation }
 
 type Arguments = OMap String Argument

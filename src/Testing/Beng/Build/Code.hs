@@ -24,7 +24,7 @@ import Beng.Build.Context.Builders (
 	stringValue )
 import Beng.Types.Build.Context (PrecedenceBound(..))
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
-import Beng.Types.Locations (Location(..))
+import Beng.Types.Locations (Builtin(..), BuiltinArg(..), SomeLocation(..))
 import Beng.Types.Operators (SomeOperator(..))
 import Beng.Types.Things (
 	CombinedThings(..),
@@ -55,11 +55,11 @@ paramContext :: Context.Context
 paramContext = do
 	let thingType = SomeParameterizedThing $ NativeType $ const []
 	let valueType = SomeParameterizedThing $ Parameter {
-			decLoc = BuiltinArg { name = "Value", parentIndex = 50 },
+			decLoc = SomeLocation $ BuiltinArg { name = "Value", parentIndex = 50 },
 			name = "Value",
 			baseType = thingType }
 	let rightValueType = SomeParameterizedThing $ Parameter {
-			decLoc = BuiltinArg { name = "Right", parentIndex = 52 },
+			decLoc = SomeLocation $ BuiltinArg { name = "Right", parentIndex = 52 },
 			name = "Right",
 			baseType = thingType }
 	let identity = define None

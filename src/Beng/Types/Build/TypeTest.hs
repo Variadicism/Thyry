@@ -35,21 +35,6 @@ data ParameterMatchResults = ParameterMatchResults {
 	candidateMatches :: ParameterMatches,
 	requirementMatches :: ParameterMatches }
 
-instance Semigroup ParameterMatchResults where
-	left <> right = ParameterMatchResults {
-		candidateMatches = left.candidateMatches <> right.candidateMatches,
-		requirementMatches = left.requirementMatches <> right.requirementMatches }
-
-instance Monoid ParameterMatchResults where
-	mempty = ParameterMatchResults {
-		candidateMatches = mempty,
-		requirementMatches = mempty }
-
-instance Show ParameterMatchResults where
-	show ParameterMatchResults{candidateMatches, requirementMatches} =
-		"[candidate matches: " ++ show (length candidateMatches) ++
-			", requirement matches: " ++ show (length requirementMatches) ++ "]"
-
 type TypeTestProgressResult = FallibleI Mismatch TypeTest
 
 type TypeTestResult = FallibleI Mismatch ParameterMatchResults

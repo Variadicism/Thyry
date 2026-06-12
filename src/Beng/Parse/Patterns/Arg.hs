@@ -27,8 +27,7 @@ import Beng.Parse.Parsers.PatternComparator (
 	compareAsRequirementDefault)
 import Beng.Types.Build.TypeTest (ParameterMatchResults(..), TypeTest(..))
 import Beng.Types.Errors (Error(..), Fallible)
-import Beng.Types.Locations (Location)
-import qualified Beng.Types.Locations as Location
+import Beng.Types.Locations (FileLocation, SomeLocation(..))
 import Beng.Types.Invocations (
 	SomeInvocation(..),
 	Invocation(..))
@@ -60,7 +59,7 @@ import Control.Monad (when)
 import qualified Data.Set as Set
 import Data.Typeable (cast)
 
-showArg :: String -> SomeParameterizedThing -> Location -> String
+showArg :: String -> SomeParameterizedThing -> SomeLocation -> String
 showArg name argType decLoc = show decLoc ++ ":" ++ msgArg name argType
 
 msgArg :: String -> SomeParameterizedThing -> String
@@ -101,7 +100,10 @@ parseArg Argument{..} = msgArg name argType @> \state -> do
 			Nothing -> argType
 	let checkSatisfiesArgType :: SomeInvocation -> Fallible ParameterMatchResults =
 			\(SomeInvocation invocation) -> do
-		let (Location.Code opLocation) = invocation.location
+		let opLocation = case invocation.location of
+			SomeLocation location -> case cast location :: Maybe FileLocation of
+				Just fileLocation -> fileLocation
+				Nothing -> state.location
 		let contextualizeError cause = TypeError {
 			attemptedCaller = parent,
 			argName = name,
@@ -145,7 +147,7 @@ parseArg Argument{..} = msgArg name argType @> \state -> do
 					("There was an error attempting to build a context to parse the preop for " ++
 						wrap "'" name ++ ": ") $
 				do
-					parent.contextualize name state.arguments (Location.Code state.location)
+					parent.contextualize name state.arguments (SomeLocation state.location)
 			when (not $ null argContext) $ debugM $
 				pluralCount (length argContext) "contextual operator" ++ " generated for '" ++
 					name ++ "': " ++ show argContext

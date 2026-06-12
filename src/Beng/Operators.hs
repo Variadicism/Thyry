@@ -19,7 +19,7 @@ import qualified Utils.Populace as P
 import {-# SOURCE #-} qualified Beng.Build.Context as C
 import {-# SOURCE #-} Beng.Build.TypeTest (satisfiesDuring)
 import {-# SOURCE #-} Beng.Things ()
-import Beng.Locations (Location)
+import Beng.Locations (SomeLocation)
 import Beng.Invocations (Invocation(..))
 import qualified Beng.Operators.Declarations as Dec
 import Beng.Operators.Declarations
@@ -259,10 +259,10 @@ instance Operator SomeOperator where
 	runUsing Invocation{operator = SomeOperator op, context, match, location, returnType} =
 		Ops.runUsing Invocation{operator = op, context, match, location, returnType}
 
-instance HasField "location" SomeOperator Location where
+instance HasField "location" SomeOperator SomeLocation where
 	getField (SomeOperator op) = Ops.location op
 
-instance HasField "decLoc" SomeOperator Location where
+instance HasField "decLoc" SomeOperator SomeLocation where
 	getField (SomeOperator op) = Ops.decLoc op
 
 instance HasField "pattern" SomeOperator SomePattern where

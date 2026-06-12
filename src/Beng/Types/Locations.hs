@@ -1,17 +1,30 @@
 module Beng.Types.Locations (
+	Builtin(..),
+	BuiltinArg(..),
+	BuiltinProp(..),
 	FileLocation(..),
-	Location(..)
+	Location(..),
+	SomeLocation(..)
 ) where
 
-data Location =
-	Builtin { index :: Int } |
-	BuiltinArg { name :: String, parentIndex :: Int } |
-	BuiltinProp {
-		propIndex :: Int,
-		parentIndex :: Int,
-		one :: Location
-	} |  -- TODO: revisit prop owner identity; using Location avoids recursive Eq for now.
-	Code { fileLocation :: FileLocation }  -- Beng needs to eliminate annoying wrapping patterns like this.
+import Utils.Messaging (Messagable)
+
+import Data.Typeable (Typeable)
+
+class (Eq location, Ord location, Show location, Messagable location, Typeable location) =>
+	Location location where
+	locationTypeIndex :: location -> Int
+
+data SomeLocation = forall location. Location location => SomeLocation location
+
+data Builtin = Builtin { index :: Int }
+
+data BuiltinArg = BuiltinArg { name :: String, parentIndex :: Int }
+
+data BuiltinProp = BuiltinProp {
+	propIndex :: Int,
+	parentIndex :: Int,
+	one :: SomeLocation }  -- TODO: revisit prop owner identity; using SomeLocation avoids recursive Eq for now.
 
 data FileLocation = FileLocation {
 	file :: FilePath,

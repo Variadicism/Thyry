@@ -7,7 +7,7 @@ import Utils.Testing
 import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, assertDoesNotSatisfy)
 
 import Beng.Build.Context.Builders (c, cr)
-import Beng.Types.Locations (Location(Builtin))
+import Beng.Types.Locations (Builtin(..), SomeLocation(..))
 import Beng.Types.Parse.Patterns (NamedText(..), SomePattern(..), Space(..))
 
 -- private
@@ -15,7 +15,8 @@ import Beng.Types.Parse.Patterns (NamedText(..), SomePattern(..), Space(..))
 type Pattern = SomePattern
 
 nt :: String -> Pattern -> Pattern
-nt name subpattern = SomePattern $ NamedText { name, subpattern, decLoc = Builtin 1 }
+nt name subpattern = SomePattern $ NamedText { name, subpattern,
+	decLoc = SomeLocation $ Builtin 1 }
 
 zero = c [cr '0' '0']
 

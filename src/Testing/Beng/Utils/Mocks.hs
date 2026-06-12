@@ -55,7 +55,7 @@ import qualified Utils.Populace.Populace2 as P2
 import Testing.Beng.Utils.Ops ()
 
 import qualified Beng.Build.Context as Context
-import Beng.Build.Context.Builders (l, s, asInt, argAt, asNativeString, asInv, bitType, bitValue, buildContextFrom, define, defineRighty, defineLiteral, defineUsing, intType, intValue, stringType, stringValue)
+import Beng.Build.Context.Builders (l, s, asInt, argAt, asNativeString, asInv, bitType, bitValue, buildContextFrom, define, defineRighty, defineLiteral, defineLiteralAt, defineUsing, intType, intValue, stringType, stringValue)
 import qualified Beng.Build.Context.Builders as Builder
 import Beng.Types.Build.Context (PrecedenceBound(..))
 import Beng.Parse.Matches ()
@@ -66,7 +66,7 @@ import Beng.Types.Operators (SomeOperator(..))
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import Beng.Types.Operators.Declarations (Associativity(..), Declaration)
 import Beng.Types.Operators.Definitions (Definition(..))
-import Beng.Types.Locations (Location(..))
+import Beng.Types.Locations (Builtin(..), BuiltinArg(..), SomeLocation(..))
 import Beng.Run (run)
 import Beng.Types.Things (
 	SomeParameterizedThing(..),
@@ -110,11 +110,11 @@ type Operator = SomeOperator
 runInv value = case asInv value of
 	SomeInvocation invocation -> run invocation
 
-defineStaticNameValue :: Text -> Location -> Definition
+defineStaticNameValue :: Text -> Builtin -> Definition
 defineStaticNameValue name location = do
-	let (Builtin parentIndex) = location  -- All locations in mocks are Builtin-type.
+	let parentIndex = location.index
 	let a name argType = SomePattern Argument {
-		decLoc = BuiltinArg { name, parentIndex }, name, argType }
+		decLoc = SomeLocation $ BuiltinArg { name, parentIndex }, name, argType }
 	defineUsing (Tighter $ SomeOperator $ declarationOf App) Righty
 		[l name, s, l ":=", s, a "Thing" intType, s, a "Scope" $
 			SomeParameterizedThing $ PreOpType intType]
@@ -122,16 +122,16 @@ defineStaticNameValue name location = do
 		(\argName args location -> return case argName of
 			"Scope" -> do
 				let value = (args ! "Thing").value
-				[SomeOperator $ defineLiteral name intType value location]
+				[SomeOperator $ defineLiteralAt name intType value location]
 			_ -> [])
 		(\args -> runInv $ args ! "Scope")
 		location
 
-defineLiteralInt :: Text -> Int -> (Location -> Definition)
+defineLiteralInt :: Text -> Int -> (Builtin -> Definition)
 defineLiteralInt text value =
 	defineLiteral text intType $ intValue $ fromIntegral value
 
-hangingDefinitionOf :: ABCD -> Location -> Definition
+hangingDefinitionOf :: ABCD -> Builtin -> Definition
 hangingDefinitionOf enum location = case enum of
 	A -> defineLiteralInt "a" aValue location
 	B -> defineLiteralInt "b" bValue location
@@ -229,11 +229,12 @@ hangingDefinitionOf enum location = case enum of
 		location
 	where
 		a name argType = do
-			let (Builtin parentIndex) = location  -- All these ops use Builtin location types.
-			SomePattern Argument { decLoc = BuiltinArg { name, parentIndex }, name, argType }
+			let parentIndex = location.index
+			SomePattern Argument {
+				decLoc = SomeLocation $ BuiltinArg { name, parentIndex }, name, argType }
 
 
-hangingABDivDefinitionOf :: ABDiv -> (Location -> Definition)
+hangingABDivDefinitionOf :: ABDiv -> (Builtin -> Definition)
 {- This is a painful assumption, but this actually works for abDiv as well since the enums
    respresent the same definitions in the same order plus more.
    But, if I don't make this assuption, then aOp and the other Op mocks will need a hanging
@@ -242,7 +243,7 @@ hangingABDivDefinitionOf e = hangingDefinitionOf $ toEnum $ fromEnum e
 
 argOf :: ABCD -> String -> SomeParameterizedThing -> Pattern
 argOf abcd name argType = do
-	let (Builtin locationIndex) = locationOf abcd
+	let locationIndex = fromEnum abcd
 	argAt (BuiltinArg name locationIndex) name argType
 
 definitionOf :: (ABCD -> Definition)
@@ -254,8 +255,8 @@ declarationOf = Builder.declarationOf hangingDefinitionOf
 operatorOf :: (ABCD -> Operator)
 operatorOf = SomeOperator . definitionOf
 
-locationOf :: (ABCD -> Location)
-locationOf = Builtin . fromEnum
+locationOf :: (ABCD -> SomeLocation)
+locationOf = SomeLocation . Builtin . fromEnum
 
 opOf :: ABCD -> (SomeMatch -> Op)
 opOf a = \match -> SomeInvocation Invocation {

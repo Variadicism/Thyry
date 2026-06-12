@@ -10,7 +10,7 @@ import qualified Utils.Populace.Populace2 as P2
 import Utils.Testing
 import Utils.Tuples (mapSnd2)
 
-import Testing.Beng.Utils.Mocks (ABCD(Divide), argOf, divide, locationOf, mockABCD)
+import Testing.Beng.Utils.Mocks (ABCD(Divide), argOf, divide, mockABCD)
 import Testing.Beng.Utils.Parsers (MockParser, assertRest)
 
 import Beng.Types.Operators (SomeOperator(..))
@@ -18,7 +18,7 @@ import Beng.Build.Context.Builders (cr2, intType, l, s)
 import Beng.Parse.Matches ()
 import Beng.Parse.Parsers.Code ((>>>), (>\>), Parse, PrefixState(..), State(..), fileStartState, parses, target)
 import qualified Beng.Parse.Patterns.NamedText as NamedText
-import Beng.Types.Locations (Location(Builtin, BuiltinArg))
+import Beng.Types.Locations (BuiltinArg(..), SomeLocation(..))
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Parse.Patterns (And(..), CharClass(..), Delimited(..), NamedText(..), Or(..), SomePattern(..), Space(..))
 
@@ -48,9 +48,7 @@ parse pattern = \code -> bimap msg parses $
 	NamedText.parse NamedText { name = "Dividend Text", subpattern = pattern, decLoc = argLoc } >\>
 	Match.toCode)
 	where
-		argLoc = do
-			let (Builtin locationIndex) = locationOf Divide
-			BuiltinArg "Dividend Text" locationIndex
+		argLoc = SomeLocation $ BuiltinArg "Dividend Text" $ fromEnum Divide
 
 assertParsed :: Text -> Parse Text -> Fallible ()
 assertParsed expected actual = (expected, actual.target) `isEqualElse`

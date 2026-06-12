@@ -30,7 +30,7 @@ import Beng.Things (
 	NativeType(..),
 	CombinedThings(..) )
 import Beng.Types.Build.Context (PrecedenceBound(..))
-import Beng.Types.Locations (Location(..))
+import Beng.Types.Locations (Builtin(..), BuiltinArg(..), BuiltinProp(..), SomeLocation(..))
 import Beng.Types.Things (
 	Parameter(..),
 	SomeParameterizedThing(..),
@@ -92,7 +92,7 @@ testTypecheck = TestCategories "typecheck" do
 	let a = argOfBuiltin
 	let thingType = SomeParameterizedThing $ NativeType $ const []
 	let parameterFor parentIndex parameterName baseType = Parameter {
-			decLoc = BuiltinArg { name = parameterName, parentIndex },
+			decLoc = SomeLocation $ BuiltinArg { name = parameterName, parentIndex },
 			name = parameterName,
 			baseType }
 	let parameterAt parentIndex parameterName baseType =
@@ -100,12 +100,12 @@ testTypecheck = TestCategories "typecheck" do
 
 	let decForProp parentIndex propIndex subpatternsFor returnType oneType =
 		declare Default (subpatternsFor oneType) returnType
-			BuiltinProp { parentIndex, propIndex, one = Builtin { index = parentIndex } }
+			BuiltinProp { parentIndex, propIndex, one = SomeLocation $ Builtin { index = parentIndex } }
 	let defForOp index subpatternsFor returnType run oneType =
 		define Default (subpatternsFor oneType) returnType run Builtin { index }
 	let defForProp parentIndex propIndex subpatternsFor returnType run oneType =
 		define Default (subpatternsFor oneType) returnType run
-			BuiltinProp { parentIndex, propIndex, one = Builtin { index = parentIndex } }
+			BuiltinProp { parentIndex, propIndex, one = SomeLocation $ Builtin { index = parentIndex } }
 	let defConstantForOp index subpatternsFor returnType result oneType =
 		defForOp index subpatternsFor returnType (const $ return result) oneType
 	let defNamedForOp index literal returnType result =

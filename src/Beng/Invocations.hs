@@ -32,6 +32,7 @@ import Beng.Types.Parse.Matches (
 	SomeMatch(..))
 import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Things (
+	Parameter(..),
 	ParameterMatches,
 	SomeConcreteThing(..),
 	SomeParameterizedThing(..))
@@ -44,6 +45,27 @@ import Data.Text.Lazy (Text, unpack)
 import GHC.Records (HasField, getField)
 
 -- instances
+
+instance Eq Parameter where
+	parameter1 == parameter2 = parameter1.decLoc == parameter2.decLoc
+
+instance Ord Parameter where
+	compare parameter1 parameter2 = compare parameter1.decLoc parameter2.decLoc
+
+instance Semigroup ParameterMatchResults where
+	left <> right = ParameterMatchResults {
+		candidateMatches = left.candidateMatches <> right.candidateMatches,
+		requirementMatches = left.requirementMatches <> right.requirementMatches }
+
+instance Monoid ParameterMatchResults where
+	mempty = ParameterMatchResults {
+		candidateMatches = mempty,
+		requirementMatches = mempty }
+
+instance Show ParameterMatchResults where
+	show ParameterMatchResults{candidateMatches, requirementMatches} =
+		"[candidate matches: " ++ show (length candidateMatches) ++
+			", requirement matches: " ++ show (length requirementMatches) ++ "]"
 
 instance Eq op => Eq (Invocation op) where
 	invocation1 == invocation2 =

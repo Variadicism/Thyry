@@ -31,7 +31,7 @@ import Beng.Invocations (
 	Invocation(..),
 	collectParameterMatches)
 import qualified Beng.Invocations as Inv
-import qualified Beng.Types.Locations as Location
+import Beng.Types.Locations (SomeLocation(..))
 import Beng.Types.Invocations (SomeInvocation(..))
 import qualified Beng.Types.Parse.Matches as MatchType
 import qualified Beng.Types.Things as Thing
@@ -102,7 +102,7 @@ parseForTyped prefixState op = show op @> \initialState ->
 									operator = op,
 									context = initialState.context,
 									match = resolvedMatch,
-									location = Location.Code initialState.location,
+									location = SomeLocation initialState.location,
 									returnType = resolvedReturnType }
 				Error mismatch ->
 					Error $ parseError initialState $

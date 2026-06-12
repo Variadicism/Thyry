@@ -35,11 +35,14 @@ module Beng.Build.Context.Builders (
 	stringType,
 	stringValue,
 	declare,
+	declareAt,
 	declareLiteral,
+	declareLiteralAt,
 	define,
 	defineRighty,
 	defineUsing,
 	defineLiteral,
+	defineLiteralAt,
 	definitionOf,
 	declarationOf,
 	buildContextFrom
@@ -81,7 +84,7 @@ import Beng.Types.Things (
 	NativeSomeValue(..),
 	NativeStringType(..),
 	parameterize)
-import Beng.Types.Locations (Location(..))
+import Beng.Types.Locations (Builtin(..), BuiltinArg(..), Location, SomeLocation(..))
 import Beng.Things (thing)
 
 import Control.Composition ((.*))
@@ -94,12 +97,12 @@ import Data.Typeable (cast)
 
 -- exported
 
-argAt :: Location -> String -> SomeParameterizedThing -> SomePattern
-argAt decLoc name argType = SomePattern Argument { name, argType, decLoc }
+argAt :: Location location => location -> String -> SomeParameterizedThing -> SomePattern
+argAt decLoc name argType = SomePattern Argument { name, argType, decLoc = SomeLocation decLoc }
 
 argOfBuiltin :: Int -> String -> SomeParameterizedThing -> SomePattern
 argOfBuiltin builtinIndex name argType =
-	SomePattern Argument { name, argType, decLoc = BuiltinArg name builtinIndex }
+	SomePattern Argument { name, argType, decLoc = SomeLocation $ BuiltinArg name builtinIndex }
 
 c :: [CharRange] -> SomePattern
 c ranges = SomePattern $ CharClass { ranges = P.assume ranges, negate = False }
@@ -125,8 +128,9 @@ l = SomePattern . Literal
 by :: SomePattern -> SomePattern -> SomePattern
 by delimitend delimiter = SomePattern $ Delimited { delimitend, delimiter }
 
-textAt :: Location -> String -> SomePattern -> SomePattern
-textAt decLoc name subpattern = SomePattern $ NamedText { name, subpattern, decLoc }
+textAt :: Location location => location -> String -> SomePattern -> SomePattern
+textAt decLoc name subpattern = SomePattern $ NamedText { name, subpattern,
+	decLoc = SomeLocation decLoc }
 
 noContext :: ArgContextBuilder
 noContext _ _ _ = Falue []
@@ -237,14 +241,19 @@ asSome (SomeThing value) = case cast value of
 			error "A builtin invocation expected some things, but found an empty list!"
 		Nothing -> asInvOf "some things" asSome $ SomeThing value
 
-declare :: PrecedenceBound -> [SomePattern] -> SomeParameterizedThing -> Location -> Declaration
-declare precedence subpatterns returnType location =
+declareAt :: PrecedenceBound -> [SomePattern] -> SomeParameterizedThing -> SomeLocation -> Declaration
+declareAt precedence subpatterns returnType location =
 	Declaration { precedence, location, returnType,
 		pattern = patConcat subpatterns,
 		associativity = Lefty, contextualize = noContext }
 
-declareLiteral :: Text -> SomeParameterizedThing -> Location -> Declaration
-declareLiteral literal returnType location = Declaration {
+declare :: Location location =>
+	PrecedenceBound -> [SomePattern] -> SomeParameterizedThing -> location -> Declaration
+declare precedence subpatterns returnType =
+	declareAt precedence subpatterns returnType . SomeLocation
+
+declareLiteralAt :: Text -> SomeParameterizedThing -> SomeLocation -> Declaration
+declareLiteralAt literal returnType location = Declaration {
 	location,
 	pattern = SomePattern $ Literal literal,
 	returnType,
@@ -252,37 +261,46 @@ declareLiteral literal returnType location = Declaration {
 	contextualize = noContext,
 	precedence = None }
 
+declareLiteral :: Location location => Text -> SomeParameterizedThing -> location -> Declaration
+declareLiteral literal returnType = declareLiteralAt literal returnType . SomeLocation
+
 defineUsing ::
+	Location location =>
 	PrecedenceBound -> Associativity ->
-	[SomePattern] -> SomeParameterizedThing -> ArgContextBuilder -> Runner -> Location -> Definition
+	[SomePattern] -> SomeParameterizedThing -> ArgContextBuilder -> Runner -> location -> Definition
 defineUsing precedence associativity subpatterns returnType contextualize runWith location =
-	Definition { location, runWith,
+	Definition { location = SomeLocation location, runWith,
 		declaration = Declaration {
-			precedence, location, contextualize, associativity, returnType,
+			precedence, location = SomeLocation location, contextualize, associativity, returnType,
 			pattern = patConcat subpatterns }}
 
 define ::
-	PrecedenceBound -> [SomePattern] -> SomeParameterizedThing -> (Runner -> Location -> Definition)
+	Location location =>
+	PrecedenceBound -> [SomePattern] -> SomeParameterizedThing -> (Runner -> location -> Definition)
 define precedence subpatterns returnType =
 	defineUsing precedence Lefty subpatterns returnType noContext
 
 defineRighty ::
-	PrecedenceBound -> [SomePattern] -> SomeParameterizedThing -> (Runner -> Location -> Definition)
+	Location location =>
+	PrecedenceBound -> [SomePattern] -> SomeParameterizedThing -> (Runner -> location -> Definition)
 defineRighty precedence subpatterns returnType = defineUsing precedence Righty subpatterns returnType noContext
 
-defineLiteral :: Text -> SomeParameterizedThing -> SomeThing -> Location -> Definition
-defineLiteral literal valueType value location = Definition {
+defineLiteralAt :: Text -> SomeParameterizedThing -> SomeThing -> SomeLocation -> Definition
+defineLiteralAt literal valueType value location = Definition {
 	runWith = const $ Falue value,
 	location,
-	declaration = declareLiteral literal valueType location }
+	declaration = declareLiteralAt literal valueType location }
 
-definitionOf :: Enum e => (e -> Location -> Definition) -> e -> Definition
+defineLiteral :: Location location => Text -> SomeParameterizedThing -> SomeThing -> location -> Definition
+defineLiteral literal valueType value = defineLiteralAt literal valueType value . SomeLocation
+
+definitionOf :: Enum e => (e -> Builtin -> Definition) -> e -> Definition
 definitionOf hangingDefinitionOf e = hangingDefinitionOf e $ Builtin $ fromEnum e
 
-declarationOf :: Enum e => ((e -> Location -> Definition) -> e -> Declaration)
+declarationOf :: Enum e => ((e -> Builtin -> Definition) -> e -> Declaration)
 declarationOf = Definition.declaration .* definitionOf
 
-buildContextFrom :: Enum e => (e -> Location -> Definition) -> (e -> Context)
+buildContextFrom :: Enum e => (e -> Builtin -> Definition) -> (e -> Context)
 buildContextFrom hangingDefinitionOf =
 	foldl (flip push) Context.empty .
 		map (definitionOf hangingDefinitionOf) . enumFrom

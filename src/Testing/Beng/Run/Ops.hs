@@ -22,7 +22,7 @@ import Beng.Parse.Matches ()
 import qualified Beng.Types.Parse.Matches as M
 import Beng.Parse.Patterns (Argument(..))
 import Beng.Run (run)
-import Beng.Types.Locations (FileLocation(..), Location(..))
+import Beng.Types.Locations (Builtin(..), BuiltinArg(..), FileLocation(..), SomeLocation(..))
 import Beng.Types.Invocations (Invocation(..), SomeInvocation(..))
 import Beng.Types.Parse.Matches (SomeMatch(..))
 import Beng.Types.Parse.Patterns (Delimited(..), Or(..), SomePattern(..))
@@ -43,7 +43,7 @@ import Data.Typeable (cast)
 
 argMatchOf :: Int -> String -> SomeParameterizedThing -> SomeInvocation -> SomeMatch
 argMatchOf parentIndex name argType inv = SomeMatch $ M.Argument {
-	pattern = Argument { argType, name, decLoc = BuiltinArg name parentIndex },
+	pattern = Argument { argType, name, decLoc = SomeLocation $ BuiltinArg name parentIndex },
 	matchedType = parameterize inv.returnType,
 	parameterMatches = mempty,
 	value = SomeThing inv }
@@ -81,10 +81,10 @@ noneOp :: SomeInvocation
 noneOp = SomeInvocation Invocation {
 	operator = someOrNone,
 	context = Context.empty,
-	location = Builtin 2,
+	location = SomeLocation $ Builtin 2,
 	returnType = SomeConcreteThing $ NativeBitsType 32,
 	match = SomeMatch $ M.Or { matchIndex = 0,
-		misses = [Argument "Some" intType (BuiltinArg "Some" 2)],
+		misses = [Argument "Some" intType (SomeLocation $ BuiltinArg "Some" 2)],
 		match = SomeMatch $ M.Literal "none" }}
 
 -- private
@@ -93,7 +93,7 @@ someOp :: SomeInvocation -> SomeInvocation
 someOp inv = SomeInvocation Invocation {
 	operator = someOrNone,
 	context = Context.empty,
-	location = Builtin 3,
+	location = SomeLocation $ Builtin 3,
 	returnType = SomeConcreteThing $ NativeBitsType 32,
 	match = SomeMatch $ M.Or {
 		matchIndex = 1, misses = [],
@@ -103,7 +103,7 @@ sumCommasOp :: SomeInvocation -> Populace SomeInvocation -> SomeInvocation
 sumCommasOp firstArgInv invsTail = SomeInvocation Invocation {
 	operator = sumCommas,
 	context = Context.empty,
-	location = Builtin 4,
+	location = SomeLocation $ Builtin 4,
 	returnType = SomeConcreteThing $ NativeBitsType 32,
 	match = SomeMatch $ M.Delimited {
 		M.head = argMatchOf 4 "Element" intType firstArgInv,
@@ -137,12 +137,12 @@ testRunOps = TestCategories "evaluate" [
 			assertEval (aValue + bValue*3) $ sumCommasOp aOp $ Populace bOp [bOp, bOp]) ],
 	PureTests "undefined" [
 		("declaration", do
-			let location = Code $ FileLocation "undefined test" 1 1
+			let location = FileLocation "undefined test" 1 1
 			let declaration = declare None [l "test"] intType location
 			let inv = SomeInvocation Invocation {
 				operator = declaration,
 				context = Context.empty,
-				location,
+				location = SomeLocation location,
 				returnType = SomeConcreteThing $ NativeBitsType 32,
 				match = SomeMatch $ M.Literal "test" }
 			assertUndefinedError inv)]]

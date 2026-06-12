@@ -16,7 +16,7 @@ import qualified Utils.Populace as P
 import qualified Utils.Populace.Populace2 as P2
 import Utils.Tuples (toList2)
 
-import Beng.Build.Context.Builders (declareLiteral)
+import Beng.Build.Context.Builders (declareLiteralAt)
 import Beng.Types.Parse.Matches (
 	And(..),
 	Argument(..),
@@ -212,7 +212,7 @@ instance Match Or where
 			value = SomeThing $ NativeOptionalValue value }
 		let missEntry = \p -> (p.name,
 			matchFalParam p.decLoc p.name p.argType
-				(Error $ Undefined [("", declareLiteral (pack p.name) p.argType p.decLoc)])
+				(Error $ Undefined [("", declareLiteralAt (pack p.name) p.argType p.decLoc)])
 				(SomeParameterizedThing $ NativeOptionalType $ SomeParameterizedThing One))
 		let falValue = \p -> matchFalParam p.pattern.decLoc p.pattern.name p.pattern.argType
 			(Falue p.value) (SomeParameterizedThing $ NativeOptionalType p.matchedType)

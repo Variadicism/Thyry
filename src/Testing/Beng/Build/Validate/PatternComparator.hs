@@ -16,7 +16,7 @@ import Testing.Beng.Build.Validate.PatternComparator.Space (testSpace)
 import Testing.Beng.Build.Validate.PatternComparator.Utils (assertSatisfies, assertDoesNotSatisfy)
 
 import Beng.Build.Context.Builders (c, cr, l, multi, optional, s, textAt)
-import Beng.Types.Locations (Location(Builtin))
+import Beng.Types.Locations (Builtin(..), SomeLocation(..))
 import Beng.Types.Parse.Patterns (And(..), Argument(..), SomePattern(..))
 import Beng.Things (NativeType(..))
 import Beng.Types.Things (SomeParameterizedThing(..))
@@ -27,7 +27,8 @@ testComparator :: TestCategory
 testComparator = PureTests "interpattern complexities" do
 	let capitalizedWords = SomePattern $ And $ P2.dualton (c [cr 'A' 'Z']) (optional $ multi $ c [cr 'a' 'z'])
 	let thingType = SomeParameterizedThing $ NativeType $ const []
-	let valueArg = SomePattern Argument { name = "Thing", argType = thingType, decLoc = Builtin 0 }
+	let valueArg = SomePattern Argument {
+			name = "Thing", argType = thingType, decLoc = SomeLocation $ Builtin 0 }
 
 	let varDef = SomePattern $ And $ P2.Populace2 capitalizedWords s
 		[l ":", l "=", s, valueArg]

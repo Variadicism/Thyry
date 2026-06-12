@@ -16,8 +16,7 @@ import Utils.Populace (Populace)
 import qualified Utils.Populace as P
 
 import Beng.Operators ()
-import Beng.Locations (FileLocation(..), Location)
-import qualified Beng.Locations as Location
+import Beng.Locations (FileLocation(..), SomeLocation(..))
 import {-# SOURCE #-} Beng.Invocations ()
 import Beng.Operators.Declarations ()
 import Beng.Types.Parse.Parsers.Code (State(..))
@@ -134,7 +133,7 @@ instance IsError Error where
 				CompoundError [] $ P.Populace e1 [e2]
 		else min e1 e2  -- lower -> closer to success
 
-instance HasField "location" Error Location where
+instance HasField "location" Error SomeLocation where
 	getField = getLocation
 
 -- exported
@@ -144,11 +143,11 @@ parseError state message = ParseError {
 	details = message,
 	fileLocation = state.location }
 
-getLocation :: Error -> Location
+getLocation :: Error -> SomeLocation
 getLocation = \case
-	ParseError{fileLocation} -> Location.Code fileLocation
+	ParseError{fileLocation} -> SomeLocation fileLocation
 	UndefinedError{caller=SomeInvocation invocation} -> invocation.location
-	TypeError{fileLocation} -> Location.Code fileLocation
+	TypeError{fileLocation} -> SomeLocation fileLocation
 	CompoundError{compound} -> compound.head.location
 
 printError :: Error -> String

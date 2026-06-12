@@ -14,7 +14,7 @@ import qualified Beng.Types.Parse.Matches as Match
 import Beng.Types.Parse.Patterns (SomePattern)
 import qualified Beng.Types.Parse.Patterns as Pattern
 import Beng.Types.Errors (Fallible)
-import Beng.Types.Locations (Location)
+import Beng.Types.Locations (SomeLocation)
 import {-# SOURCE #-} Beng.Types.Things (SomeParameterizedThing)
 import {-# SOURCE #-} qualified Beng.Types.Things as Thing
 
@@ -30,7 +30,7 @@ data Mismatch =
 type ArgContextBuilder =
 	String  -- ^ The name of the argument for which context is needed.
 	-> Map String Match.Argument  -- ^ The arguments built so far; they may be needed to build the preop
-	-> Location
+	-> SomeLocation
 	-> Fallible [SomeOperator]  -- ^ The operators to appended to context to parse the preop.
 {- TODO: The Location field is TEMPORARY and should be removed later!
    In the future, the operator should use the Location of the Declaration passed into `build...using`.
@@ -49,7 +49,7 @@ type ArgContextBuilder =
    the list passed to `build...using`. -}
 
 data Declaration = Declaration {
-	location :: Location,
+	location :: SomeLocation,
 	pattern :: SomePattern,
 	returnType :: SomeParameterizedThing,  -- TODO: use types from args to formulate the return type
 	associativity :: Associativity,

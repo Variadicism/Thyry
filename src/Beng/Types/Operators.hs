@@ -9,7 +9,7 @@ import Utils.Messaging (Messagable)
 import {-# SOURCE #-} Beng.Types.Build.Context (PrecedenceBound)
 import {-# SOURCE #-} Beng.Types.Build.TypeTest (TypeTest)
 import Beng.Types.Errors (Fallible)
-import Beng.Types.Locations (Location)
+import Beng.Types.Locations (SomeLocation)
 import {-# SOURCE #-} Beng.Types.Invocations (Invocation)
 import {-# SOURCE #-} Beng.Types.Operators.Declarations (ArgContextBuilder, Associativity)
 import {-# SOURCE #-} Beng.Types.Operators.Definitions (Definition)
@@ -18,8 +18,8 @@ import {-# SOURCE #-} Beng.Types.Things (SomeParameterizedThing, SomeThing)
 import {-# SOURCE #-} qualified Beng.Types.Things as Thing
 
 class (Show op, Messagable op) => Operator op where
-	location :: op -> Location
-	decLoc :: op -> Location
+	location :: op -> SomeLocation
+	decLoc :: op -> SomeLocation
 	pattern :: op -> SomePattern
 	returnType :: op -> SomeParameterizedThing
 	associativity :: op -> Associativity
