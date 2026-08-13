@@ -142,10 +142,14 @@ consistently.
 Atomic comparison invariants compare two invariant expressions through a comparator.
 
 ```haskell
-data ComparisonInvariant = ComparisonInvariant {
+data ComparisonInvariant comparator = ComparisonInvariant {
 	leftExpression :: SomeInvariantExpression,
-	comparator :: SomeInvariantComparator,
+	comparator :: comparator,
 	rightExpression :: SomeInvariantExpression }
+
+data SomeComparisonInvariant =
+	forall comparator. InvariantComparator comparator =>
+		SomeComparisonInvariant (ComparisonInvariant comparator)
 ```
 
 Compound invariants represent logical conjunction and disjunction.
@@ -164,7 +168,7 @@ avoids unnecessary wrappers such as `And (it < 7)` and meaningless cases such as
 Core instances:
 
 ```haskell
-instance Invariant ComparisonInvariant
+instance InvariantComparator comparator => Invariant (ComparisonInvariant comparator)
 instance Invariant AndInvariant
 instance Invariant OrInvariant
 ```
@@ -195,7 +199,7 @@ The proof engine needs a common structural view for invariant forms.
 
 ```haskell
 data InvariantView =
-	ComparisonInvariantView ComparisonInvariant |
+	ComparisonInvariantView SomeComparisonInvariant |
 	AndInvariantView (Populace2 SomeInvariant) |
 	OrInvariantView (Populace2 SomeInvariant)
 ```
@@ -310,27 +314,35 @@ data SomeInvariantComparator =
 ```haskell
 class Thing comparator => InvariantComparator comparator where
 		decideComparison ::
-			comparator ->
 			Context ->
-			ComparisonInvariant ->
-			FallibleI SomeInvariantMisproof SomeInvariantProof
+			ComparisonInvariant comparator ->
+			FallibleI SomeProofFailure SomeInvariantProof
 
 		applyComparison ::
-			comparator ->
 			Context ->
-			ComparisonInvariant ->
-			ComparisonInvariant ->
-			[InvariantApplication]
+			SomeComparisonInvariant ->
+			ComparisonInvariant comparator ->
+			FallibleI SomeComparisonApplicationFailure (Populace SomeInvariant)
 ```
 
 ```haskell
-data InvariantApplication = InvariantApplication {
-	applicationResult :: InvariantApplicationResult,
-	newGoals :: [SomeInvariant] }
+data SomeComparisonApplicationFailure =
+	forall failure. ComparisonApplicationFailure failure =>
+		SomeComparisonApplicationFailure failure
 
-data InvariantApplicationResult =
-	ApplicationProvesGoal |
-	ApplicationDisprovesGoal
+data SomeComparisonIrrelevance =
+	forall irrelevance. ComparisonIrrelevance irrelevance =>
+		SomeComparisonIrrelevance irrelevance
+
+class (Show failure, Messagable failure) => ComparisonApplicationFailure failure where
+	applicationCandidate :: failure -> SomeComparisonInvariant
+	applicationTarget :: failure -> SomeComparisonInvariant
+
+class ComparisonApplicationFailure irrelevance => ComparisonIrrelevance irrelevance
+
+class
+	(ComparisonApplicationFailure disproof, InvariantDisproof disproof) =>
+	ComparisonApplicationDisproof disproof
 ```
 
 `decideComparison` performs the basic comparison logic represented by the comparator. It uses
@@ -338,15 +350,19 @@ data InvariantApplicationResult =
 It should only decide direct cases, such as two known bit literals or a comparator-specific
 identity.
 
-`decideComparison` returns a proof on success and a misproof on failure. The misproof may be
+The comparator value is read from the typed `ComparisonInvariant comparator`, so the method does
+not need a separate comparator argument.
+
+`decideComparison` returns a proof on success and a proof failure on failure. The failure may be
 unproven or disproven. The solver can continue after an unproven result, but can stop the branch
-after a disproof. Invalid operands should return an appropriate misproof; there is no separate
+after a disproof. Invalid operands should return an appropriate proof failure; there is no separate
 operand-validation method.
 
 `applyComparison` asks whether a known comparison invariant or rule conclusion can help prove or
-disprove a selected comparison goal. The first `ComparisonInvariant` argument is the known fact
-or rule conclusion, and the second is the goal being transformed. It returns zero or more
-possible applications. An empty list means the known fact is valid but not useful for that goal.
+disprove a selected comparison goal. The `SomeComparisonInvariant` argument is the known fact or
+rule conclusion, and the typed `ComparisonInvariant comparator` is the goal being transformed.
+On success, it returns replacement goals. On failure, it returns either a disproof or an
+irrelevance result. Irrelevance means the known fact is valid but not useful for that goal.
 
 `applyComparison` should also use `InvariantExpressionView`. For example, unsigned less-than can
 inspect both sides of a known comparison and a goal comparison to decide whether the known
@@ -658,7 +674,8 @@ context because different comparators can have different semantics. For example,
 and bit-pattern equality treat `+0.0` and `-0.0` differently. A rewrite rule must therefore be
 valid for the target expression and comparator context.
 
-Comparator-specific application lives in `InvariantComparator.applyComparison`. Expression and
+Comparator-specific application lives in `InvariantComparator.applyComparison`, which returns
+`FallibleI SomeComparisonApplicationFailure (Populace SomeInvariant)`. Expression and
 operator-specific application uses ordinary invariant rules whose expressions mention the
 relevant `Op`s.
 
@@ -674,9 +691,9 @@ data SomeInvariantProof =
 	forall proof. InvariantProof proof =>
 		SomeInvariantProof proof
 
-data SomeInvariantMisproof =
-	forall misproof. InvariantMisproof misproof =>
-		SomeInvariantMisproof misproof
+data SomeProofFailure =
+	forall failure. ProofFailure failure =>
+		SomeProofFailure failure
 
 data SomeInvariantDisproof =
 	forall disproof. InvariantDisproof disproof =>
@@ -687,9 +704,9 @@ class (Show result, Messagable result) => InvariantProofResult result where
 	proofSteps :: result -> [SomeProofStep]
 
 class InvariantProofResult result => InvariantProof result
-class InvariantProofResult result => InvariantMisproof result
-class InvariantMisproof result => InvariantDisproof result
-class InvariantMisproof result => InvariantUnproven result
+class InvariantProofResult result => ProofFailure result
+class ProofFailure result => InvariantDisproof result
+class ProofFailure result => InvariantUnproven result
 ```
 
 Concrete result types can represent proven, disproven, unproven, and resource-exhausted cases.
@@ -778,16 +795,16 @@ In simple terms:
    stack.
 3. If the invariant is an `AndInvariant`, prove every child.
 4. If the invariant is an `OrInvariant`, prove at least one child.
-5. If the invariant is a `ComparisonInvariant`, ask its comparator for a direct decision.
+5. If the invariant is a `ComparisonInvariant`, ask its comparator for a direct proof.
 6. If the comparator proves or disproves the comparison directly, stop that branch.
-7. If the comparator is undecided, search for applicable rules or known facts.
+7. If the comparator returns an unproven failure, search for applicable rules or known facts.
 8. Apply a useful rule conclusion or known fact to the selected comparison.
 9. Replace the selected comparison with the application's new invariants.
 10. Normalize the result.
 11. Continue until the invariant is proven, disproven, or no progress is possible.
 ```
 
-Direct comparator decisions are not the same as general proof logic. They are only base cases
+Direct comparator proofs/disproofs are not the same as general proof logic. They are base cases
 for the comparator's own semantics, such as comparing two known bit literals.
 
 Rules such as reflexivity and transitivity should be ordinary built-in rules in the context.
@@ -881,7 +898,7 @@ known fact: x < 7
 ```
 
 The known fact gives an upper bound for `x`, but the normalized goal needs a lower bound for
-`x`. `applyComparison` should return no applications.
+`x`. `applyComparison` should return a `ComparisonIrrelevance` failure.
 
 ## Proof Example: Less-Than Transitivity
 
