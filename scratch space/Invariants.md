@@ -1,61 +1,66 @@
 # Invariants Plan
 
-This document records the current plan for adding invariants to the Beng type system.
-It is a design note, not an implementation.
+This document records the current plan for adding invariants to the Beng type system. It is a
+design note, not an implementation or a final source-language specification.
+
+The invariant language now has an intended logical vocabulary and a high-level solver cycle. The
+exact Haskell representation, generalized application calculus, and several validation and search
+algorithms remain open design work.
 
 ## Goal
 
-`NativeBitsType` should be able to carry zero or more invariants. An invariant is a
-compile-time checked assertion about the bits represented by a `NativeBitsValue` that
-befits that type.
+`NativeBitsType` should be able to describe zero or more compile-time checked assertions about the
+bits represented by a `NativeBitsValue` that befits that type.
 
 Example intent:
 
 ```text
-it (uint) < 7
+it (uint <) 7
 ```
 
-This means any `NativeBitsValue` that befits the relevant `NativeBitsType` must contain
-bits whose unsigned integer interpretation is less than `7`.
+This means any `NativeBitsValue` that befits the relevant `NativeBitsType` must contain bits whose
+unsigned integer interpretation is less than `7`.
 
-The feature should also support invariants involving ordinary Beng operations:
+Invariants may also mention ordinary Beng operations:
 
 ```text
-sin(it) < 7
+sin(it) (float64 <) 7
 ```
 
-That should be provable if the current context has rules that imply enough facts about
-`sin(it)`, such as `-1 <= sin(it)` and `sin(it) <= 1` under appropriate premises.
+Such an assertion may be provable when the context contains established laws that provide a
+sufficient bound for `sin(it)`. The invocation is a symbolic expression in the proposition; the
+proposition itself is not an executable operation.
 
-## Design Principles
+## Design Principles And Boundaries
 
 - All runtime data is still bits.
-- The semantic interpretation of bits belongs to the comparator, not to a separate domain type.
-- Invariants are expressed through simple comparisons such as equality and less-than.
-- Ranges, intervals, and similar concepts should be represented as ordinary invariants.
-- Greater-than can be represented by swapping operands of less-than.
-- Less-than-or-equal can be a syntax convenience or explicit comparator, but it can be
-  reduced to the disjunction of less-than and equality if needed.
-- Initial type satisfaction requires equal bit sizes. Future source-level implicit widening
-  should appear as an explicit conversion `Op` in the built expression.
-- There is no separate `InvariantFunction`; ordinary Beng `Op`s are the operations used in
-  invariant expressions.
-- All `Op`s are expected to become proof-capable through complete type information and
-  contextual invariant rules.
-- Invariant rules live in `Context`, alongside available `Op`s.
-- Proof uses `Context` plus a branch-local proof-step stack; no bundled `ProofState` is needed.
-- Logic such as transitivity and reflexivity should be built-in invariant rules, not hidden
-  ad-hoc proof logic in comparators.
-- Code-declared invariant rules are trusted assumptions. An unproven declaration may be
-  accepted, but a declaration that is disproven by the current context must be rejected.
-- The invariant system should be centered on proof and disproof, not a separate general-purpose
-  invariant evaluation API.
-- Everything representable in Beng code should be a `Thing`. That includes invariants,
-  invariant rules, invariant comparators, invariant expressions, and invariant variables.
+- The semantic interpretation of bits belongs to the comparator, not to a separate runtime domain
+  type.
+- An invariant is a logical proposition. Invariant expressions may contain ordinary Beng `Op`s,
+  but logical propositions are not themselves executable operations.
+- The compiler owns the meaning and fundamental laws of `and`, `or`, `not`, `if`, `for all`, and
+  `for some`. Users may state domain-specific facts and assumptions, but may not redefine logic.
+- Every ordinary logical form needed by invariant reasoning should also be expressible in source.
+  Compiler-internal proposition-pattern metavariables are the exception.
+- Ranges and intervals are ordinary combinations of comparison invariants and logical forms.
+- Initial type satisfaction requires equal bit sizes. Future implicit source conversions must
+  appear as explicit conversion `Op`s in the constructed expression.
+- There is no separate `InvariantFunction`. Ordinary Beng `Op`s are used in invariant expressions.
+- Contextual knowledge lives in `Context`, alongside the available `Op`s.
+- Proof uses `Context` plus branch-local bindings, history, and loop/resource tracking.
+- Type/value satisfaction distinguishes `Proven`, `Disproven`, and `Unproven`. Failure to prove a
+  required invariant is a type mismatch, but is not automatically a disproof.
+- Code may explicitly introduce an unproven assertion only with conspicuous `assuming` syntax.
+- No intentionally uninhabitable or never-type facility is being designed here. A type proven to
+  have no possible values is an error.
+- Anything representable in Beng code should generally be a `Thing`. Internal solver patterns and
+  proof machinery need not be source-representable.
+- The architecture should be mathematically sound and extensible. This plan does not attempt to
+  enumerate every theorem-proving strategy or native decision case before implementation.
 
 ## Existing Structures To Reuse
 
-`NativeBitsValue` currently represents concrete bits:
+`NativeBitsValue` represents concrete bits:
 
 ```haskell
 data NativeBitsValue = NativeBitsValue {
@@ -63,23 +68,36 @@ data NativeBitsValue = NativeBitsValue {
 	size :: Int }
 ```
 
-`NativeBitsType` currently represents only a bit size:
+`NativeBitsType` currently represents a bit size:
 
 ```haskell
 data NativeBitsType = NativeBitsType { size :: Int }
 ```
 
-The plan is to extend it with invariant data:
+Its invariant representation should follow the existing subject-accepting property design of
+`NativeType`, rather than storing already-instantiated propositions:
+
+```haskell
+data NativeType = NativeType { properties :: SomeThing -> [SomeOperator] }
+data One = One
+```
+
+The conceptual extension is therefore similar to:
 
 ```haskell
 data NativeBitsType = NativeBitsType {
 	size :: Int,
-	invariants :: [SomeInvariant] }
+	invariants :: SomeInvariantExpression -> [SomeInvariant] }
 ```
 
-The list is allowed to be empty because a bits type may have no extra refinements.
+This is illustrative, not a settled signature. In particular, the final types must enforce the
+difference between general invariant templates and solver-ready invariants described below. A list
+of type invariants denotes their conjunction. An empty list means no additional refinement.
 
-`Context` currently controls which operators are available:
+As with `NativeType.properties`, display and structural equality can instantiate the function with
+a designated placeholder. Solver use instead instantiates it with an actual subject expression.
+
+`Context` currently controls available operators:
 
 ```haskell
 data Context = Context {
@@ -87,7 +105,7 @@ data Context = Context {
 	ops :: [SomeOperator] }
 ```
 
-The plan is to extend it with invariant rules:
+It should be extended with invariant rules:
 
 ```haskell
 data Context = Context {
@@ -96,13 +114,11 @@ data Context = Context {
 	invariantRules :: [InvariantRule] }
 ```
 
-This keeps scoping consistent. If an invariant rule is declared in a scope, it is available
-only in contexts that include that declaration. The rule store is append-only: obviated rules
-remain in the list for identity and provenance. A new rule's local ID is the number of historical
+The rule store remains append-only for stable identity and provenance. Obviated rules stay in the
+historical list and can be skipped during search. A new rule's local ID is the number of historical
 rules already in that context.
 
-`Invocation` is the existing representation that may be reused or adapted for operation
-applications inside invariants:
+The existing `Invocation` representation may inform symbolic invocation design:
 
 ```haskell
 data Invocation op = Invocation {
@@ -113,40 +129,51 @@ data Invocation op = Invocation {
 	returnType :: SomeConcreteThing }
 ```
 
-`Invocation` already contains the `Op`, its matched arguments, its return type, its context,
-and its source location. `Beng.Invocations.getArgs` can recover the named arguments from
-the invocation's `match`. Direct reuse is still under review because ordinary invocation
-arguments may need to be recursively concrete while invariant expressions may contain `It` or
-rule variables.
+`Beng.Invocations.getArgs` can recover named arguments from an invocation's `match`. Direct reuse
+is not decided: runtime invocations should be recursively concrete, while symbolic invariant
+invocations may contain quantified variables and must not execute merely because they are present
+in a proposition.
 
-## Core Types
+## Core Model
 
-### Invariant
+### General And Solver-Ready Categories
 
-Invariants should be represented by a typeclass. The proof engine owns proof flow, but each
-invariant form exposes a structural view and normalization hook.
+The representation must enforce a recursive distinction analogous to `Thing` and its specialized
+subsets:
 
-```haskell
-data SomeInvariant =
-	forall invariant. Invariant invariant =>
-		SomeInvariant invariant
+- **General invariants** may contain the display/template placeholder `It` and support ordinary
+  structural operations such as showing, equality, and inspection.
+- **Solver-ready invariants** contain no unresolved `It` anywhere, including inside nested logical
+  forms, comparison operands, or symbolic invocations.
+- Solver-ready does not mean decidable and does not mean runtime-executable. Quantified variables
+  and symbolic operation applications remain valid solver expressions.
 
-class Thing invariant => Invariant invariant where
-	invariantView :: invariant -> InvariantView
+Logical forms and atomic expressions should be parameterized, directly or indirectly, by this
+category so readiness propagates recursively. Existential wrappers can preserve heterogeneous
+children. An unchecked marker instance on a compound value is insufficient because a nested child
+could still contain `It`.
 
-	normalizeInvariant ::
-		Context ->
-		invariant ->
-		FallibleI InvariantMismatch SomeInvariant
-```
-
-The proof engine should not put `prove` on this typeclass. Keeping proof centralized ensures
-that comparison, `And`, `Or`, loop tracking, diagnostics, and resource limits are handled
-consistently.
+The exact Haskell encoding is open. The sketches below omit category parameters when they would
+obscure the semantic point.
 
 ### Invariant Forms
 
-Atomic comparison invariants compare two invariant expressions through a comparator.
+The invariant model contains:
+
+```text
+ComparisonInvariant
+AndInvariant
+OrInvariant
+NotInvariant
+IfInvariant
+ForAllInvariant
+ForSomeInvariant
+```
+
+These forms can nest arbitrarily. Source terminology is `for all` and `for some`. Rules and type
+invariants use this same proposition language; there is no narrower rule-only language.
+
+Illustrative shapes are:
 
 ```haskell
 data ComparisonInvariant comparator = ComparisonInvariant {
@@ -154,175 +181,138 @@ data ComparisonInvariant comparator = ComparisonInvariant {
 	comparator :: comparator,
 	rightExpression :: SomeInvariantExpression }
 
-data SomeComparisonInvariant =
-	forall comparator. InvariantComparator comparator =>
-		SomeComparisonInvariant (ComparisonInvariant comparator)
-```
-
-Compound invariants represent logical conjunction and disjunction.
-
-```haskell
 data AndInvariant = AndInvariant {
 	invariants :: Populace2 SomeInvariant }
 
 data OrInvariant = OrInvariant {
 	invariants :: Populace2 SomeInvariant }
+
+data NotInvariant = NotInvariant {
+	invariant :: SomeInvariant }
+
+data IfInvariant = IfInvariant {
+	antecedent :: SomeInvariant,
+	consequent :: SomeInvariant }
+
+data ForAllInvariant = ForAllInvariant {
+	variable :: InvariantVariable,
+	invariant :: SomeInvariant }
+
+data ForSomeInvariant = ForSomeInvariant {
+	variable :: InvariantVariable,
+	invariant :: SomeInvariant }
 ```
 
-`Populace2` is used because `And` and `Or` should always contain at least two invariants. This
-avoids unnecessary wrappers such as `And (it < 7)` and meaningless cases such as `Or []`.
+These declarations are not final APIs. Quantifier representation in particular must preserve
+scope, variable identity, order, and capture-avoiding substitution.
 
-Core instances:
+`AndInvariant` and `OrInvariant` should contain at least two children. Construction should avoid
+unnecessary one-child wrappers. An empty conjunction or disjunction is an internal construction
+case, not a user-facing invariant.
 
-```haskell
-instance InvariantComparator comparator => Invariant (ComparisonInvariant comparator)
-instance Invariant AndInvariant
-instance Invariant OrInvariant
-```
-
-Smart constructors should avoid unnecessary compound wrappers:
+Do not add user-expressible `TrueInvariant` or `FalseInvariant` constructors. A simplification or
+proof step may decide a proposition as true or false, but its enclosing logical form consumes that
+decision before reconstructing any remaining invariant. For example:
 
 ```text
-[] -> internal proven/no-goals state, not a user-facing invariant
-[x] -> x
-[x, y, ...] -> AndInvariant or OrInvariant
+A and true  -> A
+A and false -> whole conjunction disproven
+A or true   -> whole disjunction proven
+A or false  -> A
 ```
 
-Goal proof semantics:
+Justification for the eliminated child is retained for diagnostics without creating a displayed
+`true` or `false` proof node.
+
+### Logical Conveniences
+
+General negation removes the need for several primitive comparison families:
 
 ```text
-AndInvariant is proven if every child invariant is proven.
-AndInvariant is disproven if any child invariant is disproven.
-AndInvariant is unproven if no child is disproven and at least one child is unproven.
-
-OrInvariant is proven if any child invariant is proven.
-OrInvariant is disproven if every child invariant is disproven.
-OrInvariant is unproven if no child is proven and at least one child is unproven.
+a > b  := b < a
+a != b := not (a = b)
+a <= b := a < b or a = b
+a >= b := b < a or a = b
 ```
 
-These rules describe an `AndInvariant` or `OrInvariant` when it is the current goal. Compound
-invariants used as known assumptions have different elimination behavior:
+These are source conveniences or lowerings, not separate primitive comparators. The equality and
+ordering interpretation in each expansion must be the selected native interpretation.
+
+Do not universally lower `not (a < b)` to `a >= b`. They differ for IEEE NaN. Under IEEE
+semantics, both `a < b` and `a >= b` can be false.
+
+### Structural Views
+
+The solver needs structural views for invariants and invariant expressions so it can inspect
+existential wrappers without ad-hoc casts. An expanded `InvariantView` must cover all seven forms,
+and an expression view must cover literals, variables, and symbolic invocations.
+
+The exact view types depend on the general/solver-ready category design and are not settled. Any
+design must prevent a structural view from bypassing the recursive no-`It` guarantee at solver
+entry.
+
+### Invariant Comparators
+
+Comparators own the semantic interpretation of bits. Native comparator families initially include:
 
 ```text
-A known AndInvariant makes every child available in the same proof branch.
-
-To use a known OrInvariant to prove a goal, create one branch per child assumption and prove the
-same goal in every branch. No child of a known OrInvariant is independently known.
+Bit-pattern equality, parameterized by width
+Unsigned integer less-than, parameterized by width
+Signed integer less-than, parameterized by width
+IEEE float32 equality and less-than
+IEEE float64 equality and less-than
 ```
 
-If any `OrInvariant` assumption branch cannot prove the goal, the combined result is normally
-unproven. Disproving the combined implication additionally requires evidence that a failing branch
-can describe an actual candidate rather than an impossible branch.
+Separate unsigned and signed integer equality is unnecessary for equal-width bit patterns.
+Primitive greater-than, not-equals, less-than-or-equal, and greater-than-or-equal comparators are
+also unnecessary because the logical forms above express them.
 
-### InvariantView
-
-The proof engine needs a common structural view for invariant forms.
-
-```haskell
-data InvariantView =
-	ComparisonInvariantView SomeComparisonInvariant |
-	AndInvariantView (Populace2 SomeInvariant) |
-	OrInvariantView (Populace2 SomeInvariant)
-```
-
-### InvariantRule
-
-An invariant rule derives one or more conclusions when all premises are proven.
-
-```haskell
-type InvariantRuleId = Natural
-
-data InvariantRule = InvariantRule {
-	ruleId :: InvariantRuleId,
-	justification :: InvariantRuleJustification,
-	premises :: [SomeInvariant],
-	conclusions :: Populace SomeInvariant,
-	obviatedBy :: Maybe InvariantId }
-```
-
-`ruleId` is assigned by `pushInvariantRule`, not by callers. Its value is the length of the
-append-only historical rule list before insertion. An obviated rule remains in the list with
-`obviatedBy = Just invariantId`, so its ID and justification remain available even though rule
-search can skip it quickly. Active rules have `obviatedBy = Nothing`.
-
-Rule variables are derived from `premises` and `conclusions`, similar to the way arguments are
-derived from patterns that contain them. This avoids duplicated variable declarations that could
-fall out of sync with the rule body.
-
-`premises` is a list because rules may have zero premises. Such a rule represents an
-always-available fact or axiom.
-
-`conclusions` is a `Populace` because a rule with no conclusions is useless.
-
-Every derived conclusion used to obviate another rule is itself added to the context first. This
-allows `obviatedBy` to identify one established invariant even when deriving it required several
-proof steps.
-
-Examples of zero-premise rules:
+Illustrative source syntax treats interpretation and relation as one parenthesized comparator:
 
 ```text
-x unsignedIntegerEquals x
+a (uint <) b
+a (int <) b
+a (float32 <) b
+a (float64 <) b
+a (bits =) b
 ```
 
-Examples of rules with premises:
+The parenthesized unit may consist of multiple lexer tokens. It is a logical comparator object,
+not a cast applied only to the left operand. It interprets both operands and validates their widths.
+
+Integer comparisons initially require equal-width operands. Comparators reject mixed widths rather
+than extending silently. Future widening uses explicit conversion operations, whose established
+properties explain zero extension, sign extension, or another conversion behavior.
+
+IEEE numerical equality is not bit-pattern equality:
 
 ```text
-x < z if x < y and y < z
+-0.0 (float64 =) 0.0
+not (NaN (float64 =) NaN)
 ```
 
-### InvariantRuleJustification
+Raw equality remains available as `(bits =)`. Float less-than is false when an operand is NaN.
+Float rules must not assume reflexivity of IEEE numerical equality.
 
-The rule itself should not have a direct `location` field because not all rules are declared
-directly in source code. Instead, metadata belongs to the justification.
+An `InvariantComparator` supplies at least two kinds of knowledge:
 
-```haskell
-data InvariantRuleJustification =
-	DeclaredInvariantRule { location :: SomeLocation } |
-	DerivedInvariantRule { sources :: Populace InvariantId }
-```
+- context-independent direct decisions about atomic comparisons when possible; and
+- comparison-specific candidate applications that relate a known comparison to a goal.
 
-There is no separate `AssumedInvariant` case. A known fact is a declared rule with zero
-premises.
+The older `decideComparison` and `applyComparison` names remain useful, but their exact signatures
+are not settled. `decideComparison` must not consult contextual rules. `applyComparison` must expose
+the application's obligations, bindings, justification, and implication direction rather than
+returning untagged replacement goals.
 
-Built-in facts and axioms can use `Builtin` locations. Code-declared invariant rules can use
-code locations.
+Comparator implementations may use private helpers to compare concrete `NativeBitsValue`s. Native
+decision support can grow incrementally and need not claim completeness.
 
-Code-declared rules are trusted contracts. Rule insertion distinguishes three outcomes:
+### Invariant Expressions, Variables, And Symbolic Invocations
 
-```text
-Proven conclusion: retain the new rule as obviated by the existing proof.
-Unproven conclusion: retain the new rule as an active trusted assumption.
-Disproven conclusion: reject the declaration at its source location.
-```
+Invariant expressions include concrete bit literals, explicitly scoped quantified variables, and
+symbolic operation applications. The exact class and existential wrappers remain open.
 
-Insertion should be tentative so a new rule can also be rejected when it causes an affected
-existing assumption to become disproven. Diagnostics should identify the new declaration and the
-existing rule or rules that establish the contradiction. The exact validation of conditional
-rules remains an active review point below.
-
-### InvariantId
-
-Derived rules should identify the invariants they came from. The ID must be independent of
-`Context.invariantRules` ordering.
-
-```haskell
-data InvariantId = InvariantId {
-	ruleId :: InvariantRuleId,
-	conclusionPath :: InvariantPath }
-
-data InvariantPath = InvariantPath [Int]
-```
-
-`InvariantPath` identifies a conclusion within a rule, including nested children inside
-`AndInvariant` or `OrInvariant` conclusions if needed. Locations are recovered from the rule's
-`justification`; they are not duplicated in `InvariantId`.
-
-A path into an `OrInvariant` identifies a child for provenance only. It never makes that child an
-independently known fact.
-
-### InvariantVariable
-
-Rules need declared variables.
+Every quantified value variable has a type:
 
 ```haskell
 data InvariantVariable = InvariantVariable {
@@ -330,1048 +320,760 @@ data InvariantVariable = InvariantVariable {
 	variableType :: SomeParameterizedThing }
 ```
 
-Every invariant variable has a type. Untyped variables would make rule validation and
-invocation argument checking ambiguous.
+This is a conceptual shape. Implementations also need identities that distinguish shadowed or
+freshened variables independently of display names.
 
-The term here is best thought of as a rule variable or logic variable. In a backward proof,
-a variable that appears only in premises behaves like a witness variable.
+Symbolic applications such as `sin(x)` are propositions about operation results. They must preserve
+operator identity, bindings, argument structure, and result type, but must not run until they are
+closed and execution is explicitly requested by an appropriate path. Runtime `Invocation` may be
+reused, parameterized, or separated into a symbolic representation; preserving this boundary is
+the requirement.
 
-Example:
+The same pure invocation with the same operator identity, bindings, and arguments denotes the same
+value. Unrelated invocations are not assumed unequal, but equality between them requires proof. A
+bare operator declaration and an invocation with bound arguments are different expressions.
+
+Operator identity should use declaration identity/location consistently with existing operator
+equality behavior.
+
+### `one` And `it`
+
+Keep the source-level roles distinct:
+
+- `one` is the subject used for `NativeType` property declarations and definitions.
+- `it` is the placeholder used when writing or displaying invariants attached to a type.
+
+`It` is not an existential witness or a logic variable for the solver to bind. It is removed when
+the type's invariant template is instantiated. The solver accepts only recursively `It`-free
+invariants.
+
+For display and structural equality, instantiate the template with a designated `It`. For proof,
+instantiate it with the actual subject expression. To validate a standalone type declaration,
+instantiate it with a fresh, unconstrained symbolic expression of the unrefined underlying type.
+Do not pass the type object as though it were a runtime value, and do not assume the type's own
+refinements while validating those refinements.
+
+Existing code establishes that `One` is a `Thing`, `ConcreteThing`, and `ParameterizedThing`.
+Whether a similarly represented `It` should be a `ConcreteThing` depends on the chosen category
+encoding. The architectural requirement is recursive removal before solver entry, not a particular
+subclass declaration.
+
+## Rules Are Invariants With Metadata
+
+An invariant rule is an arbitrary invariant assertion plus metadata. It does not have separate
+`premises` and `conclusions` fields:
+
+```haskell
+type InvariantRuleId = Natural
+
+data InvariantRule = InvariantRule {
+	ruleId :: InvariantRuleId,
+	justification :: InvariantRuleJustification,
+	assertion :: SomeInvariant,
+	obviatedBy :: Maybe InvariantId }
+```
+
+This is an illustrative declaration. The proposition itself contains implication and quantifiers:
 
 ```text
-x < z if x < y and y < z
+for all x, y, z:
+    if x < y and y < z then x < z
 ```
 
-When proving `a < c`, `x` and `z` are bound by the conclusion. `y` is then discovered while
-proving the premises, for example by finding known facts `a < b` and `b < c`.
+Variables are explicitly bound by quantifiers rather than inferred from separate premise and
+conclusion lists. Closed facts and rules are logically valid. An unused quantified variable, such
+as `for all x: 5 < 7`, should produce a warning rather than make the assertion invalid.
 
-### InvariantComparator
+### Trust And Assumption Policy
 
-Comparators own the semantic interpretation of bits.
-
-```haskell
-data SomeInvariantComparator =
-	forall comparator. InvariantComparator comparator =>
-		SomeInvariantComparator comparator
-```
-
-The current provisional class signature is:
-
-```haskell
-class Thing comparator => InvariantComparator comparator where
-		decideComparison ::
-			Context ->
-			ComparisonInvariant comparator ->
-			FallibleI SomeProofFailure SomeInvariantProof
-
-		applyComparison ::
-			Context ->
-			SomeComparisonInvariant ->
-			ComparisonInvariant comparator ->
-			FallibleI SomeComparisonApplicationFailure (Populace SomeInvariant)
-```
-
-```haskell
-data SomeComparisonApplicationFailure =
-	forall failure. ComparisonApplicationFailure failure =>
-		SomeComparisonApplicationFailure failure
-
-data SomeComparisonIrrelevance =
-	forall irrelevance. ComparisonIrrelevance irrelevance =>
-		SomeComparisonIrrelevance irrelevance
-
-class (Show failure, Messagable failure) => ComparisonApplicationFailure failure where
-	applicationCandidate :: failure -> SomeComparisonInvariant
-	applicationTarget :: failure -> SomeComparisonInvariant
-
-class ComparisonApplicationFailure irrelevance => ComparisonIrrelevance irrelevance
-
-class
-	(ComparisonApplicationFailure disproof, InvariantDisproof disproof) =>
-	ComparisonApplicationDisproof disproof
-```
-
-`decideComparison` performs the basic comparison logic represented by the comparator. It uses
-`InvariantExpressionView` so comparator implementations can be straightforward pattern matches.
-It should only decide direct cases, such as two known bit literals or a comparator-specific
-identity.
-
-The comparator value is read from the typed `ComparisonInvariant comparator`, so the method does
-not need a separate comparator argument.
-
-`decideComparison` returns a proof on success and a proof failure on failure. The failure may be
-unproven or disproven. The solver can continue after an unproven result, but can stop the branch
-after a disproof. Invalid operands should return an appropriate proof failure; there is no separate
-operand-validation method.
-
-`applyComparison` asks whether a known comparison invariant or rule conclusion can help prove or
-disprove a selected comparison goal. The `SomeComparisonInvariant` argument is the known fact or
-rule conclusion, and the typed `ComparisonInvariant comparator` is the goal being transformed.
-On success, it returns replacement goals. On failure, it returns either a disproof or an
-irrelevance result. Irrelevance means the known fact is valid but not useful for that goal.
-
-The bare replacement-goal return type does not yet record whether proving or disproving those
-goals determines the selected goal. The active proposal wraps the replacement goals in a
-`ComparisonApplication` whose relation records that implication direction.
-
-`applyComparison` should also use `InvariantExpressionView`. For example, unsigned less-than can
-inspect both sides of a known comparison and a goal comparison to decide whether the known
-comparison is an upper bound, lower bound, contradiction, or irrelevant.
-
-Comparator application owns relation-specific reasoning such as bounds, direction, equality,
-and contradiction for that comparator. It should not hardcode semantics for specific `Op`s such
-as `sin`; those should be represented by invariant rules involving those `Op`s.
-
-`compareNativeBits` can exist as a private helper inside comparator implementations, but
-it does not need to be a typeclass method. It is just one way for `decideComparison` to decide
-`NativeBitsValueView` versus `NativeBitsValueView`.
-
-Comparator families may include:
-
-```haskell
-data BitPatternEquals = BitPatternEquals
-data BitPatternNotEquals = BitPatternNotEquals
-data UnsignedIntegerEquals = UnsignedIntegerEquals { size :: Int }
-data UnsignedIntegerNotEquals = UnsignedIntegerNotEquals { size :: Int }
-data SignedIntegerEquals = SignedIntegerEquals { size :: Int }
-data SignedIntegerNotEquals = SignedIntegerNotEquals { size :: Int }
-data Float32Equals = Float32Equals
-data Float32NotEquals = Float32NotEquals
-data Float64Equals = Float64Equals
-data Float64NotEquals = Float64NotEquals
-data UnsignedIntegerLessThan = UnsignedIntegerLessThan { size :: Int }
-data SignedIntegerLessThan = SignedIntegerLessThan { size :: Int }
-data Float32LessThan = Float32LessThan
-data Float64LessThan = Float64LessThan
-```
-
-Initial integer comparisons require operands with equal bit sizes. Comparators should reject
-mixed-size operands rather than silently extending them.
-
-Future source-level implicit widening should be represented in the built invariant expression by
-an explicit conversion `Op`. Unsigned conversion operations can zero-extend, while signed
-conversion operations can sign-extend. Their invariant rules, rather than the receiving
-comparator, establish how the conversion affects numerical properties.
-
-Float equality is not bitwise equality. In particular:
+Source declarations distinguish proof from trust:
 
 ```text
--0.0 == 0.0
-NaN != NaN
+Proven assertion: admit as established knowledge; a duplicate may be marked obviated.
+Disproven assertion: reject at its source location.
+Unproven assertion: admit only through explicit `assuming` syntax.
 ```
 
-Raw bit equality may still exist as `BitPatternEquals`, but it should not be the default
-meaning of equality.
+An assumption is the programmer's explicit responsibility. Later established contradictions are
+rejected with provenance where possible, but the compiler cannot guarantee global consistency for
+arbitrary assumptions.
 
-Not-equals comparators should be explicit comparator families. Less-than can express
-greater-than by swapping operands, and not-equals covers the major missing comparison category.
-No generic negation type or comparator-negation method is currently planned.
+A conditional assertion is validated as a whole implication. In classical logic, `if P then Q` is
+false only when `P` holds and `Q` fails. A conclusion that conflicts with established facts under an
+antecedent proven false does not make the implication false. An antecedent that is merely unproven
+is not thereby false.
 
-### InvariantExpression
+Consequently, the former conservative proposal to assume a conditional's premises during insertion
+and reject any hypothetical conflict is discarded. Validation may reject the implication when it
+can establish the antecedent and disprove the consequent, but must not conflate impossibility,
+unknownness, and contradiction.
 
-Invariant expressions should be represented by a typeclass.
+### Provenance And Identity
+
+Rule IDs remain stable within append-only context history. Invariants established from rules need
+identities independent of active-list ordering:
 
 ```haskell
-data SomeInvariantExpression =
-	forall expression. InvariantExpression expression =>
-		SomeInvariantExpression expression
+data InvariantId = InvariantId {
+	ruleId :: InvariantRuleId,
+	assertionPath :: InvariantPath }
+
+data InvariantPath = InvariantPath [Int]
 ```
+
+Names are illustrative. A path can identify a nested component for derivation and diagnostics, but
+does not turn a child of an `OrInvariant` into an independently known fact.
+
+Justifications should preserve source or builtin locations and derivation links:
 
 ```haskell
-class Thing expression => InvariantExpression expression where
-	invariantExpressionView :: expression -> InvariantExpressionView
-
-	invariantType ::
-		Context ->
-		expression ->
-		FallibleI InvariantMismatch SomeParameterizedThing
+data InvariantRuleJustification =
+	DeclaredInvariantRule { location :: SomeLocation } |
+	DerivedInvariantRule { sources :: Populace InvariantId }
 ```
 
-Likely instances if ordinary invocations can safely represent symbolic expressions:
+Additional justification forms may be needed for compiler-owned decisions and normalizations.
+Locations belong to justifications rather than directly to every rule.
 
-```haskell
-instance InvariantExpression It
-instance InvariantExpression NativeBitsValue
-instance InvariantExpression SomeInvocation
-```
+## Three Solver Mechanisms
 
-`NativeBitsValue` is a literal expression.
+One solver orchestrates three cooperating mechanisms.
 
-Under that design, `SomeInvocation` represents expressions such as `sin(it)` or `length(list)`.
-A separate `InvariantInvocation` is the active alternative.
+### Decide
 
-`It` represents the value being constrained by the enclosing `NativeBitsType`.
+Decision is compiler-defined, direct, and context-independent. Native comparators decide atomic
+comparisons when their operands provide enough information. Compiler-owned logical patterns can
+also decide propositions such as `P and not P`, where `P` may be an arbitrary nested proposition.
 
-### InvariantThing
+A decision returns `Proven` or `Disproven`; it does not construct a truth-constant invariant. Child
+decisions are consumed by the enclosing logical form and retain their parent/path context.
 
-`It` and rule variables are placeholder values. They should be legal inside invariants, but
-not legal as final concrete runtime values.
+### Normalize
 
-This is similar to the existing role of `Parameter`.
-
-```haskell
-data SomeInvariantThing =
-	forall thing. InvariantThing thing =>
-		SomeInvariantThing thing
-```
-
-```haskell
-class InvariantExpression thing => InvariantThing thing
-```
-
-`Thing` may need a method similar to `asParameter`:
-
-```haskell
-asInvariantThing :: thing -> Maybe SomeInvariantThing
-asInvariantThing _ = Nothing
-```
-
-Then `It` can be:
-
-```haskell
-data It = It {
-	variableType :: SomeParameterizedThing }
-
-instance Thing It
-instance ParameterizedThing It
-instance InvariantExpression It
-instance InvariantThing It
-```
-
-`variableType` must describe the unrefined underlying value. It must not recursively contain the
-same `NativeBitsType` invariants that contain this `It`.
-
-But `It` should not be:
-
-```haskell
-instance ConcreteThing It
-```
-
-Rule variables follow the same pattern:
-
-```haskell
-instance Thing InvariantVariable
-instance ParameterizedThing InvariantVariable
-instance InvariantExpression InvariantVariable
-instance InvariantThing InvariantVariable
-```
-
-This allows symbolic placeholders to be carried through invariant expressions without allowing
-them to escape into ordinary runtime evaluation. Whether symbolic operation applications can use
-ordinary `Invocation` values remains an active review point below.
-
-### Representation As Things
-
-Anything representable in Beng code should be a `Thing`. `It` and `InvariantVariable` must not be
-`ConcreteThing`s because they are symbolic placeholders, not runtime values. The required
-instances and other mechanical integration details are listed in the implementation appendix so
-they do not obscure the proof design.
-
-### InvariantExpressionView
-
-The proof engine also needs a common structural view for invariant expressions. This lets both
-the proof engine and comparators use straightforward pattern matching instead of ad-hoc casts.
-
-```haskell
-data InvariantExpressionView =
-	ItExpressionView It |
-	VariableExpressionView InvariantVariable |
-	NativeBitsValueExpressionView NativeBitsValue |
-	InvocationExpressionView SomeInvocation
-```
-
-Expression instances expose this view through `invariantExpressionView`.
-
-The proof engine uses `InvariantExpressionView` for structural matching and invariant
-transformations. Comparators use `InvariantExpressionView` for direct comparison decisions and
-comparison application.
-
-### ProofStep
-
-Proof should pass `Context` and the active proof-step stack separately. The context is the
-knowledge base; the active stack is branch-local recursion and diagnostic state.
-
-```haskell
-data SomeProofStep =
-	forall proofStep. ProofStep proofStep =>
-		SomeProofStep proofStep
-
-class (Show proofStep, Messagable proofStep) => ProofStep proofStep where
-	proofStepInvariant :: proofStep -> SomeInvariant
-```
-
-The active proof stack prevents infinite recursion. It can contain steps whose result is an
-atomic comparison invariant or a compound `AndInvariant`/`OrInvariant`. This gives the same
-loop-avoidance shape as `TypeTest`: if a normalized invariant is already being proven, the
-current derivation branch is cyclic and therefore unproven. Other non-cyclic derivations for the
-same goal should still be attempted.
-
-Concrete proof-step types should represent root goals, normalization, rule application,
-comparison application, and direct decisions. Their `Show` and `Messagable` instances provide
-diagnostic text. When proof fails, the solver can show the active stack to explain the strongest
-attempt.
-
-Proof steps do not bind `It`. Concrete value checks rewrite invariants before proof, replacing
-`It` with the concrete `NativeBitsValue` literal. Type-level checks keep `It` symbolic and prove
-facts about it through candidate invariants and context rules.
-
-`It` receives its unrefined type when its enclosing `NativeBitsType` invariant is constructed or
-validated, rather than from proof state. Whether it also needs a subject identity remains an
-active review point; the current proposal avoids one by allowing exactly one `It` subject per
-proof.
-
-### Closed Expression Reduction
-
-The type system needs to prove or disprove invariants, not expose a general invariant evaluation
-API. Closed expression reduction is still useful inside proof/disproof. For example, an
-invocation whose arguments are all concrete may be reduced through the existing `runWith` path,
-then compared by the relevant comparator.
-
-### Normalization
-
-Normalization is deterministic, built-in, semantics-preserving canonicalization. It should be
-applied immediately after any proof step changes an invariant, so each later step works with the
-simplest known form.
-
-Example:
+Normalization is compiler-defined, context-independent, deterministic, meaning-preserving
+canonicalization. It always produces another invariant rather than a truth constant. Examples
+include:
 
 ```text
-x - 1 + 7*8 < 2*x + it
-=> x + 55 < 2*x + it
-=> 55 < x + it
-=> -x + 55 < it
+not (not P) -> P
+P and (if P then Q) -> P and Q
 ```
 
-Normalization may include combining like terms, sorting terms into a canonical order, folding
-constants, normalizing `>` into swapped `<`, and isolating `It` when that is sound and possible.
-
-Normalization should be tightly controlled and not user-definable initially, because normalizers
-run constantly, affect every proof, and can easily create loops or unsound simplifications.
-Users can still declare ordinary invariant rules for domain-specific facts.
-
-To keep normalization sound and useful:
+The second transformation is a bi-implication:
 
 ```text
-1. Normalize goals and rule conclusions before matching.
-2. Retain the original invariant for diagnostics and possible fallback.
-3. Only normalize within theories where the transformation is valid.
-4. Avoid fixed-width arithmetic normalization unless overflow and underflow are handled.
-5. Avoid aggressive float normalization initially.
-6. Require each normalizer to reduce a complexity measure.
-7. Make normalization idempotent: normalizing twice should equal normalizing once.
-8. Treat assumption-dependent changes as applications, not normalization.
+P and (if P then Q) <-> P and Q
 ```
 
-### Application And Rewriting
-
-Application transforms one proof goal into replacement goals using a known fact or rule
-conclusion. It should not be modeled as a public `Map InvariantVariable
-SomeInvariantExpression`: variables are not the only possible targets. An application can target
-a whole invariant or a larger subexpression.
-
-Whole-goal application:
+By contrast, dropping `P` as well is only one-way:
 
 ```text
-current goals: G and Rest
-rule: C if P1 and P2
-C matches G
-new goals: P1 and P2 and Rest
+P and (if P then Q) -> Q
 ```
 
-Subexpression application:
+That one-way consequence is not normalization.
+
+Normalizers may use compiler-internal proposition metavariables that match an arbitrary invariant.
+These are not exposed as source-level proposition variables, so user rules cannot redefine logic.
+
+Normalization must not search `Context` or require unproven prerequisites. Domain-specific
+equalities and mathematical laws belong to contextual application. Normalizers must be sound in
+the selected theory, deterministic, idempotent at a fixed point, and oriented to avoid oscillation.
+Fixed-width overflow and IEEE behavior prevent blindly applying real-number algebra.
+
+### Apply
+
+Application consults established contextual assertions and transforms a goal into obligations with
+an explicit logical direction. It covers whole goals and nested expressions, but there is no fourth
+subsystem for equality rewriting. A substitution must be justified by native semantics,
+normalization, or an ordinary contextual assertion with a sound direction.
+
+This matters for relations such as float numerical equality and bit identity. Replacing `+0.0`
+with `-0.0` in an arbitrary bit-sensitive expression is unsound even though they are numerically
+equal under IEEE equality.
+
+## Local Simplification Fixed Point
+
+The decision/normalization phase must be independently callable, or its history must be reliably
+separable from contextual proof history. A callable local phase is preferred because source
+declaration validation needs to identify direct and nested vacuity or contradiction.
+
+Local simplification proceeds recursively:
 
 ```text
-current goals: G[oldExpression] and Rest
-rule conclusion: oldExpression = newExpression
-new goals: G[newExpression] and Rest
+1. Run decision over the invariant and its children.
+2. Consume terminal child decisions in their enclosing logical forms.
+3. Return a whole-invariant terminal, or a possibly reduced invariant, with ordered history.
+4. Normalize the remaining invariant recursively, recording transformations and justifications.
+5. Repeat decision followed by normalization until terminal or at a combined fixed point.
 ```
 
-If the rule has premises, those premises are added as goals too:
+The history records the rule identity, bindings, affected path/subexpression, and justification.
+The combined cycle must have a termination guard in addition to well-oriented rules.
+
+## Contextual Proof Search
+
+After local simplification reaches a fixed point without deciding the goal:
 
 ```text
-current goals: G[oldExpression] and Rest
-rule: oldExpression = newExpression if P1 and P2
-new goals: P1 and P2 and G[newExpression] and Rest
+1. Check branch-local loop and resource limits.
+2. Find applicable contextual assertions and construct possible transformed obligations before
+   spending time proving their conditions.
+3. Enumerate candidate applications. Each candidate records obligations, implication direction,
+   bindings, target path, and justification. One rule may yield multiple matches.
+4. Explore candidates as separate branches with branch-local bindings and backtracking. Do not
+   destructively accumulate unrelated candidate rewrites into one goal.
+5. Recursively solve each candidate's obligations, restarting with local simplification.
+6. Interpret the result according to the application's implication direction.
+7. Try other paths when one is inconclusive.
+8. Return Proven, Disproven, or Unproven with provenance.
 ```
 
-Example:
+A loop, timeout, exhausted resource budget, or lack of a matching path yields `Unproven`, not
+`Disproven`. An application need not pass a speculative complexity-progress test. Soundness,
+applicability, fixed-point termination, and global cycle/resource guards are the controls.
+
+### Implication-Direction Contract
+
+For replacement obligations `R` and original goal `G`:
+
+| Direction | If `R` is proven | If `R` is disproven |
+|---|---|---|
+| `ReplacementImpliesGoal` (`R -> G`) | `G` proven | Inconclusive |
+| `GoalImpliesReplacement` (`G -> R`) | Inconclusive | `G` disproven |
+| `Biimplicative` (`G <-> R`) | `G` proven | `G` disproven |
+
+An unproven replacement is inconclusive. `Biimplicative` is preferred over `Equivalent` to avoid
+confusion with a language equality comparator.
+
+Direction remains important when a rule itself has a condition. If the rule has antecedent `P`,
+its consequent comparison applies to `G`, and the comparison application produces `R`, then:
+
+- for sufficient `R -> G`, `P and R` is a sufficient obligation;
+- for necessary `G -> R`, `if P then R` is a necessary obligation; and
+- a biimplicative comparison application may require two separately directed implications.
+
+Using `P and R` for the necessary direction could unsoundly disprove `G` merely because `P` is
+false. The generalized algorithm for deeply nested logical forms is deferred, but it must preserve
+this constraint.
+
+### Compound And Quantified Knowledge
+
+The architecture must support the established logical behavior even though the complete inference
+calculus is not specified here:
+
+- A known conjunction exposes all conjuncts in the same branch.
+- A known disjunction does not expose either child unconditionally. Proving a consequence from it
+  may require proving that consequence under every alternative.
+- Contextual application must handle compound goals and applications useful for both proof and
+  disproof, not only atomic comparisons.
+- Negation and implication must preserve their ordinary proof/disproof directions.
+- Quantifier scopes and order matter. `for all x: for some y: y = x` differs from
+  `for some y: for all x: y = x`.
+- Each rule application gets fresh variable identities. Bindings are branch-local, type-checked,
+  capture-avoiding, and shared consistently within the scope of that application.
+- Existential witnesses may be discovered by matching established facts rather than blind value
+  enumeration.
+
+For example, transitivity can be written as:
 
 ```text
-known: y = 0
-goal: x + y < 7
-rewrite: x + y -> x
-new goal: x < 7
+for all a, b:
+    if for some y: a < y and y < b
+    then a < b
 ```
 
-Concrete `It` checks are also rewrites:
+A necessary condition derived while testing a goal is not automatically biimplicative with that
+goal. If the condition is disproven, it disproves the goal only when the recorded direction says
+that the goal implies the condition.
+
+## Proof Results And Artifacts
+
+The solver needs at least these semantic outcomes:
 
 ```text
-known from value check: it = 8
-goal: it < 7
-rewrite: it -> 8
-new goal: 8 < 7
+Proven
+Disproven
+Unproven
 ```
 
-The rewritten invariant is proven or disproven by the normal proof process. In the example
-above, `8 < 7` is directly disproven by the unsigned integer less-than comparator.
+Resource exhaustion and cycle detection may have more specific `Unproven` result types. Typeclass
+wrappers similar to `InvariantProof`, `InvariantDisproof`, and `InvariantUnproven` may let
+signatures restrict acceptable outcomes, but exact Haskell sums and classes are not finalized.
 
-Rewrites must be justified. Equality does not always permit arbitrary replacement in every
-context because different comparators can have different semantics. For example, float equality
-and bit-pattern equality treat `+0.0` and `-0.0` differently. A rewrite rule must therefore be
-valid for the target expression and comparator context.
+Decision, normalization, and application may use distinct result types if the solver composes them
+into coherent history. Useful proof artifacts record:
 
-Comparator-specific application lives in `InvariantComparator.applyComparison`, which returns
-`FallibleI SomeComparisonApplicationFailure (Populace SomeInvariant)`. Expression and
-operator-specific application uses ordinary invariant rules whose expressions mention the
-relevant `Op`s.
-
-That return signature remains provisional pending the comparison-application direction review
-point below.
-
-This application and rewriting system still needs a more precise design before implementation.
-
-### Proof Result
-
-Proof results should be represented by typeclasses so signatures can state exactly which kinds
-of results they allow.
-
-```haskell
-data SomeInvariantProof =
-	forall proof. InvariantProof proof =>
-		SomeInvariantProof proof
-
-data SomeProofFailure =
-	forall failure. ProofFailure failure =>
-		SomeProofFailure failure
-
-data SomeInvariantDisproof =
-	forall disproof. InvariantDisproof disproof =>
-		SomeInvariantDisproof disproof
-
-class (Show result, Messagable result) => InvariantProofResult result where
-	proofResultInvariant :: result -> SomeInvariant
-	proofSteps :: result -> [SomeProofStep]
-
-class InvariantProofResult result => InvariantProof result
-class InvariantProofResult result => ProofFailure result
-class ProofFailure result => InvariantDisproof result
-class ProofFailure result => InvariantUnproven result
+```text
+the rule or native decision used
+fresh and matched bindings
+the targeted invariant and nested path
+the justification and source provenance
+the implication direction for contextual applications
+branch-local loop/resource information
 ```
 
-Concrete result types can represent proven, disproven, unproven, and resource-exhausted cases.
-For type checking, unproven is usually still a mismatch because the checker could not prove that
-the candidate satisfies the requirement.
+Avoid displaying trivial intermediates unless needed to explain a result. Source validation must
+still be able to identify terminal whole invariants and vacuous, contradictory, or redundant nested
+components.
 
-`InvariantDisproof` should be used only when the system can establish falsehood, such as a direct
-comparator result returning false for known bit values.
-
-## How Type Satisfaction Should Use Invariants
+## Type Templates, Satisfaction, And Contract Validation
 
 ### NativeBitsValue Satisfies NativeBitsType
 
 Given a concrete value and a required bits type:
 
 ```text
-candidate: NativeBitsValue
-requirement: NativeBitsType
+1. Require exact bit-width equality.
+2. Instantiate each required invariant template with the NativeBitsValue literal expression.
+3. Confirm recursively that the resulting invariants are solver-ready.
+4. Solve their conjunction using local simplification and contextual proof.
+5. Proven means the value satisfies the refinement.
+6. Disproven means it does not satisfy the refinement.
+7. Unproven is an invariant mismatch because satisfaction was not established.
 ```
-
-The flow should be:
-
-```text
-1. Require the value's bit size to equal the required type size.
-2. Rewrite each requirement invariant by replacing `It` with the candidate `NativeBitsValue`.
-3. Try to prove or disprove each rewritten invariant.
-4. If every invariant is proven, the value satisfies the type.
-5. If any invariant is disproven, the value does not satisfy the type.
-6. If any invariant is unproven, report an invariant mismatch.
-```
-
-Example disproof:
-
-```text
-requirement invariant: it (uint8) < 7
-candidate bits: 0x08
-```
-
-The checker rewrites `it < 7` to `0x08 < 7`. The comparator interprets `0x08` as unsigned
-integer `8`. `8 < 7` is directly disproven, so the value does not satisfy the type.
-
-No widening occurs as part of this satisfaction check. A future source-level implicit conversion
-must be present as an explicit conversion invocation before the converted value is tested against
-the wider type.
-
-### NativeBitsType Satisfies NativeBitsType
-
-Given a candidate type and a required type:
-
-```text
-candidate: NativeBitsType
-requirement: NativeBitsType
-```
-
-The flow should be:
-
-```text
-1. Require the candidate and requirement bit sizes to be equal.
-2. Add the candidate type's invariants as zero-premise rules to a local proof context.
-3. For each requirement invariant, try to prove it from the local context.
-4. If every requirement invariant is proven, the candidate type satisfies the required type.
-5. If any requirement invariant is unproven, report an invariant mismatch.
-```
-
-Candidate invariants are not globally added to the original context. They are temporary known
-facts about `It` during this satisfaction check.
-
-When a candidate invariant is an `OrInvariant`, it is retained as one disjunctive fact. To prove a
-requirement from it, the solver must prove that requirement separately under every child
-assumption. It must not add the children as independent zero-premise facts.
-
-## Proof Flow
-
-Proving an invariant should be rule-driven. The core solver operations are:
-
-```text
-normalize: canonicalize invariants after each change
-decide: ask the comparator whether a normalized invariant is directly proven or disproven
-apply: use a known fact or rule conclusion to replace one goal with new goals
-```
-
-A proof branch can be modeled as one `SomeInvariant`. When there are multiple simultaneous goals,
-that invariant should usually be an `AndInvariant`.
-
-```text
-AndInvariant = goal1 and goal2 and goal3 ...
-```
-
-In simple terms:
-
-```text
-1. Normalize the current invariant.
-2. Mark this derivation branch unproven if the normalized invariant already appears in the active
-   proof stack, then continue trying other derivations.
-3. If the invariant is an `AndInvariant`, prove every child.
-4. If an `OrInvariant` is the goal, prove at least one child.
-5. If the invariant is a `ComparisonInvariant`, ask its comparator for a direct proof.
-6. If the comparator proves or disproves the comparison directly, stop that branch.
-7. If the comparator returns an unproven failure, search for applicable rules or known facts.
-8. Apply a useful rule conclusion or known fact to the selected comparison.
-9. Replace the selected comparison with the application's new invariants.
-10. Normalize the result.
-11. Continue until the invariant is proven, disproven, or no progress is possible.
-```
-
-Direct comparator proofs/disproofs are not the same as general proof logic. They are base cases
-for the comparator's own semantics, such as comparing two known bit literals.
-
-Rules such as reflexivity and transitivity should be ordinary built-in rules in the context.
-
-## Rule Applicability And Application
-
-Rule selection and application belong in the proof engine.
-
-The proof engine searches available facts and rules. Comparators decide whether comparison facts
-are useful through `applyComparison`. Expressions and `Op`-specific behavior are handled by
-ordinary invariant rules and structural matching through `InvariantView` and
-`InvariantExpressionView`.
-
-For comparison facts, the proof engine should ask the selected goal's comparator to apply a
-known fact or rule conclusion to that goal. The comparator can then decide whether the known fact
-is an upper bound, lower bound, contradiction, equality rewrite, or irrelevant fact for that
-goal.
-
-Matching or transforming two comparison invariants roughly means:
-
-```text
-1. Their comparators must match or normalize to compatible comparators.
-2. Their left expressions must match or transform compatibly.
-3. Their right expressions must match or transform compatibly.
-4. Any inferred rewrites must be consistent within the current proof branch.
-```
-
-Compound goals are handled by their goal proof semantics rather than by comparator application:
-
-```text
-AndInvariant expands into all child goals.
-OrInvariant branches across child goals until one proves or all disprove.
-```
-
-Compound known facts use assumption elimination instead:
-
-```text
-A known AndInvariant exposes every child in the same branch.
-A known OrInvariant creates one assumption branch per child, and the selected goal must prove in
-every branch.
-```
-
-Matching or transforming expressions roughly means:
-
-```text
-1. A rule variable may match another expression if its type permits it.
-2. A previously matched rule variable must transform consistently.
-3. It matches only It. Concrete value checks replace It with a literal before proof.
-4. NativeBitsValue literals match structurally or through comparator-specific direct decisions.
-5. Invocations match if their operators match and their corresponding arguments match.
-6. Declared rewrite facts, such as x + 0 = x, may transform larger expression trees.
-```
-
-For invocation matching, operator identity should use declaration location, mirroring existing
-operator equality behavior. Invocation arguments can be read from `match` with
-`Beng.Invocations.getArgs`.
-
-When a rule conclusion covers the selected goal, the selected goal is not kept as an ordinary
-goal. It is replaced by that rule's premises, plus any additional goals returned by the
-application. The original goal should remain in derivation metadata for diagnostics.
-
-When a rule conclusion rewrites only part of the selected goal, the selected goal is replaced by
-the rewritten goal plus the rule's premises.
-
-## Proof Example: Comparator Application
-
-Known fact:
-
-```text
-x < 7
-```
-
-Goal:
-
-```text
-x < 8
-```
-
-The unsigned less-than comparator can apply the known fact to the goal because both facts use
-the same lesser expression, `x`. The known fact gives an upper bound for `x`, and the goal asks
-for a looser upper bound.
-
-Application:
-
-```text
-current goal: x < 8
-known fact: x < 7
-new goal: 7 <= 8
-```
-
-Then `decideComparison` proves `7 <= 8` directly.
-
-The same known fact does not help this goal:
-
-```text
-goal: x > 2
-normalized goal: 2 < x
-known fact: x < 7
-```
-
-The known fact gives an upper bound for `x`, but the normalized goal needs a lower bound for
-`x`. `applyComparison` should return a `ComparisonIrrelevance` failure.
-
-## Proof Example: Less-Than Transitivity
-
-Context contains these zero-premise declared facts:
-
-```text
-a < b
-b < c
-```
-
-Context also contains this built-in rule:
-
-```text
-variables: x, y, z
-premises: x < y, y < z
-conclusion: x < z
-```
-
-Goal:
-
-```text
-a < c
-```
-
-Proof flow:
-
-```text
-1. Select the goal a < c.
-2. Apply the transitivity rule conclusion x < z to the goal.
-3. The selected goal is replaced by the premises a < y and y < c.
-4. The known fact a < b applies to a < y, binding y to b in this proof branch.
-5. The remaining premise becomes b < c.
-6. The known fact b < c proves the remaining premise.
-7. All replacement goals are proven, so a < c is proven.
-```
-
-`y` is declared by the rule. During backward proof it acts like a witness variable because it
-does not appear in the conclusion.
-
-## Proof Example: Sin Bound
-
-Assume a candidate `NativeBitsType` has these invariants:
-
-```text
--2*pi <= it
-it <= 2*pi
-```
-
-The local proof context gets zero-premise rules for those candidate facts.
-
-Context contains a declared or built-in rule for `sin`:
-
-```text
-variables: x
-premises: -2*pi <= x, x <= 2*pi
-conclusions: -1 <= sin(x), sin(x) <= 1
-```
-
-Context also contains ordinary ordering rules such as transitivity.
-
-Goal:
-
-```text
-sin(it) < 7
-```
-
-Proof flow:
-
-```text
-1. The proof engine searches rules that can help prove sin(it) < 7.
-2. The sin-bound rule can produce sin(it) <= 1 after binding x = it.
-3. Its premises become -2*pi <= it and it <= 2*pi.
-4. Those premises are proven from the candidate type's local zero-premise facts.
-5. The conclusion sin(it) <= 1 is now available for this proof branch.
-6. A built-in ordering rule combines sin(it) <= 1 with the concrete fact 1 < 7.
-7. Therefore sin(it) < 7 is proven.
-```
-
-The exact handling of `<=` is still open. It can be a convenience comparator or syntax lowered
-into less-than plus equality.
-
-## Disproof And Unknown Results
-
-The system should distinguish disproven from unproven when it can do so.
-
-Concrete disproof is straightforward:
-
-```text
-it (uint8) < 7
-It = 8
-8 < 7 is directly disproven by the unsigned integer less-than comparator
-```
-
-Type-level disproof is possible when known facts and the goal imply a direct falsehood.
 
 Example:
 
 ```text
-goal: Index < 7
+requirement template: it (uint <) 7
+candidate bits: 0x08
+instantiated goal: 0x08 (uint <) 7
+```
+
+The unsigned comparator interprets `0x08` as `8` and directly disproves the comparison.
+
+No widening occurs in satisfaction. A future source conversion must already be represented as an
+explicit invocation before its result is tested against a wider type.
+
+### NativeBitsType Satisfies NativeBitsType
+
+Given a candidate type and required type:
+
+```text
+1. Require exact bit-width equality.
+2. Create one fresh unconstrained symbolic subject of the shared unrefined bits type.
+3. Instantiate both types' templates with that same subject.
+4. Use the candidate constraint as local established knowledge.
+5. Prove the required constraint for that subject.
+6. Proven means every candidate value must meet the requirement.
+7. Disproven or Unproven means type satisfaction fails, with distinct diagnostics when possible.
+```
+
+Candidate facts are local to the satisfaction check and do not mutate the original context. A
+candidate disjunction remains one disjunctive assertion; its children are not inserted as separate
+facts.
+
+The common fresh subject replaces the old plan in which the solver matched a special `It`. Both
+templates have already been instantiated before proof begins.
+
+### Type Declaration Validation
+
+To validate a standalone type definition, instantiate its template with a fresh arbitrary symbolic
+subject of the unrefined underlying type. Do not use the refined type object as a value and do not
+assume the declaration's own constraint while proving its validity.
+
+The arbitrary subject has careful semantics:
+
+- proving its complete constraint false can establish that no value can inhabit the type;
+- failing to prove the constraint true does not establish uninhabitability; and
+- claiming universal vacuity requires proof that the constraint is always true.
+
+Explicit quantification or equivalent treatment may be needed to preserve this arbitrary-subject
+meaning in the final implementation.
+
+### Operator Return Contracts
+
+For an operator declared to return a refined type, instantiate the return template with the actual
+symbolic invocation and its bound arguments:
+
+```text
+f(x, y) (uint <) 10
+```
+
+Checking that an implementation honors the contract for arbitrary inputs is conceptually:
+
+```text
+for all x, y:
+    f(x, y) (uint <) 10
+```
+
+Quantifier domains match the declared argument types. The required return invariant must never be
+used as evidence that the implementation satisfies itself. It must be established from separately
+validated implementation behavior. Once validated, the return contract is available for downstream
+reasoning.
+
+## Declaration Diagnostics
+
+A type-attached invariant is intended to constrain its subject. Subject-independent assertions
+belong in contextual rules rather than incidental return refinements. Effects and mutations remain
+modeled through Beng's `Act` mechanism; they do not require special mutation-related invariant
+exceptions.
+
+Diagnostic policy:
+
+- A provably uninhabitable complete type constraint is a compilation error.
+- A provably vacuous type invariant or redundant nested component is a warning.
+- A provably dead branch is a warning unless it makes the complete constraint impossible.
+- An unused quantified variable is a warning.
+- An inconclusive check must not be reported as vacuity, redundancy, or uninhabitability.
+- Universally true contextual mathematical rules remain useful and are not banned as vacuous.
+
+Examples, assuming integer semantics:
+
+```text
+it = it and it < 10              -- first component vacuous; warn
+it < 10 and it < 20              -- second conjunct redundant if proven; warn
+it < 10 and 7 < 5                -- complete constraint false; error
+it < 10 or 7 < 5                 -- false branch redundant; warn
+it < 10 or 5 < 7                 -- complete constraint true/vacuous; warn
+it = 3 or (it < 2 and 7 < 5)     -- dead branch; warn
+it < 5 and it > 10               -- complete constraint impossible if proven; error
+```
+
+The independently callable local simplifier and its detailed history catch direct cases. Stronger
+redundancy and contradiction checks may invoke contextual proof afterward. Context-free
+normalizers must not silently perform arbitrary context search merely to produce warnings.
+
+## Proof Examples
+
+### Comparison Application
+
+Known fact and goal:
+
+```text
+known: x (uint <) 7
+goal:  x (uint <) 8
+```
+
+The unsigned comparator can propose an application because the lesser expressions match. One
+possible replacement expresses that the known upper bound is no greater than the requested bound:
+
+```text
+R: 7 (uint <) 8 or 7 (bits =) 8
+direction: ReplacementImpliesGoal
+```
+
+Direct decision proves `R`, so the goal is proven. The same fact is irrelevant to a goal requiring
+a lower bound such as `2 (uint <) x` unless other established knowledge connects the bounds.
+
+This is an illustrative application, not a complete specification of integer bound reasoning.
+
+### Less-Than Transitivity
+
+Context contains:
+
+```text
+a < b
+b < c
+
+for all x, z:
+    if for some y: x < y and y < z
+    then x < z
+```
+
+To prove `a < c`, an application of the conditional's consequent creates a sufficient obligation
+that includes its antecedent. Matching established facts can discover `y = b`. The two conjuncts
+then prove, so the conditional establishes the goal.
+
+Every application receives a fresh identity for `y`; a witness discovered here does not leak into
+another use of transitivity.
+
+### Bound On An Operation
+
+Assume the candidate type establishes:
+
+```text
+-2*pi <= subject
+subject <= 2*pi
+```
+
+and context contains an established law:
+
+```text
+for all x:
+    if -2*pi <= x and x <= 2*pi
+    then -1 <= sin(x) and sin(x) <= 1
+```
+
+To prove `sin(subject) < 7`, contextual application can instantiate `x` with `subject`, discharge
+the two range obligations from candidate knowledge, and use the upper bound with ordinary ordering
+knowledge to establish the goal. Each `<=` above is logical shorthand for `< or =` under the
+selected interpretation.
+
+This example does not imply that `sin` is executed by the proof engine. Its mathematical behavior
+comes from established assertions about the symbolic invocation.
+
+### Directional Type-Level Disproof
+
+Known fact and goal:
+
+```text
 known: 10 < Index
+goal:  Index < 7
 ```
 
-If both were true, transitivity would imply:
+If the goal held, transitivity would require `10 < 7`. This is a
+`GoalImpliesReplacement` application. The integer comparator disproves the replacement, so the
+direction contract permits the solver to disprove the goal.
+
+Without that direction, a false derived condition would not by itself justify disproof. If no sound
+path proves a goal or proves a necessary condition false, the result remains `Unproven`.
+
+### Conditional Consistency
+
+Suppose established knowledge says:
 
 ```text
-10 < 7
+halts(Machine) = no
 ```
 
-The unsigned less-than comparator disproves `10 < 7`, so the original goal is disproven under
-the known facts.
+The assertion `if P then halts(Machine) = yes` is not disproven merely because its consequent
+conflicts with that fact. If `P` is proven false, the implication is true. If `P` is unproven, the
+implication may remain unproven. It is disproven only when the solver establishes `P` and disproves
+the consequent.
 
-Another example:
+## Standard Library Comparison Props
+
+Built-in semantic comparison invariants are distinct from ordinary user-defined `<` and `=` props.
+The standard-library `<` operation is a normal executable `Op`. Its return type should relate the
+returned bit to the built-in comparator without recursively calling the same `<` prop in its own
+contract.
+
+For an unsigned comparison returning one-bit `yes` or `no`:
 
 ```text
-goal: Size <= 5
-known: 7 <= Size
+if A (uint <) B then it (bits =) yes
+and
+if not (A (uint <) B) then it (bits =) no
 ```
 
-If both were true, transitivity would imply:
+An equivalent form is:
 
 ```text
-7 <= 5
+(it (bits =) yes and A (uint <) B)
+or
+(it (bits =) no and not (A (uint <) B))
 ```
 
-The comparator disproves `7 <= 5`, so `Size <= 5` is disproven under the known facts.
+Signed and IEEE float props use the corresponding comparator. For floats, `<` returns `no` when an
+operand is NaN. Ordinary operator resolution selects the semantic declaration; width alone does
+not determine unsigned, signed, or floating interpretation.
 
-Type-level disproof is harder because the current plan does not include a model finder.
+A return contract does not implement an operation. The runtime `Op` still requires a valid
+implementation. The proof system reasons about established implementation properties without
+confusing a native proposition with an executable boolean operation.
 
-If the system cannot prove a requirement invariant from the candidate type's invariants and
-the context rules, the result should usually be `Unproven`, not necessarily `Disproven`.
+## Where Responsibilities Live
 
-For type checking, both `Unproven` and `Disproven` are failures, but diagnostics can be more
-precise when the system knows an invariant is false.
-
-## Where The Logic Lives
-
-The proof engine owns:
+The solver owns:
 
 ```text
-normalization scheduling
-rule search
-rule variable freshening
-unification
-goal and premise transformation
-recursive premise proof
-loop detection through the active proof-step stack
+recursive local decision/normalization scheduling
+contextual rule search and candidate enumeration
+fresh variable identities, typed matching, and capture-avoiding substitution
+branch-local bindings and backtracking
+goal and obligation transformation
+recursive proof and disproof interpretation by implication direction
+loop and resource-limit handling
+composition of derivation artifacts
 ```
 
-`Invariant` owns:
+Compiler-owned logical machinery owns:
 
 ```text
-how to expose a structural InvariantView
-how to normalize that invariant form
+the fixed semantics of and, or, not, if, for all, and for some
+intrinsic logical decisions and meaning-preserving normalizations
+internal whole-proposition patterns unavailable to source rules
 ```
 
 `InvariantComparator` owns:
 
 ```text
-how two concrete NativeBitsValues are semantically compared
-whether operand types and sizes are acceptable for that comparison
-direct proof/disproof of comparator-specific base cases using InvariantExpressionView
-relation-specific application of comparison facts to comparison goals
+semantic interpretation of concrete bits
+operand type and width validation
+context-independent atomic decisions
+comparison-specific candidate applications with sound directions
 ```
 
-`InvariantExpression` owns:
+Invariant expressions own or expose:
 
 ```text
-how to expose a structural InvariantExpressionView
-how to infer its type
-how to expose enough structure for matching, transformation, and direct comparator decisions
-how to expose invocation and expression structure for rule application
+their structural view and type
+literal, variable, and symbolic invocation structure
+enough identity and argument information for matching and substitution
 ```
 
 `Context` owns:
 
 ```text
-which Ops are available
-which invariant rules are available
-the append-only history and obviation status of its invariant rules
-operator precedence for parsing
+available Ops and operator precedence
+established invariant assertions and explicit assumptions
+append-only rule history, obviation status, and provenance
 ```
 
 `NativeBitsType` owns:
 
 ```text
-its bit size
-the invariants that values of that type must satisfy
+its exact bit width
+its subject-accepting invariant template
 ```
 
-## Built-In Invariant Rules
+## Compiler Logic Versus Contextual Libraries
 
-Some logical rules should be built into the interpreter by adding them to the built-in context.
+Fundamental logical simplification is fixed by the compiler. There is no separate configurable
+“fundamental logical inference rules” subsystem. Users cannot replace conjunction, negation,
+implication, or quantifier semantics.
 
-Examples:
+Built-in contextual assertions can still provide mathematical or domain knowledge, such as:
 
 ```text
-integer equality reflexivity
-integer equality symmetry
-integer equality transitivity
+bit equality symmetry and transitivity
 integer less-than transitivity
-integer not-equals direct decisions
-application of equal expressions inside compatible invariant expressions
-algebraic applications such as x + 0 = x when the relevant zero premise is proven
+safe algebraic laws under the correct overflow premises
+properties of explicit conversion operations
+domain bounds for standard-library or foreign operations
 ```
 
-Greater-than normalization by swapping less-than operands is more likely a built-in normalizer
-than a context rule.
-
-Float rules need care.
-
-Unconditional float equality reflexivity is invalid because `NaN != NaN`.
-
-Any float reflexivity rule must either exclude NaN through a premise or be avoided.
+These assertions use the same contextual application machinery as user-authored established rules
+and assumptions. They must respect machine arithmetic and comparator semantics. In particular,
+unconditional float equality reflexivity is invalid under IEEE numeric equality because NaN is not
+equal to itself.
 
 ## Implementation Appendix
 
-This appendix records Haskell integration and migration details that are required for an
-implementation but are not part of the proof calculus itself.
+This appendix records expected integration work, not finalized module or API design.
 
 ### NativeBitsType Construction
 
-Adding a field to `NativeBitsType` will affect many existing positional uses such as:
+Adding a function-valued invariant field affects positional constructors such as:
 
 ```haskell
 NativeBitsType 32
 NativeBitsType 1
 ```
 
-Implementation should either update those uses or introduce construction helpers before making
-the field change.
+Construction helpers may reduce migration cost. Display and structural equality need the same
+placeholder-instantiation technique already used by `NativeType.properties`.
 
-`NativeBitsType.satisfies` must replace the current narrower-than-or-equal size check with exact
-size equality. Future widening belongs to explicit conversion invocations, not this instance.
+`NativeBitsType.satisfies` must replace its narrower-than-or-equal width check with exact equality.
+Any conversion is an explicit invocation with independently established properties.
 
-### Thing Integration
+### Thing And Category Integration
 
-Anything representable in Beng code should be a `Thing`. The invariant system should include
-`Thing` instances for at least:
+Source-representable invariant forms, comparators, expressions, variables, and rules need suitable
+`Thing` integration and the existing `Eq`, `Show`, `Messagable`, `Typeable`, and parameterization
+behavior.
 
-```haskell
-instance Thing SomeInvariant
-instance Thing ComparisonInvariant
-instance Thing AndInvariant
-instance Thing OrInvariant
-instance Thing InvariantRule
-instance Thing InvariantVariable
-instance Thing SomeInvariantComparator
-instance Thing SomeInvariantExpression
-```
+The final representation must also provide recursively enforced general and solver-ready subsets.
+`NativeBitsType.resolve` must traverse instantiated invariant templates when expressions contain
+ordinary parameters. Proof failures must integrate with existing type-checking `Mismatch` values.
 
-Concrete invariant, comparator, and expression types inherit this requirement through the
-`Invariant`, `InvariantComparator`, and `InvariantExpression` class constraints. Each instance
-must satisfy the existing `Eq`, `Show`, `Messagable`, `Typeable`, and `parameterize` requirements.
-`It` and `InvariantVariable` must not be `ConcreteThing`s.
-
-`NativeBitsType.resolve` must traverse its invariants once invariant expressions can contain
-ordinary parameters. Invariant proof failures must also be represented by or converted into the
-existing type-checking `Mismatch` result.
-
-New modules and source-import cycles may require corresponding Cabal entries and `.hs-boot`
-declarations. Those changes should be planned with the module layout rather than mixed into the
-solver semantics.
+New modules and source-import cycles may require Cabal entries and `.hs-boot` declarations. Plan
+those changes with the module layout rather than treating the old sketches as fixed locations.
 
 ### Context Integration
 
-`Context.empty`, `Context.push`, and `Context.fromOps` will need to initialize or preserve the
-append-only `invariantRules` list.
+`Context.empty`, `Context.push`, and `Context.fromOps` must initialize or preserve append-only rule
+history. A dedicated insertion API is preferable because `Context.push` currently means adding an
+operator and updating precedence.
 
-Invariant-context merging is not part of the initial implementation. The existing
-`Context.concat` must not silently discard invariant rules if it is later used with an
-invariant-bearing context; complete merge and ID-remapping behavior can be designed with imports.
+The former `pushInvariantRule` signature with separate premises and conclusions is obsolete. A new
+API should accept one assertion, justification, and declaration mode such as ordinary proof-required
+declaration versus explicit `assuming`. It should return insertion status and a stable rule ID while
+preserving `Proven`, `Disproven`, and `Unproven` distinctions.
 
-There should be a separate function for adding invariant rules to a context, since `Context.push`
-currently means pushing an operator and updating precedence.
+Insertion can mark an already established assertion as obviated. It rejects a disproven assertion
+and admits an unproven assertion only under `assuming`. Conditional validation operates on the whole
+implication rather than hypothetical premise injection.
 
-```haskell
-pushInvariantRule ::
-	InvariantRuleJustification ->
-	[SomeInvariant] ->
-	Populace SomeInvariant ->
-	Context ->
-	FallibleI SomeInvariantDisproof (Context, InvariantRuleId)
-```
-
-`pushInvariantRule` assigns the historical rule count as the new `InvariantRuleId`. It never
-deletes rules. When an existing proof already establishes the new conclusions, it stores the rule
-with `obviatedBy = Just invariantId`. When the conclusions are unproven, it stores an active trusted
-rule with `obviatedBy = Nothing`. When a conclusion is disproven, it rejects the declaration.
-
-Insertion is tentative until the proof engine confirms that the new rule does not cause an
-affected existing assumption to become disproven. The exact policy for conditional rules with
-potentially conflicting conclusions is summarized in the active review points below.
+Context merging is deferred. Existing `Context.concat` must not silently discard rule history if it
+is later used with invariant-bearing contexts; imports may require ID remapping.
 
 ### Symbolic Invocation Isolation
 
-Symbolic invocations that contain `It` or rule variables must not be run as ordinary runtime
-invocations. Whether ordinary match arguments should become `SomeConcreteThing` values and
-symbolic applications should use a separate `InvariantInvocation` remains an active review point.
+Ordinary runtime arguments should be recursively concrete. Symbolic applications can contain
+quantified variables and must preserve structure without execution. Options include a separate
+`InvariantInvocation` or a category-parameterized invocation type. Changing only one outer argument
+wrapper is insufficient if a composite `ConcreteThing` can hide symbolic children.
 
-`Thing.asInvariantThing` can be used to reject invariant-only placeholders when ordinary code
-expects concrete runtime values.
+Closed symbolic expressions may eventually reduce through an existing execution path when proof
+explicitly requests it and execution is valid. This is a proof optimization/base case, not a
+general invariant evaluation API.
 
-Composite `ConcreteThing` instances must preserve recursive concreteness so a symbolic value
-cannot be hidden inside a concrete wrapper.
+### Solver Safety And Diagnostics
 
-### Diagnostics
+Local simplification needs fixed-point and oscillation protection. Contextual search needs active
+branch tracking, fresh application identities, backtracking, and resource bounds. Initial
+implementations may be conservative; timeout and loop outcomes stay `Unproven`.
 
-The proof engine should produce derivation data, even if diagnostics initially show only the
-first failing goal. This will help explain why an invariant was accepted.
+Derivation data should exist even if initial diagnostics display only the strongest failed path.
+Nested decision paths and source/derived justifications are important for declaration warnings and
+contradiction errors.
 
-## Active Review Follow-Ups
+Avoid premature indexing, memoization, elaborate prioritization, and exhaustive native decision
+inventories before semantics and interfaces have tests. Such optimizations must not change proof
+meaning.
 
-These are the remaining numbered points from the design review. Settled review points have been
-incorporated into the plan and removed from this list.
+## Open Design Work
 
-1. **Comparison-application direction**
+The following issues remain deliberately unresolved:
 
-   Overall discussion: an untagged replacement goal cannot say whether its proof or disproof
-   determines the original goal.
-
-   Latest question: is `ComparisonApplication` an input or output of `applyComparison`, how would
-   `applyComparison` choose its relation, and how does it relate to the current replacement goals?
-
-   Latest response: it would be the output wrapper around the current replacement goals. Each
-   comparator case would select `ReplacementImpliesGoal`, `GoalImpliesReplacement`, or
-   `ReplacementEquivalentToGoal` according to the sound implication used by that case.
-
-2. **Conditional-rule consistency**
-
-   Overall discussion: trusted rules may assume unproven conclusions, but must not assume a
-   conclusion that the current context disproves.
-
-   Latest question: if the context says `halts(Machine) = no`, should a conditional rule that can
-   conclude `halts(Machine) = yes` be rejected regardless of whether its premises currently hold?
-
-   Latest response: exact logic permits both rules when the condition is false, but the proposed
-   conservative validator can assume the new rule's premises during validation. If that makes its
-   conclusion conflict, reject it; if the premises are already disproven, reject the rule as
-   unreachable. This avoids needing an exact satisfiability decision.
-
-3. **Typed single-subject `It`**
-
-   Overall discussion: `It` needs an unrefined type, while foreign `It` pollution can be avoided by
-   restricting every proof to one constrained subject.
-
-   Latest question: if general rules use variables, `It` occurs only in type invariants, candidate
-   and requirement invariants share one subject, and concrete replacement targets only that
-   subject, is a separate subject identity still necessary?
-
-   Latest response: no identity is required initially if those restrictions are enforced. `It`
-   can match only `It` in a proof environment containing exactly one subject, but it still needs
-   an unrefined type for comparator and invocation validation.
-
-4. **Concrete and symbolic invocations**
-
-   Overall discussion: ordinary invocations should be recursively concrete, while invariant
-   invocations may contain `It` or rule variables and must not run until closed.
-
-   Latest question: would changing `Argument.value` from `SomeThing` to `SomeConcreteThing` close
-   the execution hole?
-
-   Latest response: it closes the direct hole if composite `ConcreteThing` instances also enforce
-   recursive concreteness. It also means symbolic applications such as `sin(it)` need a separate
-   `InvariantInvocation` or parameterized concrete/symbolic invocation types.
-
-5. **Fresh rule variables and shared bindings**
-
-   Overall discussion: every use of a rule needs independent temporary variables, and a witness
-   discovered in one premise must update all remaining premises in that branch.
-
-   Latest question: what do variable freshening and conclusion unification mean in simpler terms?
-
-   Latest response: unification matches a rule conclusion such as `x < z` to a goal such as
-   `a < c`, producing `x := a` and `z := c`. Freshening gives each rule use distinct temporary
-   variables so a later `y := b` binding affects only that application. The proof engine needs a
-   branch-local binding table and a fresh application ID.
-
-## Other Open Questions
-
-- What exact syntax declares invariants on `NativeBitsType`?
-- What exact syntax declares general invariant rules in code?
-- How is `It` written and scoped in source?
-- Should `<=` be primitive, syntax convenience, or an `OrInvariant` containing `<` and `=`?
-- Should derived invariants be memoized as temporary zero-premise rules during proof?
-- How much contradiction detection is needed for uninhabited types?
-- Should type checking distinguish `Unproven` from `Disproven` in user-facing errors?
-- Should float comparisons initially support NaN and signed zero precisely, or be staged later?
-- How should applying equal expressions inside arbitrary invocation expressions be constrained?
-- How should proof search be bounded to avoid excessive branching?
-- What strategy should choose which rules or known facts to apply first?
-- How should the solver rank direct whole-goal applications versus subexpression applications?
-- Should invariant rules respect context stack order for diagnostics, performance, or both?
-- How should application validity account for comparator semantics such as float equality versus
-  bit-pattern equality?
+1. **Generalized contextual application calculus.** Define exact proof and disproof transformations
+   for deeply nested `and`, `or`, `not`, `if`, `for all`, and `for some`, while preserving the
+   implication-direction contract.
+2. **Exact Haskell representations.** Settle recursive general/solver-ready categories, expanded
+   structural views, symbolic invocations, internal proposition patterns, and existential wrappers.
+3. **Decision and transformation result types.** Design signatures that retain ordered nested
+   provenance, bindings, paths, and application directions without treating sketches as final APIs.
+4. **Normalization inventory and termination.** Choose sound canonical forms and a matcher, define
+   theory-specific arithmetic limits, and ensure the combined decision/normalization loop cannot
+   oscillate.
+5. **Quantifier algorithms.** Specify freshening, witness discovery, universal reasoning,
+   capture-avoiding substitution, and branch-local binding behavior in difficult nested cases.
+6. **Declaration consistency depth.** Decide how much contextual search to spend finding later
+   conflicts, uninhabitable types, vacuity, and redundancy. Unknownness must remain distinct from
+   contradiction.
+7. **Source grammar.** Finalize type-invariant and rule declarations beyond the agreed illustrative
+   `for all`/`for some`, `it`/`one`, `assuming`, and `(uint <)`-style terminology.
+8. **Fresh symbolic subjects.** Specify construction and validation so type declarations use an
+   arbitrary unrefined subject and cannot prove themselves circularly.
+9. **Comparator-aware substitution.** Define which contextual equalities permit replacement inside
+   each expression and comparator context, especially for floats, signed zero, and raw bits.
+10. **Search strategy.** Determine useful ordering among direct decisions, whole-goal applications,
+    nested applications, and alternative branches without making heuristic failure a disproof.
+11. **Context composition.** Design import/merge behavior, stable ID remapping, and diagnostic order
+    for append-only rule histories.
+12. **Runtime and standard-library integration.** Define comparison implementations, float widths,
+    overflow behavior, and conversion operations with independently validated contracts.
+13. **Architecture audit.** Test nested conditionals, quantifier order, negation, symbolic
+    invocations, contradictory assumptions, NaN, and directional counterexamples before declaring
+    the implementation design complete.
 
 ## Likely Implementation Phases
 
-1. Add invariant type definitions without integrating them into type checking.
-2. Add `Thing` instances for invariant structures that are representable in code.
-3. Add the append-only `Context.invariantRules`, obviation tracking, and `pushInvariantRule`.
-4. Add `InvariantExpression`, `InvariantThing`, `It`, and structural views.
-5. Resolve the active review follow-ups and define the application and rewriting algorithm.
-6. Add comparator types for integer equality and integer less-than.
-7. Add a basic proof engine with normalization, rule search, matching, application, and
-   active-proof-step loop detection.
-8. Add built-in invariant rules for basic integer equality and less-than, including compound
-   assumption behavior.
-9. Add `NativeBitsType.invariants` and update existing construction sites.
-10. Integrate invariant proof and exact-size checks into `NativeBitsType` satisfaction.
-11. Add direct proof/disproof support for concrete `NativeBitsValue` satisfaction.
-12. Add parser/build support for declaring invariants and invariant rules in Beng code.
+The order may change as representation experiments expose dependencies.
+
+1. Add general invariant forms and native comparator definitions without type-checker integration.
+2. Add `Thing` integration and structural views for source-representable invariant structures.
+3. Prototype recursively enforced general and solver-ready categories, including `It` elimination.
+4. Add subject-accepting `NativeBitsType` templates and construction/display helpers without yet
+   relying on them for satisfaction.
+5. Add append-only context assertions, metadata, stable IDs, provenance, and explicit assumption
+   insertion policy.
+6. Implement native atomic decisions and recursive compound decision propagation with histories.
+7. Implement a small, sound normalization set and the guarded local fixed-point loop.
+8. Define candidate application records and the three-way implication-direction contract.
+9. Implement basic contextual search, fresh variables, branch-local bindings, backtracking, and
+   loop/resource handling for a deliberately limited logical subset.
+10. Expand application semantics through tests for conjunction, disjunction, negation, implication,
+    and quantified forms; do not claim completeness before the architecture audit.
+11. Add exact-width `NativeBitsValue` and `NativeBitsType` satisfaction using instantiated,
+    solver-ready templates.
+12. Add standalone type-declaration validation and nested vacuity, redundancy, and uninhabitability
+    diagnostics.
+13. Integrate symbolic operator return contracts without circular self-proof.
+14. Add parser/build support for invariant declarations, quantifiers, `assuming`, and native
+    comparator syntax.
+15. Add standard-library comparison props, conversion contracts, and carefully staged float and
+    fixed-width arithmetic support.
