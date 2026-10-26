@@ -1,11 +1,19 @@
-# Invariants Plan
+# Contracts, Invariants, And Observability Plan
 
-This document records the current plan for adding invariants to the Beng type system. It is a
-design note, not an implementation or a final source-language specification.
+This document records the current plan for adding static contracts, their invariant proposition
+language, and observation-driven optimization to the Beng type system in support of Thyrym. It is
+a design note, not an implementation or a final source-language specification.
+
+This file was formerly named `Invariants.md`. It was renamed because invariants are only the
+logical proposition machinery within the broader design: a static type supplies the complete
+source-language contract, while a separate observation analysis determines which distinctions
+generated code must preserve. The rename does not rename `Invariant`, `InvariantRule`, or related
+implementation concepts below.
 
 The invariant language now has an intended logical vocabulary and a high-level solver cycle. The
-exact Haskell representation, generalized application calculus, and several validation and search
-algorithms remain open design work.
+portable operation-contract model and the role of observation analysis are also established at a
+high level. The exact Haskell representations, generalized application calculus, observation IR,
+and several validation, proof-search, and optimization algorithms remain open design work.
 
 ## Goal
 
@@ -31,6 +39,39 @@ Such an assertion may be provable when the context contains established laws tha
 sufficient bound for `sin(it)`. The invocation is a symbolic expression in the proposition; the
 proposition itself is not an executable operation.
 
+More generally, every typeable value has a complete statically assigned type, including applicable
+constraints and props. Implementations must satisfy that contract. The compiler may choose how and
+where to evaluate pure expressions, and may erase implementation distinctions only when every
+semantic observation still conforms to the complete source contract.
+
+The central division of responsibility is:
+
+> The static type describes what a value promises. Observation analysis describes what generated
+> code must make distinguishable to semantic observers. Properly designated diagnostic
+> instrumentation may inspect a selected implementation without becoming a semantic observer.
+
+The final sentence is conditional on a diagnostic facility whose classification is not yet
+designed. General unsafe effects cannot automatically receive diagnostic treatment.
+
+## Terminology And Status
+
+- A **static type** is the authoritative source-language type, including all relevant invariant
+  constraints, props, and behavioral relationships. Optimization never weakens it.
+- An **invariant** is a proposition in the proof language described below. It may be part of a type
+  contract or established contextual knowledge.
+- An operation's **contract** states the allowed result and relationships to arguments and other
+  values. A pure Beng function or prop implementation must prove its declared result contract. A
+  foreign declaration is a trusted contract and is an explicit soundness boundary.
+- **Observable type** is the provisional design term for the compiler-derived requirements that
+  generated code must preserve for a value. **Observation contract** may be a more accurate internal
+  name because requirements can be relational, path-sensitive, and graph-shaped. That naming and
+  representation remain unresolved.
+- A **semantic observation** constrains conforming generated behavior. Ordinary performed acts and
+  public interfaces are examples. A **diagnostic observation**, if explicitly supported, reveals
+  implementation-selected details without adding value constraints to observation analysis.
+- Examples marked illustrative explain semantics only. They do not settle Thyrym grammar, binder
+  spelling, or the Haskell API.
+
 ## Design Principles And Boundaries
 
 - All runtime data is still bits.
@@ -50,6 +91,17 @@ proposition itself is not an executable operation.
 - Proof uses `Context` plus branch-local bindings, history, and loop/resource tracking.
 - Type/value satisfaction distinguishes `Proven`, `Disproven`, and `Unproven`. Failure to prove a
   required invariant is a type mismatch, but is not automatically a disproof.
+- The complete static contract remains authoritative even when no runtime check or observer exists.
+- The evaluation stage and machine are intentionally unspecified for pure computations. Compilation
+  on a host, execution on a target, interpretation, and another valid strategy are implementation
+  choices rather than source-language properties.
+- Generated code must preserve source-level relationships, path conditions, effects, public
+  interfaces, and other semantic observations, not necessarily every physical intermediate bit
+  pattern from one possible evaluation strategy.
+- Observation requirements propagate backward through all uses. A later branch or act can constrain
+  an earlier materialization.
+- Exact equality and approximate equivalence are different relations. Approximate equivalence must
+  not be used for transitive substitution as though it were exact equality.
 - Code may explicitly introduce an unproven assertion only with conspicuous `assuming` syntax.
 - No intentionally uninhabitable or never-type facility is being designed here. A type proven to
   have no possible values is an error.
@@ -57,6 +109,77 @@ proposition itself is not an executable operation.
   proof machinery need not be source-representable.
 - The architecture should be mathematically sound and extensible. This plan does not attempt to
   enumerate every theorem-proving strategy or native decision case before implementation.
+
+## Portable Operation Contracts
+
+### Built-In, Source, And Foreign Implementations
+
+Native comparisons, fixed-width arithmetic, division, transcendental functions, and other
+operations need explicit contracts. The proof engine may directly decide concrete expressions when
+their selected semantics permit it, such as unsigned comparison of two concrete integers. It may
+also reason symbolically through normalization and established contextual rules. This does not
+permit arbitrary symbolic applications to be replaced by native execution.
+
+Standard-library operations may use foreign functions and native representations. In discussions
+of these declarations, `uint*` denotes the family of unsigned integer types such as `uint8_t` and
+`uint32_t`; it does not denote a C pointer. Different platforms may provide different foreign
+implementations so long as each conforms to the declaration's contract. A suitable source-language
+implementation may be used when no native implementation exists; absence of an FFI implementation
+does not inherently require compilation to fail.
+
+A pure source implementation must establish its return contract without circularly assuming that
+same contract. A foreign declaration's author asserts that its implementation satisfies the
+contract; the compiler does not independently prove foreign machine code correct. Reviewed shared
+foreign libraries should be preferred because an incorrect declaration makes the program's proof
+foundation unsound.
+
+Contracts for integers and floats must explicitly address widths, overflow, signed arithmetic,
+division edge cases, NaN, infinities, signed zero, rounding modes, and permitted fast-math behavior.
+The design must not silently inherit undefined or implementation-defined C behavior.
+
+### Contract Compatibility Across Host And Target
+
+Pure evaluation performed by the compiler need not produce bits identical to evaluation on the
+target. For an illustrative result contract:
+
+```text
+a float where it = 0.5 ± 0.000001
+```
+
+a host result of `0.4999999` and a target result of `0.5000001` may each satisfy their individual
+bounds. Overlapping bounds do not make the values exactly equal, however, and individual validity is
+insufficient when a relational contract requires two results to agree. Generated behavior must
+satisfy all individual and relational obligations together.
+
+This contract-compatible model avoids requiring identical math-library, CPU, OS, and host-compiler
+floating-point bits. It does not give the compiler permission to expose contradictory ordinary
+results within one program. It may choose different valid results when compiling programs whose
+semantic observations differ, but only within the full contracts of each program.
+
+### Compile-Time Execution Versus Exact Compile-Time Knowledge
+
+Executing an expression during compilation is not the same as proving that every valid
+implementation produces one exact value. Compile-time syntax construction, such as producing a
+string that is substituted into operator syntax, requires a string proven equal to one exact value.
+Portable exact integer and string operations may establish that fact. Merely obtaining one
+floating-point approximation on the host does not.
+
+Approximate computation at compilation remains permitted for other purposes when the resulting
+program is contract-compatible. If constraints do not establish one exact syntax string, syntax
+substitution must not proceed as though the host result supplied a proof.
+
+### Equality Relations
+
+The language needs a true equality relation suitable for substitution and transitive reasoning, and
+a distinct approximate-equivalence relation with explicit error bounds. The spelling `~=` is only
+illustrative here. Approximate equality is generally not transitive and must never silently replace
+exact equality.
+
+These relations must also remain distinct from representation identity and IEEE numerical
+comparison. In examples imported from the Thyrym discussion, bare `=` means exact semantic equality;
+it must not be confused with the planned `(bits =)` comparator or with `(float64 =)`, under which
+NaN is not reflexive and signed zeros compare numerically equal. The exact source grammar and the
+contexts in which each relation permits substitution remain open.
 
 ## Existing Structures To Reuse
 
@@ -329,9 +452,14 @@ closed and execution is explicitly requested by an appropriate path. Runtime `In
 reused, parameterized, or separated into a symbolic representation; preserving this boundary is
 the requirement.
 
-The same pure invocation with the same operator identity, bindings, and arguments denotes the same
-value. Unrelated invocations are not assumed unequal, but equality between them requires proof. A
-bare operator declaration and an invocation with bound arguments are different expressions.
+At the source level, a pure operation may promise that equal inputs imply exactly equal abstract
+outputs. When that extensional relationship is in its validated contract, invocations with the same
+operator identity, bindings, and equal arguments denote equal values. Their separately selected
+host and target implementations need not begin with identical physical approximations, but generated
+code must preserve the promised equality wherever it can become a semantic observation. Without an
+extensional contract, invocation syntax alone must not invent that promise. Unrelated invocations
+are not assumed unequal, but equality between them requires proof. A bare operator declaration and
+an invocation with bound arguments are different expressions.
 
 Operator identity should use declaration identity/location consistently with existing operator
 equality behavior.
@@ -445,8 +573,12 @@ Decision is compiler-defined, direct, and context-independent. Native comparator
 comparisons when their operands provide enough information. Compiler-owned logical patterns can
 also decide propositions such as `P and not P`, where `P` may be an arbitrary nested proposition.
 
-A decision returns `Proven` or `Disproven`; it does not construct a truth-constant invariant. Child
-decisions are consumed by the enclosing logical form and retain their parent/path context.
+A decision attempt can report `Proven`, `Disproven`, or `Unproven`/no direct decision. The last
+outcome allows normalization and contextual proof search to continue; it is not evidence that the
+proposition is false. A terminal decision does not construct a truth-constant invariant. Child
+decisions are consumed by the enclosing logical form and retain their parent/path context. The
+exact result type may represent `Unproven` as absence of a direct decision rather than as a third
+constructor, but the semantic distinction must remain.
 
 ### Normalize
 
@@ -703,6 +835,226 @@ used as evidence that the implementation satisfies itself. It must be establishe
 validated implementation behavior. Once validated, the return contract is available for downstream
 reasoning.
 
+A relational return contract can also state extensionality. In illustrative Thyrym notation, where
+`Theta` is the argument and `it` is the result of this invocation:
+
+```text
+a float where
+    for all Other Theta, a float,
+        if Theta = Other Theta,
+            it = sin(Other Theta)
+```
+
+The constrained result is `it`, not another occurrence of `sin(Theta)`. Exact binders and layout
+must be reconciled with the final grammar. Like every return contract, this assertion needs evidence
+from a validated pure implementation or a trusted foreign declaration and cannot prove itself.
+
+Consider the following illustrative program:
+
+```text
+C := sin(0.5)
+Theta :^^= a float read from stdin
+R := sin(Theta)
+
+if Theta = 0.5,
+    print R
+    print C
+```
+
+Within the branch, a validated extensional contract requires `R = C` at the abstract source level.
+That remains true if `C` was evaluated on the compilation host and `R` would otherwise use a target
+library. The compiler may reuse one result, specialize the branch, select compatible
+implementations, or use another valid strategy; the source language guarantees no strategy.
+
+The equality condition occurs after creation of `R`, but can still impose an obligation on how `R`
+and `C` are materialized. Contract and observation analysis therefore cannot be only local or
+forward. It must discover later, path-sensitive uses and propagate their requirements backward.
+
+## Static Contracts And Observation Analysis
+
+### Two Descriptions Of A Value
+
+Every typeable value retains its full static type under the ordinary rules above. The static type
+contains all applicable props, invariant constraints, approximation bounds, and relational
+guarantees. It is the basis for source checking and proof and is never rewritten to excuse an
+optimization.
+
+Observation analysis derives a second description for code generation: the properties and
+relationships that must remain distinguishable to preserve the program's guaranteed external
+behavior. This provisional **observable type** is an optimization artifact, not an alternate source
+type. It can include:
+
+- a predicate about one value, such as `R < 1`;
+- the representation required by a consumer, such as the exact string produced when formatting
+  `R`;
+- a relationship, such as `Theta = 0.5` implying `R = C`;
+- a fact needed by downstream control flow, an operation, a performed act, or an external caller;
+  and
+- an executable prop implementation when runtime code can actually invoke that prop.
+
+Requirements can apply only on a particular path and can relate several values. A graph or set of
+observation contracts may therefore be more accurate than one ordinary type attached independently
+to every value. The representation and the final name remain open.
+
+Contracts still hold when analysis finds no observer. In that case generated code may avoid
+materializing a distinction, but source reasoning continues to use the complete static type.
+
+### Observation Roots And Backward Propagation
+
+The proposed analysis sequence is:
+
+1. Parse and statically type-check the complete source program, discharge proof obligations, and
+   validate implementation contracts.
+2. Identify semantic observation roots: the visible results of performed ordinary acts, values
+   crossing public APIs and separately compiled boundaries, FFI-visible behavior, and any
+   language-defined observable failure, termination, concurrency, or resource behavior.
+3. Propagate required predicates, representations, props, path conditions, and value relationships
+   backward through all uses.
+4. Select, specialize, or remove implementations while maintaining those requirements.
+5. Verify that generated observable behavior refines the complete source contracts. Repeat analysis
+   when eliminating one use can eliminate further requirements.
+
+This is a proposed architecture, not an implementation mandate. In particular, fixed-point
+iteration, proof records for rewritten code, and summaries for separate compilation are unresolved.
+
+If the sole semantic observation is `C > 8`, with `C := B + 5` and `B := A * 10`, analysis may push
+the relevant predicate back through `B` to `A`. It need not preserve more precision in the three
+intermediate values than that observation and all operation contracts require.
+
+Likewise:
+
+```text
+R := Approximation(Theta)
+if R > 0,
+    print "Positive"
+```
+
+If the complete contracts and path context prove every legal `R` is positive, code may print the
+message without materializing `R`. If `R`'s allowed range crosses zero, the range alone cannot prove
+the branch. Whether an implementation may intentionally select a contract-valid result on one side
+is part of the unresolved permitted-implementation-choice semantics and must account for every
+contract, relationship, and effect.
+
+### What Preservation Requires
+
+The compiler preserves the behavior guaranteed by the program, not the intermediate bits produced
+by one hypothetical evaluation strategy. A hidden difference between `0.4999999` and `0.5000001`
+can be irrelevant when no semantic observer can distinguish it. It is relevant when it can affect a
+boundary comparison, exact equality, serialization, formatting, hashing, file contents, control
+flow, or a required relationship between values.
+
+Observability is not limited to explicit equality tests. Two ordinary prints can expose an equality
+violation even when source code never prints `R = C`. In the earlier `sin` example, ordinary prints
+inside the equality branch must not expose incompatible results. Generated code can arrange
+consistent values or outputs in any way that honors the source contract.
+
+An exported function or dynamically reachable prop can be observed by an unknown caller. Local
+nonuse is therefore insufficient to erase behavior from a public ABI, module interface, or FFI
+boundary. Separate compilation must conservatively preserve or explicitly summarize such
+requirements.
+
+## Acts And Diagnostic Observations
+
+### Ordinary Acts
+
+An effect-producing operation such as `print`, a file write, or process creation returns **`an
+act`**, comparable in purpose to a Haskell `IO` action. Constructing an act and performing it are
+different. A performed ordinary act is a semantic observation root; constructing an unperformed act
+does not by itself expose its argument.
+
+An act demands the properties needed for its guaranteed observable behavior, not automatically
+every mathematical constraint on every argument. Printing the result of `R > 0` observes that
+predicate. Emitting a lossless representation or writing raw bits observes more. Printing both `R`
+and `C` on a path where their equality is guaranteed can observe the relationship between them.
+Formatting and other operations used to construct the act must still type-check and have valid prop
+implementations.
+
+### Unsafe Evaluation Modes
+
+The exact established names are:
+
+| Thyrym form | Closest Haskell analogy |
+|---|---|
+| `unsafely once` | `unsafePerformIO` |
+| `unsafely each time` | `unsafeDupablePerformIO` |
+
+Normative documentation and future source work must not rename these forms to `unsafePerformIO`,
+`unsafe`, `debug`, or another invented spelling. The analogies are explanatory, not definitions.
+The modes must not be conflated, and this plan does not claim that either unconditionally executes
+an effect exactly once or permits arbitrary duplication. Their precise guarantees under
+optimization and their separate interaction with diagnostics remain unresolved and must be checked
+against the authoritative Thyrym definitions when that integration is implemented.
+
+### Proposed Diagnostic Treatment
+
+The intended debugging model is that explicitly diagnostic logging inside pure code does not impose
+new observable constraints on logged values. Such a diagnostic may require a valid string-conversion
+prop during static checking and may reveal an implementation-selected approximation if one happens
+to be materialized. Subject to the selected unsafe mode, it may also be moved, omitted, or otherwise
+changed by optimization. It must not by itself force the compiler to compute, retain, or reconcile
+an otherwise unobservable exact intermediate.
+
+For example, using placeholders rather than proposed Thyrym syntax:
+
+```text
+C := sin(0.5)
+R := sin(Theta)
+<diagnostic unsafe print> C
+<diagnostic unsafe print> R
+if Theta = 0.5,
+    <ordinary print> (R = C)
+```
+
+Diagnostic logs could expose physical approximations such as `0.47942553` and `0.47942554` while
+the ordinary output is `true`, because the ordinary behavior must preserve the abstract equality
+contract and the diagnostics are not authoritative snapshots of abstract source values. This is a
+deliberate and potentially surprising debugging tradeoff. Documentation must state conspicuously
+that a diagnostic or its value may be optimized out; tooling may report `optimized out` instead.
+
+This treatment is conditional. An arbitrary unsafe act is not necessarily a diagnostic. An unsafe
+file write can affect a later ordinary read, and ignoring that dependency would change semantic
+behavior unless the programmer has knowingly left the language guarantees. A sound design may need
+an explicit diagnostic-act contract, capability, or library classification. No such classification
+has yet been selected, so general unsafe execution must not automatically be treated as ignorable.
+
+Diagnostic conversion also remains statically checked even if the diagnostic is later erased. Its
+runtime conversion implementation need be retained only if the diagnostic itself remains, subject
+to the unresolved behavior for conversion failure, cost, and a wholly optimized-away value.
+
+## Runtime Prop Retention
+
+After complete static checking, proof, and observation analysis, generated artifacts may omit a prop
+implementation with no possible runtime caller. A prop used only to establish a type or proof can
+justify optimization without carrying all proof machinery into the executable. This changes the
+generated product, not the value's static type.
+
+Reachability must account for dynamic prop dispatch, higher-order calls, exports, separate
+compilation, foreign boundaries, reflection and serialization if supported, and retained diagnostic
+conversion. A diagnostic conversion prop must exist and be valid during checking, but executable
+conversion code is required only when the diagnostic can remain at runtime.
+
+## Contract And Optimization Guardrails
+
+1. **No circular evidence.** A function's return annotation cannot establish its own extensional or
+   numerical contract. Use a separately checked implementation proof or a trusted FFI declaration.
+2. **No approximate substitution.** Overlapping error intervals and approximate equivalence do not
+   imply exact equality or authorize transitive replacement.
+3. **No stage-dependent semantics.** Host compile-time and target runtime evaluation are
+   implementation choices unless a separate source feature explicitly says otherwise.
+4. **No local-only observation analysis.** Later uses, branches, acts, and interfaces can impose
+   requirements on earlier values.
+5. **No loss of relational obligations.** Individually valid `R` and `C` can still violate an
+   observable promise relating them.
+6. **No unchecked expansion of trust.** Incorrect foreign contracts are an acknowledged soundness
+   boundary and should be isolated in reviewed libraries.
+7. **No conflation of type checking and materialization.** Erased diagnostics and props must have
+   been statically valid even when their runtime values or implementations are unnecessary.
+8. **No blanket exemption for unsafe effects.** Only explicitly defined diagnostic semantics may
+   remove observation obligations; general unsafe effects can influence ordinary behavior.
+9. **No silent omission of other behavior.** Exceptions, errors, nontermination, data races,
+   external resources, and similar behavior limit elimination whenever the language defines them as
+   observable.
+
 ## Declaration Diagnostics
 
 A type-attached invariant is intended to constrain its subject. Subject-independent assertions
@@ -919,6 +1271,37 @@ its exact bit width
 its subject-accepting invariant template
 ```
 
+Static contract validation owns:
+
+```text
+checking source implementations against declared result contracts
+recording trusted foreign declarations as explicit trust boundaries
+keeping all constraints and props in the authoritative static type
+distinguishing exact proof from a host-selected concrete result
+```
+
+Observation analysis owns:
+
+```text
+discovering semantic roots, including performed acts and public interfaces
+backward, relational, and path-sensitive requirement propagation
+separate-compilation summaries or conservative boundary requirements
+tracking which executable prop implementations remain reachable
+```
+
+Implementation selection and code generation own:
+
+```text
+choosing host, target, foreign, or source implementations within validated contracts
+preserving every derived observation requirement together
+removing unobservable materializations and unreachable runtime prop code
+retaining proof or audit evidence required for transformation verification
+```
+
+The future act/diagnostic classification owns the boundary between semantic effects and
+non-semantic instrumentation. Until that boundary is specified, observation analysis must not infer
+that arbitrary unsafe execution is diagnostic.
+
 ## Compiler Logic Versus Contextual Libraries
 
 Fundamental logical simplification is fixed by the compiler. There is no separate configurable
@@ -1044,11 +1427,45 @@ The following issues remain deliberately unresolved:
     nested applications, and alternative branches without making heuristic failure a disproof.
 11. **Context composition.** Design import/merge behavior, stable ID remapping, and diagnostic order
     for append-only rule histories.
-12. **Runtime and standard-library integration.** Define comparison implementations, float widths,
-    overflow behavior, and conversion operations with independently validated contracts.
+12. **Runtime and standard-library integration.** Define exact integer widths, overflow, signed
+    arithmetic, division edge cases, float NaN/infinity/signed-zero behavior, rounding modes,
+    fast-math permissions, trigonometric accuracy, comparison implementations, and conversion
+    operations with independently validated contracts.
 13. **Architecture audit.** Test nested conditionals, quantifier order, negation, symbolic
     invocations, contradictory assumptions, NaN, and directional counterexamples before declaring
     the implementation design complete.
+14. **Observable-type representation and naming.** Choose between a second type, a path-sensitive
+    requirement graph, a value/relationship constraint set, or another IR. Define dependency and
+    branch joins, and decide whether `observable type` or `observation contract` is the public or
+    internal term.
+15. **Formal implementation-refinement test.** Define when generated behavior is permitted by an
+    approximation or relational contract, including when an implementation may select an arbitrary
+    contract-valid result rather than the literal result of particular source code. Decide whether
+    trusted FFI and proved source implementations differ here.
+16. **Observation boundaries.** Decide exactly when formatting, raw representations, termination,
+    exceptions, failures, concurrency, resource use, reflection, serialization, hashing, and foreign
+    interaction are semantic observations.
+17. **Separate compilation.** Define observation summaries for exported functions, dynamic props,
+    public ABIs, and modules whose future callers are unavailable.
+18. **Native evaluation during compilation.** Specify how the compiler executes or approximates
+    foreign operations on its host while preserving target contracts, and when it must abstain from
+    deciding a concrete result.
+19. **Exact and approximate equality syntax.** Reconcile source-level substitutive equality,
+    approximate equivalence, IEEE numerical equality, and bit identity without granting unsound
+    substitution to any comparator.
+20. **Diagnostics and unsafe modes.** Specify separately what `unsafely once` and `unsafely each
+    time` guarantee under optimization. Decide whether a diagnostic act needs an explicit contract,
+    capability, or library designation and whether it must be barred from affecting files, process
+    streams, global state, failure, or resource exhaustion.
+21. **Diagnostic conversion.** Decide what happens when the logged value was fully optimized away,
+    conversion is expensive or fails, or conversion itself changes computation requirements.
+    Determine when omission or an `optimized out` report is permitted.
+22. **Optimization feedback and auditability.** Decide whether observation propagation and
+    optimization run to a fixed point and which proof records survive rewriting so transformations
+    can be audited.
+23. **Placement of shared semantics.** For the Thyrym/Thyry repository split, decide which logic,
+    numeric, contract, and evaluation facilities belong in shared lower-level compiler/interpreter
+    foundations rather than only in the Thyrym-facing layer, so every stage uses coherent meanings.
 
 ## Likely Implementation Phases
 
@@ -1077,3 +1494,13 @@ The order may change as representation experiments expose dependencies.
     comparator syntax.
 15. Add standard-library comparison props, conversion contracts, and carefully staged float and
     fixed-width arithmetic support.
+16. Validate portable contracts for pure source and foreign implementations, including relational
+    extensionality and explicit trust provenance.
+17. Prototype an observation IR with ordinary performed acts and public interfaces as roots, then
+    add backward path-sensitive and relational propagation.
+18. Add contract-compatible implementation selection and verify cross-host/target examples,
+    exact-syntax requirements, branch thresholds, formatting, and separately compiled boundaries.
+19. Remove unreachable runtime prop implementations only after reachability and public-boundary
+    analysis, while preserving their static proof role.
+20. Add non-semantic diagnostic behavior only after the diagnostic classification and the distinct
+    guarantees of `unsafely once` and `unsafely each time` have been specified and tested.
