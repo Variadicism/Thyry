@@ -22,10 +22,11 @@ Compiler-owned logical machinery owns:
 ```text
 the fixed semantics of and, or, not, if, for all, and for some
 intrinsic logical decisions and meaning-preserving normalizations
-internal whole-proposition patterns unavailable to source rules
+internal whole-formula patterns unavailable to source rules
 ```
 
-`InvariantComparator` owns:
+An intrinsic `LogicalComparator` owns the following responsibilities. Existing
+`InvariantComparator` references are legacy prototype names:
 
 ```text
 semantic interpretation of concrete bits
@@ -34,7 +35,7 @@ context-independent atomic decisions
 comparison-specific candidate applications with sound directions
 ```
 
-Invariant expressions own or expose:
+Logical expressions own or expose:
 
 ```text
 their structural view and type
@@ -46,7 +47,7 @@ enough identity and argument information for matching and substitution
 
 ```text
 available Ops and operator precedence
-established invariant assertions and explicit assumptions
+established Propositions and explicit assumptions
 append-only rule history, obviation status, and provenance
 ```
 
@@ -54,7 +55,7 @@ append-only rule history, obviation status, and provenance
 
 ```text
 its exact bit width
-its subject-accepting invariant template
+its subject-accepting Constraint template
 ```
 
 Static contract validation owns:
@@ -90,11 +91,23 @@ that arbitrary unsafe execution is diagnostic.
 
 ## Implementation Appendix
 
-This appendix records expected integration work, not finalized module or API design.
+This appendix records legacy integration sketches, not finalized architecture, modules, or APIs.
+Names beginning with `Invariant` describe the current prototype and must be reconciled with the
+conceptual `Logical*`, Constraint, and Proposition vocabulary before Haskell design is adopted.
+
+### Architecture Before Haskell Design
+
+The next phase must first define data flow among proof goals, contextual Propositions, operator
+contracts, proof results, source modules, effect versions, observation requirements, and provenance.
+It must also reconcile pursuit convergence with proof-search resource and cycle handling without
+prejudging whether they use unified or separate internal mechanisms.
+
+Only after that architectural review should the design map these concepts into Haskell data types,
+typeclasses, functions, and modules or plan migration of the existing prototype.
 
 ### NativeBitsType Construction
 
-Adding a function-valued invariant field affects positional constructors such as:
+Adding a function-valued Constraint field affects positional constructors such as:
 
 ```haskell
 NativeBitsType 32
@@ -109,12 +122,12 @@ Any conversion is an explicit invocation with independently established properti
 
 ### Thing And Category Integration
 
-Source-representable invariant forms, comparators, expressions, variables, and rules need suitable
-`Thing` integration and the existing `Eq`, `Show`, `Messagable`, `Typeable`, and parameterization
-behavior.
+Source-representable logical formulas, comparators, expressions, variables, and Propositions need
+suitable `Thing` integration and the existing `Eq`, `Show`, `Messagable`, `Typeable`, and
+parameterization behavior.
 
 The final representation must also provide recursively enforced general and solver-ready subsets.
-`NativeBitsType.resolve` must traverse instantiated invariant templates when expressions contain
+`NativeBitsType.resolve` must traverse instantiated Constraint templates when expressions contain
 ordinary parameters. Proof failures must integrate with existing type-checking `Mismatch` values.
 
 New modules and source-import cycles may require Cabal entries and `.hs-boot` declarations. Plan
@@ -126,28 +139,30 @@ those changes with the module layout rather than treating the old sketches as fi
 history. A dedicated insertion API is preferable because `Context.push` currently means adding an
 operator and updating precedence.
 
-The former `pushInvariantRule` signature with separate premises and conclusions is obsolete. A new
-API should accept one assertion, justification, and declaration mode such as ordinary proof-required
-declaration versus explicit `assuming`. It should return insertion status and a stable rule ID while
-preserving `Proven`, `Disproven`, and `Unproven` distinctions.
+The former `pushInvariantRule` signature with separate premises and conclusions is an obsolete
+legacy API. A replacement should accept one Proposition, justification, and declaration mode such
+as ordinary proof-required declaration versus explicit `assuming`. It should return insertion
+status and a stable rule ID while preserving `Proven`, `Disproven`, and `Unproven` distinctions.
 
 Insertion can mark an already established assertion as obviated. It rejects a disproven assertion
 and admits an unproven assertion only under `assuming`. Conditional validation operates on the whole
 implication rather than hypothetical premise injection.
 
 Context merging is deferred. Existing `Context.concat` must not silently discard rule history if it
-is later used with invariant-bearing contexts; imports may require ID remapping.
+is later used with Proposition-bearing contexts; imports may require ID remapping.
 
 ### Symbolic Invocation Isolation
 
 Ordinary runtime arguments should be recursively concrete. Symbolic applications can contain
 quantified variables and must preserve structure without execution. Options include a separate
-`InvariantInvocation` or a category-parameterized invocation type. Changing only one outer argument
-wrapper is insufficient if a composite `ConcreteThing` can hide symbolic children.
+logical invocation or a category-parameterized invocation type. The former `InvariantInvocation`
+name is legacy. Changing only one outer argument wrapper is insufficient if a composite
+`ConcreteThing` can hide symbolic children.
 
-Closed symbolic expressions may eventually reduce through an existing execution path when proof
-explicitly requests it and execution is valid. This is a proof optimization/base case, not a
-general invariant evaluation API.
+Closed symbolic expressions may eventually reduce through a dedicated safe, portable execution
+path when the compile-time evaluation policy permits it. This is a proof optimization or base case,
+not a general formula evaluator, and it must never execute unsafe acts or native FFI merely to prove
+a contract.
 
 ### Solver Safety And Diagnostics
 
@@ -167,13 +182,14 @@ meaning.
 
 The order may change as representation experiments expose dependencies.
 
-1. Add general invariant forms and native comparator definitions without type-checker integration.
-2. Add `Thing` integration and structural views for source-representable invariant structures.
+1. Add general logical formula forms and intrinsic comparator definitions without type-checker
+   integration.
+2. Add `Thing` integration and structural views for source-representable logical structures.
 3. Prototype recursively enforced general and solver-ready categories, including `It` elimination.
-4. Add subject-accepting `NativeBitsType` templates and construction/display helpers without yet
-   relying on them for satisfaction.
-5. Add append-only context assertions, metadata, stable IDs, provenance, and explicit assumption
-   insertion policy.
+4. Add subject-accepting `NativeBitsType` Constraint templates and construction/display helpers
+   without yet relying on them for satisfaction.
+5. Add append-only contextual Propositions, metadata, stable IDs, provenance, and explicit
+   assumption insertion policy.
 6. Implement native atomic decisions and recursive compound decision propagation with histories.
 7. Implement a small, sound normalization set and the guarded local fixed-point loop.
 8. Define candidate application records and the three-way implication-direction contract.
@@ -182,16 +198,16 @@ The order may change as representation experiments expose dependencies.
 10. Expand application semantics through tests for conjunction, disjunction, negation, implication,
     and quantified forms; do not claim completeness before the architecture audit.
 11. Add exact-width `NativeBitsValue` and `NativeBitsType` satisfaction using instantiated,
-    solver-ready templates.
+    solver-ready Constraint templates.
 12. Add standalone type-declaration validation and nested vacuity, redundancy, and uninhabitability
     diagnostics.
 13. Integrate symbolic operator return contracts without circular self-proof.
-14. Add parser/build support for invariant declarations, quantifiers, `assuming`, and native
+14. Add parser/build support for Constraints, Propositions, quantifiers, `assuming`, and intrinsic
     comparator syntax.
 15. Add standard-library comparison props, conversion contracts, and carefully staged float and
     fixed-width arithmetic support.
-16. Validate portable contracts for pure source and foreign implementations, including relational
-    extensionality and explicit trust provenance.
+16. Validate portable contracts for pure source implementations and record foreign declarations as
+    explicit trust boundaries, including relational compatibility across implementations.
 17. Prototype an observation IR with ordinary performed acts and public interfaces as roots, then
     add backward path-sensitive and relational propagation.
 18. Add contract-compatible implementation selection and verify cross-host/target examples,
@@ -200,6 +216,12 @@ The order may change as representation experiments expose dependencies.
     analysis, while preserving their static proof role.
 20. Add non-semantic diagnostic behavior only after the diagnostic classification and the distinct
     guarantees of `unsafely once` and `unsafely each time` have been specified and tested.
+21. Add lexical Proposition visibility and consumer-directed proof imports using only selected
+    public module knowledge plus the importing context.
+22. Integrate affine resource versions, effect contracts, external-state stability, and concurrent
+    observations into proof-context validity.
+23. Add safe portable compile-time execution separately from symbolic proof. Never execute unsafe
+    acts or native FFI merely to prove contracts.
 
 ## Related documents
 

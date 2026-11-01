@@ -8,10 +8,11 @@
 
 The compiler owns the meanings of `and`, `or`, `not`, `if`, `for all`, and `for some`. Users may
 state domain knowledge but may not redefine logic. Ordinary logical forms remain source-expressible;
-compiler-only whole-proposition metavariables are the exception.
+compiler-only whole-formula metavariables are the exception.
 
-The proposition model does not expose `TrueInvariant` or `FalseInvariant`. Terminal decisions are
-consumed by enclosing forms, with their justification retained for diagnostics.
+The logical formula model does not expose source truth-constant constructors. Terminal decisions
+are consumed by enclosing forms, with their justification retained for diagnostics. Names such as
+`TrueInvariant` and `FalseInvariant` refer only to rejected legacy implementation possibilities.
 
 ### Rationale
 
@@ -20,7 +21,7 @@ valuable, but allowing them to redefine implication, negation, or quantification
 meaning of every contract. Avoiding truth-constant proof nodes also keeps source propositions and
 derivations focused on meaningful obligations rather than simplifier artifacts.
 
-General and solver-ready invariant categories are separate so the `it` template placeholder cannot
+General and solver-ready formula categories are separate so the `it` template placeholder cannot
 survive recursively into proof search.
 
 ## Separate Solver Mechanisms
@@ -81,6 +82,34 @@ Stable identities cannot depend on the current active-list position because rule
 obviated while remaining relevant to diagnostics. Append-only history and nested assertion paths
 preserve derivation links and source locations without making disjunctive children independent
 facts.
+
+## Three Proof Outcomes
+
+### Decision
+
+`Proven`, `Disproven`, and `Unproven` remain distinct judgments about a specific contextual goal.
+Only an actual refutation supports `Disproven`; incomplete knowledge, resource exhaustion, and
+nonproductive cycles yield `Unproven`.
+
+### Rationale
+
+Open-ended symbolic search is incomplete in practice. Treating lack of proof as false would be
+unsound, while accepting it as true would hide trust. A required but unproven goal therefore needs
+more evidence, a stronger context, or an explicit non-disproven assumption.
+
+## Consumer-Directed Proof Imports
+
+### Decision
+
+A consumer may request the precise Proposition it needs from public module knowledge. Proof uses the
+consumer's context plus public exported contracts and Propositions, never arbitrary private facts,
+and introduces only the requested result into the local scope.
+
+### Rationale
+
+Consumers can depend on a weaker, more stable guarantee without copying a complex exporter theorem.
+At the same time, private implementation premises remain encapsulated, and public operator types
+continue to carry their complete declared Constraints.
 
 ## Related documents
 

@@ -50,6 +50,23 @@ classification before this optimization is sound.
 `unsafely once` and `unsafely each time` retain their established names and distinct semantics.
 Their precise optimization guarantees are unresolved; the Haskell analogies are not definitions.
 
+Neither unsafe mode may be executed during compilation. Keeping its declared result contract
+available for symbolic reasoning preserves useful knowledge without exposing compiler-host state or
+inventing a concrete result.
+
+## Versioned Effect Knowledge
+
+### Decision
+
+Proof facts about mutable resources apply to the resource versions identified by affine effect
+contracts. They do not silently survive mutation or external interference.
+
+### Rationale
+
+Treating mutable state as timeless would let an earlier observation justify a false later claim.
+Before/after contracts allow sound relational reasoning, while resource and concurrency contracts
+state when an external fact remains stable.
+
 ## Related documents
 
 - [Observability, acts, and diagnostics](../design/observability.md)

@@ -10,7 +10,7 @@
 
 Every typeable value retains its full static type under the ordinary [contract](contracts.md) and
 [type-validation](contracts.md#type-contracts-and-validation) rules. The static type contains all
-applicable props, invariant constraints, approximation bounds, and relational guarantees. It is the
+applicable props, Constraints, approximation bounds, and relational guarantees. It is the
 basis for source checking and proof and is never rewritten to excuse an optimization.
 
 Observation analysis derives a second description for code generation: the properties and
@@ -100,6 +100,23 @@ compilation, foreign boundaries, reflection and serialization if supported, and 
 conversion. A diagnostic conversion prop must exist and be valid during checking, but executable
 conversion code is required only when the diagnostic can remain at runtime.
 
+### Proof Knowledge Across Effects
+
+Thyrym mutation occurs through acts and is described by affine transformations and resources. An
+act's effect contract identifies the transformation and relevant Constraints. The proof system may
+use ordinary operator contracts to relate before and after values, but a fact about one resource
+version does not silently apply to a different version after mutation.
+
+For example, if `x_before > 0` and an act establishes
+`x_after = x_before - 1` under a valid precondition, the solver may establish
+`x_after >= 0` but not necessarily `x_after > 0`. This is illustrative rather than proposed syntax.
+
+The affine and effect system determines which resource version remains available and how effects
+may interfere. Proof reasoning uses the version-specific values and relationships in those
+contracts. External state can change independently, so possession of a handle or an earlier
+observation does not preserve a fact unless resource and concurrency contracts establish the needed
+stability.
+
 ## Acts And Diagnostic Observations
 
 ### Ordinary Acts
@@ -131,6 +148,11 @@ The modes must not be conflated, and this plan does not claim that either uncond
 an effect exactly once or permits arbitrary duplication. Their precise guarantees under
 optimization and their separate interaction with diagnostics remain unresolved and must be checked
 against the authoritative Thyrym definitions when that integration is implemented.
+
+The compiler must not execute either unsafe mode during compilation. Their declared result types
+and Constraints remain available for symbolic reasoning, but those contracts do not provide a
+concrete result or imply that repeated executions return identical values. Only explicit
+cross-invocation contracts can establish such a relationship.
 
 ### Proposed Diagnostic Treatment
 

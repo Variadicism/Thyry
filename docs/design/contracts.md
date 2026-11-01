@@ -16,7 +16,7 @@ it (uint <) 7
 This means any `NativeBitsValue` that befits the relevant `NativeBitsType` must contain bits whose
 unsigned integer interpretation is less than `7`.
 
-Invariants may also mention ordinary Beng operations:
+Constraints may also mention ordinary Thyrym operators:
 
 ```text
 sin(it) (float64 <) 7
@@ -42,13 +42,13 @@ designed. General unsafe effects cannot automatically receive diagnostic treatme
 
 ## Terminology And Status
 
-- A **static type** is the authoritative source-language type, including all relevant invariant
-  constraints, props, and behavioral relationships. Optimization never weakens it.
-- An **invariant** is a proposition in the [invariant
-  language](proof-system.md#invariant-language). It may be part of a type contract or established
-  contextual knowledge.
+- A **static type** is the authoritative source-language type, including all relevant Constraints,
+  props, and behavioral relationships. Optimization never weakens it.
+- A **Constraint** is a logical condition attached to a type. A **Proposition** is standalone
+  contextual logical knowledge. Both use the [logical formula
+  language](proof-system.md#logical-formula-language).
 - An operation's **contract** states the allowed result and relationships to arguments and other
-  values. A pure Beng function or prop implementation must prove its declared result contract. A
+  values. A pure Thyrym function or prop implementation must prove its declared result contract. A
   foreign declaration is a trusted contract and is an explicit soundness boundary.
 - **Observable type** is the provisional design term for the compiler-derived requirements that
   generated code must preserve for a value. **Observation contract** may be a more accurate internal
@@ -65,20 +65,21 @@ designed. General unsafe effects cannot automatically receive diagnostic treatme
 - All runtime data is still bits.
 - The semantic interpretation of bits belongs to the comparator, not to a separate runtime domain
   type.
-- An invariant is a logical proposition. Invariant expressions may contain ordinary Beng `Op`s,
-  but logical propositions are not themselves executable operations.
+- A Constraint or Proposition is a logical formula. Logical expressions may contain ordinary
+  Thyrym operators, but logical formulas are not themselves executable operations.
 - The compiler owns the meaning and fundamental laws of `and`, `or`, `not`, `if`, `for all`, and
   `for some`. Users may state domain-specific facts and assumptions, but may not redefine logic.
-- Every ordinary logical form needed by invariant reasoning should also be expressible in source.
-  Compiler-internal proposition-pattern metavariables are the exception.
-- Ranges and intervals are ordinary combinations of comparison invariants and logical forms.
+- Every ordinary logical form needed by proof reasoning should also be expressible in source.
+  Compiler-internal whole-formula metavariables are the exception.
+- Ranges and intervals are ordinary combinations of logical comparisons and logical forms.
 - Initial type satisfaction requires equal bit sizes. Future implicit source conversions must
   appear as explicit conversion `Op`s in the constructed expression.
-- There is no separate `InvariantFunction`. Ordinary Beng `Op`s are used in invariant expressions.
+- There is no separate logical-function category. Ordinary Thyrym operators are used in logical
+  expressions.
 - Contextual knowledge lives in `Context`, alongside the available `Op`s.
 - Proof uses `Context` plus branch-local bindings, history, and loop/resource tracking.
 - Type/value satisfaction distinguishes `Proven`, `Disproven`, and `Unproven`. Failure to prove a
-  required invariant is a type mismatch, but is not automatically a disproof.
+  required Constraint is a type mismatch, but is not automatically a disproof.
 - The complete static contract remains authoritative even when no runtime check or observer exists.
 - The evaluation stage and machine are intentionally unspecified for pure computations. Compilation
   on a host, execution on a target, interpretation, and another valid strategy are implementation
@@ -93,7 +94,7 @@ designed. General unsafe effects cannot automatically receive diagnostic treatme
 - Code may explicitly introduce an unproven assertion only with conspicuous `assuming` syntax.
 - No intentionally uninhabitable or never-type facility is being designed here. A type proven to
   have no possible values is an error.
-- Anything representable in Beng code should generally be a `Thing`. Internal solver patterns and
+- Anything representable in Thyrym code should generally be a `Thing`. Internal solver patterns and
   proof machinery need not be source-representable.
 - The architecture should be mathematically sound and extensible. This plan does not attempt to
   enumerate every theorem-proving strategy or native decision case before implementation.
@@ -115,15 +116,38 @@ implementations so long as each conforms to the declaration's contract. A suitab
 implementation may be used when no native implementation exists; absence of an FFI implementation
 does not inherently require compilation to fail.
 
-A pure source implementation must establish its return contract without circularly assuming that
-same contract. A foreign declaration's author asserts that its implementation satisfies the
-contract; the compiler does not independently prove foreign machine code correct. Reviewed shared
-foreign libraries should be preferred because an incorrect declaration makes the program's proof
-foundation unsound.
+A pure source implementation must establish that its body's resulting type satisfies the declared
+result type and Constraints without circularly assuming that same contract. A foreign declaration's
+author asserts that its implementation satisfies the contract; the compiler does not independently
+prove foreign machine code correct. Reviewed shared foreign libraries should be preferred because
+an incorrect declaration makes the program's proof foundation unsound.
 
 Contracts for integers and floats must explicitly address widths, overflow, signed arithmetic,
 division edge cases, NaN, infinities, signed zero, rounding modes, and permitted fast-math behavior.
 The design must not silently inherit undefined or implementation-defined C behavior.
+
+### Symbolic Reasoning Versus Compile-Time Execution
+
+The proof system may reason from a pure operator's declared contract even when its implementation
+cannot safely be executed during compilation. Actual compile-time execution is a separate, stricter
+capability: it requires an available, safe, suitably portable implementation and the convergence
+and resource evidence required for the demanded computation. Proving convergence does not itself
+require or authorize compile-time evaluation.
+
+The compiler must not execute acts through `unsafely once`, `unsafely each time`, or another unsafe
+effect escape during compilation. Apparent purity does not make the effect safe on the compiler
+host. The declared result type and Constraints remain available for symbolic reasoning, but the
+compiler cannot obtain a concrete result by executing the act.
+
+Likewise, native or foreign implementations are not run during compilation to prove their own
+contracts. Their declared argument and result contracts participate in reasoning as trusted
+programmer assertions. Compilation that actually requires evaluation needs an appropriate portable
+implementation; a target-only native function is insufficient. Optional foreign-contract
+validation tooling would not replace this trust boundary.
+
+Operators have no silently undefined results. Provable preconditions must exclude invalid domains,
+such as a zero divisor. Failures that cannot reliably be excluded beforehand, such as a file race,
+must be represented in the result rather than treated as though no result exists.
 
 ### Contract Compatibility Across Host And Target
 
@@ -144,6 +168,10 @@ floating-point bits. It does not give the compiler permission to expose contradi
 results within one program. It may choose different valid results when compiling programs whose
 semantic observations differ, but only within the full contracts of each program.
 
+A portable deterministic implementation can support compile-time computation without becoming
+canonical truth for all implementations. Portable, native, foreign, and source alternatives must
+each satisfy the advertised contract, including every applicable cross-invocation relationship.
+
 ### Compile-Time Execution Versus Exact Compile-Time Knowledge
 
 Executing an expression during compilation is not the same as proving that every valid
@@ -158,16 +186,22 @@ substitution must not proceed as though the host result supplied a proof.
 
 ### Equality Relations
 
-The language needs a true equality relation suitable for substitution and transitive reasoning, and
-a distinct approximate-equivalence relation with explicit error bounds. The spelling `~=` is only
-illustrative here. Approximate equality is generally not transitive and must never silently replace
-exact equality.
+The intrinsic proof foundation distinguishes representation equality, integer-value equality,
+floating-point numerical equality, and approximate equivalence with explicit error bounds. The
+spelling `~=` is established in the related Thyrym design, but its exact tolerance semantics remain
+open here. Approximate equivalence is generally not transitive and must never silently authorize
+exact substitution.
 
-These relations must also remain distinct from representation identity and IEEE numerical
-comparison. In examples imported from the Thyrym discussion, bare `=` means exact semantic equality;
-it must not be confused with the planned `(bits =)` comparator or with `(float64 =)`, under which
-NaN is not reflexive and signed zeros compare numerically equal. The exact source grammar and the
-contexts in which each relation permits substitution remain open.
+Ordinary Thyrym `=` is a higher-level, potentially domain-specific operator. It may deliberately
+ignore fields that are irrelevant to a domain's identity. Its truth can supply derived knowledge
+through a validated contract or Proposition, but it does not merely by being true grant the solver
+foundational substitution authority.
+
+Only intrinsic logical comparators and rules may define foundational substitution behavior. Any
+substitution needs explicit applicability conditions that the solver establishes first. IEEE
+numerical equality, for example, treats signed zeros differently from bit equality and is not
+reflexive for NaN. The exhaustive intrinsic substitution rules and exceptional-value behavior are
+not settled here.
 
 ## Contract And Optimization Guardrails
 
@@ -195,18 +229,23 @@ contexts in which each relation permits substitution remain open.
 
 ### Type Templates, Satisfaction, And Contract Validation
 
+`it` in a type Constraint is a placeholder for the value being constrained, not an implicit
+universal quantifier. For a particular unknown `it`, a goal such as `it < 7` is normally `Unproven`;
+the existence of other values greater than seven does not refute that specific unknown value.
+Standalone declaration validation over an explicitly arbitrary subject is a separate check.
+
 #### NativeBitsValue Satisfies NativeBitsType
 
 Given a concrete value and a required bits type:
 
 ```text
 1. Require exact bit-width equality.
-2. Instantiate each required invariant template with the NativeBitsValue literal expression.
-3. Confirm recursively that the resulting invariants are solver-ready.
+2. Instantiate each required Constraint template with the NativeBitsValue literal expression.
+3. Confirm recursively that the resulting logical formulas are solver-ready.
 4. Solve their conjunction using local simplification and contextual proof.
 5. Proven means the value satisfies the refinement.
 6. Disproven means it does not satisfy the refinement.
-7. Unproven is an invariant mismatch because satisfaction was not established.
+7. Unproven is a Constraint mismatch because satisfaction was not established.
 ```
 
 Example:
@@ -274,7 +313,7 @@ for all x, y:
     f(x, y) (uint <) 10
 ```
 
-Quantifier domains match the declared argument types. The required return invariant must never be
+Quantifier domains match the declared argument types. The required return Constraint must never be
 used as evidence that the implementation satisfies itself. It must be established from separately
 validated implementation behavior. Once validated, the return contract is available for downstream
 reasoning.
@@ -316,15 +355,15 @@ forward. It must discover later, path-sensitive uses and propagate their require
 
 ### Declaration Diagnostics
 
-A type-attached invariant is intended to constrain its subject. Subject-independent assertions
-belong in contextual rules rather than incidental return refinements. Effects and mutations remain
-modeled through Beng's `Act` mechanism; they do not require special mutation-related invariant
-exceptions.
+A type-attached Constraint is intended to constrain its subject. Subject-independent facts belong
+in contextual Propositions rather than incidental return refinements. Effects and mutations remain
+modeled through Thyrym acts; proof knowledge applies to the specific resource versions identified
+by their contracts rather than timeless mutable state.
 
 Diagnostic policy:
 
 - A provably uninhabitable complete type constraint is a compilation error.
-- A provably vacuous type invariant or redundant nested component is a warning.
+- A provably vacuous type Constraint or redundant nested component is a warning.
 - A provably dead branch is a warning unless it makes the complete constraint impossible.
 - An unused quantified variable is a warning.
 - An inconclusive check must not be reported as vacuity, redundancy, or uninhabitability.
@@ -348,9 +387,9 @@ normalizers must not silently perform arbitrary context search merely to produce
 
 ### Standard Library Comparison Props
 
-Built-in semantic comparison invariants are distinct from ordinary user-defined `<` and `=` props.
-The standard-library `<` operation is a normal executable `Op`. Its return type should relate the
-returned bit to the built-in comparator without recursively calling the same `<` prop in its own
+Intrinsic logical comparisons are distinct from ordinary user-defined `<` and `=` props. The
+standard-library `<` operation is a normal executable operator. Its return type should relate the
+returned bit to the intrinsic comparator without recursively calling the same `<` prop in its own
 contract.
 
 For an unsigned comparison returning one-bit `yes` or `no`:

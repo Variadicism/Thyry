@@ -9,8 +9,10 @@ The following questions remain deliberately unresolved.
 1. **Generalized contextual application calculus.** Define exact proof and disproof transformations
    for deeply nested `and`, `or`, `not`, `if`, `for all`, and `for some`, while preserving the
    implication-direction contract.
-2. **Exact Haskell representations.** Settle recursive general/solver-ready categories, expanded
-   structural views, symbolic invocations, internal proposition patterns, and existential wrappers.
+2. **Exact Haskell representations.** Map the conceptual `LogicalFormula`, `LogicalComparison`,
+   `LogicalComparator`, and `LogicalExpression` vocabulary onto recursive general/solver-ready
+   categories, structural views, symbolic invocations, internal formula patterns, and existential
+   wrappers. Legacy `Invariant*` sketches are not final APIs.
 3. **Decision and transformation result types.** Design signatures that retain ordered nested
    provenance, bindings, paths, and application directions without treating current sketches as
    final APIs.
@@ -22,12 +24,13 @@ The following questions remain deliberately unresolved.
 6. **Declaration consistency depth.** Decide how much contextual search to spend finding later
    conflicts, uninhabitable types, vacuity, and redundancy. Unknownness must remain distinct from
    contradiction.
-7. **Source grammar.** Finalize type-invariant and rule declarations beyond the illustrative
+7. **Source grammar.** Finalize Constraint and Proposition declarations beyond the illustrative
    `for all`/`for some`, `it`/`one`, `assuming`, and `(uint <)` terminology.
 8. **Fresh symbolic subjects.** Specify construction and validation so type declarations use an
    arbitrary unrefined subject and cannot prove themselves circularly.
-9. **Comparator-aware substitution.** Define which contextual equalities permit replacement inside
-   each expression and comparator context, especially for floats, signed zero, and raw bits.
+9. **Comparator-aware substitution.** Define which intrinsic comparators permit replacement inside
+   each expression and comparator context, with which explicit conditions, especially for floats,
+   signed zero, and raw bits.
 10. **Search strategy.** Determine useful ordering among direct decisions, whole-goal applications,
     nested applications, and alternative branches without making heuristic failure a disproof.
 11. **Context composition.** Design import and merge behavior, stable ID remapping, and diagnostic
@@ -35,6 +38,18 @@ The following questions remain deliberately unresolved.
 12. **Architecture audit.** Test nested conditionals, quantifier order, negation, symbolic
     invocations, contradictory assumptions, NaN, and directional counterexamples before declaring
     the implementation design complete.
+13. **Recursion and convergence.** Design sound induction support and reconcile pursuit convergence
+    with proof-search resource and cycle handling without assuming that they must be either unified
+    or separate mechanisms.
+14. **Compile-time evaluation.** Specify safe portable execution policy, budgets, caching, and
+    mechanics while keeping symbolic reasoning available for operators that cannot be executed.
+    Define when compilation needs a uniquely determined exact result rather than bounded knowledge.
+15. **Implementation alternatives.** Represent portable, native, foreign, and source implementations
+    and verify their individual and relational compatibility with one authoritative contract.
+16. **Foreign and unsafe provenance.** Define proof provenance and any optional foreign-contract
+    validation without executing unsafe effects or treating validation as a replacement trust model.
+17. **Preconditions and fallible results.** Design diagnostics and proof obligations for invalid
+    domains and the boundary between provably excluded inputs and failures represented as values.
 
 ## Numeric Contracts And Equality
 
@@ -46,8 +61,14 @@ comparison implementations, and conversion operations with independently validat
 
 ### Exact and approximate equality syntax
 
-Reconcile source-level substitutive equality, approximate equivalence, IEEE numerical equality, and
-bit identity without granting unsound substitution to any comparator.
+Reconcile ordinary domain-specific Thyrym equality, approximate equivalence, intrinsic integer and
+floating numerical comparisons, and bit identity. Define explicit applicability conditions for
+sound intrinsic substitution without granting ordinary `=` foundational authority.
+
+### Standard comparison laws
+
+Define concrete standard-library equality and ordering laws at the Thyrym layer, including the
+domains on which they hold, without treating them as intrinsic proof semantics.
 
 ## Observation Analysis
 
@@ -63,12 +84,17 @@ bit identity without granting unsound substitution to any comparator.
    interaction are semantic observations.
 4. **Separate compilation.** Define observation summaries for exported functions, dynamic props,
    public ABIs, and modules whose future callers are unavailable.
-5. **Native evaluation during compilation.** Specify how the compiler executes or approximates
-   foreign operations on its host while preserving target contracts, and when it must abstain from
-   deciding a concrete result.
+5. **Portable evaluation during compilation.** Specify the facilities used to execute or approximate
+   safe portable operations while preserving target contracts, and when compilation must abstain
+   from deciding a concrete result. Native or foreign code must not be run merely to prove its
+   contract.
 6. **Optimization feedback and auditability.** Decide whether observation propagation and
    optimization run to a fixed point and which proof records survive rewriting so transformations
    can be audited.
+7. **Effect-state representation.** Design resource versions, snapshots, invalidation, effect
+   dependencies, and the proof-context validity of before/after relationships.
+8. **External mutation and concurrency.** Define synchronization, external-state stability,
+   concurrent observations, and foreign mutation modeling.
 
 ## Diagnostics
 
@@ -85,6 +111,11 @@ Decide what happens when the logged value was fully optimized away, conversion i
 fails, or conversion itself changes computation requirements. Determine when omission or an
 `optimized out` report is permitted.
 
+### Unsafe execution identity
+
+Specify how the two unsafe modes affect cross-invocation identity and contract provenance without
+executing either mode during compilation or inferring equality from a declared result type alone.
+
 ## Architecture And Integration
 
 ### Placement of shared semantics
@@ -92,6 +123,16 @@ fails, or conversion itself changes computation requirements. Determine when omi
 For the Thyrym/Thyry repository split, decide which logic, numeric, contract, and evaluation
 facilities belong in shared lower-level compiler/interpreter foundations rather than only in the
 Thyrym-facing layer, so every stage uses coherent meanings.
+
+### Public proof knowledge
+
+Settle syntax for Proposition visibility, proof imports, and references to operators in requested
+goals. Decide whether proof imports are special entries, ordinary Propositions, retained evidence,
+or a combination, and how scoped dependencies survive compiled module boundaries.
+
+Decide whether a request `from FILE` may succeed without using evidence from `FILE`; this is an open
+language and architecture choice. Also design conflict diagnostics, dependency versioning, proof
+caching, module import cycles, and incremental checking.
 
 ## Related documents
 

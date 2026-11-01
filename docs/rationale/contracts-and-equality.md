@@ -6,9 +6,10 @@
 
 ### Decision
 
-Pure evaluation may occur on the compilation host, on the target, or by another valid strategy.
-Conformance is defined by the operation's complete contract, not by requiring every implementation
-to produce identical intermediate bits.
+Safe, portable pure evaluation may occur on the compilation host, on the target, or by another
+valid strategy. Symbolic reasoning can use a declared contract even when no implementation may be
+executed during compilation. Conformance is defined by the complete contract, not by requiring
+every implementation to produce identical intermediate bits.
 
 ### Rationale
 
@@ -25,6 +26,10 @@ ordinary behavior.
 Compile-time execution also does not prove exact knowledge. Syntax construction requires proof of
 one exact string; one host-selected floating-point result cannot supply that proof.
 
+Separating reasoning from execution prevents the solver from performing unsafe acts or native FFI
+merely to obtain evidence. Their declarations remain useful as trusted logical contracts without
+pretending that execution is safe or that a result is host-independent.
+
 ### Consequences
 
 - Evaluation stage and machine are not source-language properties.
@@ -37,15 +42,20 @@ one exact string; one host-selected floating-point result cannot supply that pro
 
 ### Decision
 
-Exact semantic equality, approximate equivalence, IEEE numerical equality, and bit identity are
-separate relations. Approximate equivalence must not authorize exact substitution.
+Ordinary domain-specific Thyrym equality, approximate equivalence, intrinsic numerical equality,
+and bit identity are separate relations. Approximate equivalence and ordinary `=` do not by
+themselves authorize intrinsic substitution.
 
 ### Rationale
 
-Exact equality supports substitution and transitive reasoning. Tolerance-based comparisons are
-generally not transitive, so treating them as equality would make proofs unsound. IEEE numerical
-equality has additional behavior—NaN is not reflexive and signed zeros compare equal—that differs
-from both exact abstract equality and representation identity.
+Tolerance-based comparisons are generally not transitive, so treating them as substitutive equality
+would make proofs unsound. Ordinary Thyrym equality can also be intentionally narrower than
+representation identity: two records may denote the same person by identifier while differing in
+other fields. Replacing all of one record with the other would be invalid.
+
+IEEE numerical equality has additional behavior—NaN is not reflexive and signed zeros compare
+equal—that differs from bit identity. Substitution must therefore come only from intrinsic rules
+whose explicit applicability conditions have been established.
 
 Keeping the relations distinct lets each comparator own the correct interpretation of bits and
 prevents rewrites such as replacing `+0.0` with `-0.0` in a bit-sensitive expression.
