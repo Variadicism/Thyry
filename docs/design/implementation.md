@@ -35,6 +35,10 @@ context-independent atomic decisions
 comparison-specific candidate applications with sound directions
 ```
 
+The intrinsic bit/integer operation layer owns exact portable semantics, target-capability checks,
+concrete evaluation, symbolic result and length relationships, and operation-specific projection
+rules. Physical storage and C lowering belong to code generation, not intrinsic meaning.
+
 Logical expressions own or expose:
 
 ```text
@@ -151,13 +155,18 @@ implication rather than hypothetical premise injection.
 Context merging is deferred. Existing `Context.concat` must not silently discard rule history if it
 is later used with Proposition-bearing contexts; imports may require ID remapping.
 
-### Symbolic Invocation Isolation
+### Operation Values And Symbolic Isolation
 
-Ordinary runtime arguments should be recursively concrete. Symbolic applications can contain
-quantified variables and must preserve structure without execution. Options include a separate
-logical invocation or a category-parameterized invocation type. The former `InvariantInvocation`
-name is legacy. Changing only one outer argument wrapper is insufficient if a composite
-`ConcreteThing` can hide symbolic children.
+Materialized runtime values remain recursively concrete, but an operation is itself a first-class
+value and can remain suspended. Symbolic applications can contain quantified variables and must
+preserve structure without execution. Options include a separate logical invocation or a
+category-parameterized invocation type. The former `InvariantInvocation` name is legacy. Changing
+only one outer wrapper is insufficient if a composite value can hide symbolic children.
+
+Intrinsic extraction must be able to inspect a suspended built-in operation, retain its identity and
+operands through relevant higher-order use, apply a justified projection rule, and validate a
+bounded equivalent computation. This path is source semantics rather than an optional optimizer
+heuristic. It does not make every operation projectable or every unmaterializable result valid.
 
 Closed symbolic expressions may eventually reduce through a dedicated safe, portable execution
 path when the compile-time evaluation policy permits it. This is a proof optimization or base case,
@@ -204,8 +213,9 @@ The order may change as representation experiments expose dependencies.
 13. Integrate symbolic operator return contracts without circular self-proof.
 14. Add parser/build support for Constraints, Propositions, quantifiers, `assuming`, and intrinsic
     comparator syntax.
-15. Add standard-library comparison props, conversion contracts, and carefully staged float and
-    fixed-width arithmetic support.
+15. Add exact arbitrary-width `sint`/`uint` arithmetic, intrinsic bit operations, target logical
+    width capability, and proof-guided result sizing. Build floating-point behavior in the standard
+    library rather than the intrinsic kernel.
 16. Validate portable contracts for pure source implementations and record foreign declarations as
     explicit trust boundaries, including relational compatibility across implementations.
 17. Prototype an observation IR with ordinary performed acts and public interfaces as roots, then
@@ -222,6 +232,10 @@ The order may change as representation experiments expose dependencies.
     observations into proof-context validity.
 23. Add safe portable compile-time execution separately from symbolic proof. Never execute unsafe
     acts or native FFI merely to prove contracts.
+24. Preserve suspended operation identity through higher-order paths and implement proof-validated
+    bounded extraction for supported arithmetic projections.
+25. Lower arbitrary positive widths, shifts, exact arithmetic, and projections portably to C while
+    avoiding signed overflow and excessive-shift undefined behavior.
 
 ## Related documents
 

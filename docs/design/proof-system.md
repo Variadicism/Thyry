@@ -81,9 +81,9 @@ data Invocation op = Invocation {
 ```
 
 `Beng.Invocations.getArgs` can recover named arguments from an invocation's `match`. Direct reuse
-is not decided: runtime invocations should be recursively concrete, while symbolic logical
-invocations may contain quantified variables and must not execute merely because they are present
-in a formula.
+is not decided. Materialized runtime data must be recursively concrete, but an operation may remain
+a first-class suspended value. Symbolic logical invocations may contain quantified variables and
+must not execute merely because they are present in a formula.
 
 ### Core Model
 
@@ -177,21 +177,23 @@ Justification for the eliminated child is retained for diagnostics without creat
 
 #### Logical Conveniences
 
-General negation removes the need for several primitive comparison families:
+Negation and operand reversal remove the need for several primitive comparison families. For the
+total intrinsic `uint` and `sint` orderings:
 
 ```text
 a > b  := b < a
-a != b := not (a = b)
-a <= b := a < b or a = b
-a >= b := b < a or a = b
+a <= b := not (b < a)
+a >= b := not (a < b)
 ```
 
-These are source conveniences or lowerings, not separate primitive comparators. The equality and
-ordering interpretation in each expansion must be the selected intrinsic logical interpretation,
-not an ordinary user-defined Thyrym operator with the same glyph.
+For equal-width bit sequences, bit inequality is `not (a (bits =) b)`. Cross-width numeric equality
+can use both ordering directions as described below. These are source conveniences or lowerings, not
+separate primitive comparators. Each expansion must retain its selected intrinsic interpretation,
+not use an ordinary user-defined Thyrym operator merely because it has the same glyph.
 
-Do not universally lower `not (a < b)` to `a >= b`. They differ for IEEE NaN. Under IEEE
-semantics, both `a < b` and `a >= b` can be false.
+Do not universally lower `not (a < b)` to `a >= b` without establishing the ordering laws in use.
+A standard-library IEEE relation with NaN is one example where the two can differ; that does not
+make IEEE comparison intrinsic.
 
 #### Structural Views
 
@@ -203,61 +205,215 @@ The exact view types depend on the general/solver-ready category design and are 
 design must prevent a structural view from bypassing the recursive no-`It` guarantee at solver
 entry.
 
-#### Intrinsic Logical Comparators
+#### Intrinsic Bit And Integer Foundation
 
-Comparators own the semantic interpretation of bits. Native comparator families initially include:
+Thyry intrinsically understands a small foundation of pure, exact operations on bit sequences and
+their signed or unsigned integer interpretations. A built-in has portable mathematical or bit-level
+semantics independent of target hardware and C behavior. The solver can decide concrete intrinsic
+applications and reason symbolically about unknown operands. The standard library builds richer
+mathematics, including floating-point formats, above this foundation.
+
+Built-in names use `bits` for uninterpreted sequences, `uint` for unsigned interpretation, and
+`sint` for signed two's-complement interpretation. User-facing libraries may use different terms;
+in particular, `integer` retains its mathematical meaning rather than naming the signed built-ins.
+
+The interpreter and C backend must agree on these semantics. LLVM may inspire implementation
+choices, but its semantics are not a language dependency. Intrinsics also need not be the idiomatic
+user-facing operators: ordinary libraries can provide overloaded and English-like forms.
+
+##### Bit Sequence Domain And Target Capability
+
+An intrinsic bit sequence has an arbitrary positive logical length. Zero-bit sequences are excluded;
+a library can model empty collections separately. Lengths may be known only at runtime, so dynamic
+concatenation and extraction are valid when their proof obligations can be discharged.
+
+Bit order is conceptually left to right, with the most significant integer bit on the left. This
+does not prescribe byte order, memory layout, or physical storage. The compiler may use packed bits,
+registers, arrays, sharing, multiple allocations, or another representation while preserving the
+logical length and observable contract. Individual `yes` and `no` literals plus concatenation are
+sufficient construction primitives; repetition needs no intrinsic.
+
+Each target defines `MaximumSupportedBitSequenceLength`, written `M`: the greatest logical width of
+a bit-sequence value that can be materialized for that target. `M` is a compiler and representation
+capability, not the amount of installed or currently free memory, and a logical sequence may span
+multiple allocations. Runtime allocation failure remains a separate resource concern.
+
+Pointer or byte-count width does not directly determine the width needed to count bits. On an
+8-bit-byte target, a hypothetical 32-bit byte count can require a 35-bit bit count; a 64-bit byte
+count can require 67 bits. When complete target information is unavailable, a documented
+conservative profile such as a 64-bit bit-count capability is acceptable, but is not a universal
+language limit.
+
+The bit-length result must be wide enough to represent every possible length in its domain. For
+known finite `M`, the minimum general width is:
 
 ```text
-Bit-pattern equality, parameterized by width
-Unsigned integer less-than, parameterized by width
-Signed integer less-than, parameterized by width
-IEEE float32 equality and less-than
-IEEE float64 equality and less-than
+max(1, ceil(log2(M + 1)))
 ```
 
-Separate unsigned and signed integer equality is unnecessary for equal-width bit patterns.
-Primitive greater-than, not-equals, less-than-or-equal, and greater-than-or-equal comparators are
-also unnecessary because the logical forms above express them.
+Constraints may establish tighter bounds for particular values. Compilation always uses the target
+capability even when proof evaluation runs on another host. Integer interpretations inherit the
+same maximum bit-sequence width: an `M`-bit `uint` ranges from `0` through `2^M - 1`, and an `M`-bit
+`sint` ranges from `-2^(M-1)` through `2^(M-1) - 1`.
 
-Illustrative source syntax treats interpretation and relation as one parenthesized comparator:
+##### Core Bit Operations
+
+The following operations are intrinsic. Spellings communicate the selected design but do not stand
+in for complete declarations or type signatures.
+
+| Operation | Spelling | Semantics and restrictions |
+|---|---|---|
+| Bit equality | `(bits =)` | Exact comparison of equally sized sequences. |
+| Bitwise AND | `(bits &)` | Pointwise AND of equal-length operands. |
+| Bitwise OR | `(bits \|)` | Pointwise OR of equal-length operands. |
+| Bitwise XOR | `(bits ^)` | Pointwise XOR of equal-length operands. |
+| Bitwise NOT | `(bits ~)` | Pointwise inversion. |
+| Concatenation | `(bits ++)` | Left operand followed by right; lengths add. |
+| Left prefix | `(bits *:)` | Take a positive count from the left. |
+| Right suffix | `(bits :*)` | Take a positive count from the right. |
+| Left shift | `(bits <<)` | Fixed-width, zero-filling; discard shifted-out bits. |
+| Logical right shift | `(uint >>)` | Fixed-width, zero-filling right shift. |
+| Arithmetic right shift | `(sint >>)` | Two's-complement sign-filling right shift. |
+| Bit length | `(bits length)` | Return length as a wide-enough `uint`; spelling provisional. |
+
+Extraction takes a count rather than an inclusive index and requires:
 
 ```text
-a (uint <) b
-a (int <) b
-a (float32 <) b
-a (float64 <) b
-a (bits =) b
+1 <= count and count <= length(source)
 ```
 
-The parenthesized unit may consist of multiple lexer tokens. It is a logical comparator object,
-not a cast applied only to the left operand. It interprets both operands and validates their widths.
+Single-bit and arbitrary positive-length results are supported. Prefix and suffix extraction compose
+to express interior slicing. The `++`, `*:`, and `:*` spellings were chosen for readability; `#` was
+rejected because of its association with comments.
 
-Integer comparisons initially require equal-width operands. Comparators reject mixed widths rather
-than extending silently. Future widening uses explicit conversion operations, whose established
-properties explain zero extension, sign extension, or another conversion behavior.
+Shift amounts must be nonnegative and strictly smaller than the source width. Shifting by the width
+or more is not a valid intrinsic application. The source width is preserved, and portable lowering
+must not inherit C's excessive-shift or signed-shift behavior.
 
-IEEE numerical equality is not bit-pattern equality:
+Uninterpreted binary bit operations require equal lengths and do not infer zero or sign padding.
+Rotation, byte swapping, population count, zero or sign extension, repetition, and arbitrary
+interior slicing need no separate intrinsic; libraries can define them from these foundations, and
+the optimizer may recognize the resulting patterns.
+
+Intrinsic proof and normalization knowledge includes relationships such as
+`length(A ++ B) = length(A) + length(B)`, extraction lengths and reconstruction, and the effects of
+shifts and bitwise operations. These are facts about the listed operations, not requests for more
+built-ins.
+
+##### Exact Integer Arithmetic
+
+Intrinsic `uint` and `sint` arithmetic denotes exact mathematical results rather than fixed-width
+wrapping. Results use enough bits to represent the answer, except when established Constraints prove
+that a smaller admissible width suffices. Explicit low-bit extraction requests modular behavior.
+The intrinsic arithmetic families include addition, subtraction, multiplication, division, and
+remainder under their `uint` or `sint` interpretations.
+
+Arithmetic supports different operand widths when interpretation is unambiguous, conceptually
+zero-extending `uint` values and sign-extending `sint` values. Signed and unsigned families remain
+distinct because interpretation, signedness, and proof-guided return widths differ. Widths may be
+arbitrary positive lengths within target capability; there is no intrinsic 8-, 16-, 32-, or 64-bit
+limit.
+
+Proof-guided result sizing must not shrink a declared result below a meaningful input width merely
+because current Constraints imply a small range. Logical width can carry representation intent,
+although observation analysis may choose physically narrower storage. Arithmetic never silently
+truncates, wraps, or inherits C signed-overflow behavior; a backend may use unsigned instructions or
+multiple machine words.
+
+Unsigned subtraction retains an unsigned result when proof establishes that the subtrahend is no
+greater than the minuend. Otherwise the exact result may be negative and needs a signed result type.
+Unary arithmetic negation needs no intrinsic because subtraction from zero expresses it.
+
+##### Division, Remainder, And Ordering
+
+Division requires proof that the divisor is nonzero. Signed division truncates toward zero, with the
+corresponding remainder convention. The minimum signed value divided by `-1` yields its exact
+positive negation and widens when needed rather than inheriting C overflow. All demanded result
+widths remain subject to target materialization capability. Established Constraints, control-flow
+refinements, contextual Propositions, or an explicit non-disproven assumption may discharge a
+precondition; `Unproven` alone never does.
+
+`(uint <)` and `(sint <)` are distinct intrinsic ordering comparisons. They accept differing operand
+widths and compare numeric interpretations after conceptual zero or sign extension. Other ordering
+forms are derivable from logical connectives.
+
+One equal-width `(bits =)` intrinsic is sufficient. Separate `sint` and `uint` equality intrinsics
+would add no information for equal-width representations. A library can define cross-width numeric
+equality from two ordering comparisons, but such equality does not authorize substitution in a
+representation-sensitive operation such as bit length.
+
+Other comparisons, minimum and maximum, and absolute value are derivable and need no additional
+intrinsics. Solver normalization or established Propositions may expose their relationships.
+
+Intrinsic comparators provide context-independent concrete decisions and candidate applications
+relating established comparisons to goals. Exact signatures for decision and application remain
+open; applications must expose obligations, bindings, justification, and implication direction.
+
+##### Operations As Values And Bounded Extraction
+
+Thyrym operations are first-class values, and a nullary operation can be treated implicitly as its
+result. Intrinsic extraction may inspect an unevaluated operation returning bits rather than first
+materializing that operation's entire result.
+
+This distinction permits a valid composition whose abstract intermediate result exceeds `M` when
+the final demanded extraction is representable. For a hypothetical target with `M = 8`:
 
 ```text
--0.0 (float64 =) 0.0
-not (NaN (float64 =) NaN)
+(A (uint +) B) (bits :*) 8
 ```
 
-Raw equality remains available as `(bits =)`. Float less-than is false when an operand is NaN.
-Float rules must not assume reflexivity of IEEE numerical equality.
+If `A = 255` and `B = 1`, the exact sum needs nine bits, but its low eight bits are `00000000`.
+The extractor can recognize intrinsic unsigned addition and establish a projection law such as:
 
-An intrinsic logical comparator supplies at least two kinds of knowledge:
+```text
+rightBits(N, uintAdd(A, B)) = (A + B) mod 2^N
+```
 
-- context-independent direct decisions about atomic comparisons when possible; and
-- comparison-specific candidate applications that relate a known comparison to a goal.
+Multiplication admits a similar law:
 
-The older `decideComparison` and `applyComparison` names remain useful, but their exact signatures
-are not settled. `decideComparison` must not consult contextual rules. `applyComparison` must expose
-the application's obligations, bindings, justification, and implication direction rather than
-returning untagged replacement goals.
+```text
+rightBits(N, uintMul(A, B))
+    = ((A mod 2^N) * (B mod 2^N)) mod 2^N
+```
 
-Comparator implementations may use private helpers to compare concrete `NativeBitsValue`s. Native
-decision support can grow incrementally and need not claim completeness.
+The compiler can then construct and validate a bounded equivalent computation without materializing
+the oversized result. Source validity depends on this proof-backed intrinsic behavior, not on an
+opaque optimizer noticing a pattern. A backend may use native wrapping unsigned operations or
+multiword computation when either satisfies the contract.
+
+Representability of the suspended operation is distinct from materializability of its result. `M`
+applies when a bit-sequence value must be materialized, not automatically to every abstract
+intermediate described by an operation value. The compiler must preserve intrinsic identity,
+operands, bindings, and proof knowledge through relevant higher-order use.
+
+Because intrinsic extraction can recognize other intrinsic operations directly, this design does
+not require new user-visible metadata on every built-in.
+
+Projection is operation-specific. Truncating operands before division generally does not preserve
+the quotient's low bits, so the compiler must use another justified computation or reject the
+demand. User-defined operators advertising proven projection laws are a possible future extension,
+not a requirement of the intrinsic foundation.
+
+##### Floating Point Is A Standard-Library Concern
+
+Floating-point arithmetic and comparison are not intrinsic operations. IEEE formats and behavior
+can be defined in the standard library from exact bit and integer primitives, initially for
+binary32 and binary64 if practical. Width does not identify format: binary16 and bfloat16 are both
+16 bits but have different layouts.
+
+The compiler may select native CPU or GPU instructions, software, or another implementation when it
+satisfies the declared contract. A portable bit/integer definition supplies a host-independent
+mathematical baseline. Berkeley SoftFloat is a possible backend or test reference, not formal proof;
+its rounding mode, exception state, and 64-bit-integer requirements need deliberate integration with
+Thyry's pure model.
+
+Exact IEEE behavior, approximate variants, fast math, restricted exceptional-value support, and
+other choices need distinct contracts. An approximate result cannot replace a promised bit-exact
+result. Rounding modes, NaNs, infinities, signed zero, subnormals, and exception reporting remain
+standard-library design topics rather than reasons to enlarge the intrinsic kernel.
+
+Foreign interoperability, external resources, and I/O acts remain existing language mechanisms,
+not missing mathematical intrinsics.
 
 #### Logical Expressions, Variables, And Symbolic Invocations
 
@@ -276,10 +432,11 @@ This is a conceptual shape. Implementations also need identities that distinguis
 freshened variables independently of display names.
 
 Symbolic applications such as `sin(x)` are propositions about operation results. They must preserve
-operator identity, bindings, argument structure, and result type, but must not run until they are
-closed and execution is explicitly requested by an appropriate path. Runtime `Invocation` may be
-reused, parameterized, or separated into a symbolic representation; preserving this boundary is
-the requirement.
+operator identity, bindings, argument structure, and result type without running merely because
+they occur in a formula. An intrinsic consumer such as bounded extraction may inspect a suspended
+operation and prove an equivalent bounded computation without evaluating the original full result.
+Runtime `Invocation` may be reused, parameterized, or separated into a symbolic representation;
+preserving operation identity and the materialization boundary is the requirement.
 
 At the source level, a pure operation may explicitly promise a relationship between invocations
 whose inputs satisfy a stated relation. When that extensional relationship is in its validated
@@ -410,15 +567,15 @@ Built-in contextual assertions can still provide mathematical or domain knowledg
 ```text
 bit equality symmetry and transitivity
 integer less-than transitivity
-safe algebraic laws under the correct overflow premises
+exact arithmetic laws under the correct domain and materialization premises
 properties of explicit conversion operations
 domain bounds for standard-library or foreign operations
 ```
 
 These assertions use the same contextual application machinery as user-authored established rules
-and assumptions. They must respect machine arithmetic and comparator semantics. In particular,
-unconditional float equality reflexivity is invalid under IEEE numeric equality because NaN is not
-equal to itself.
+and assumptions. They must respect intrinsic semantics and the contracts of higher-level
+operations. In particular, unconditional float equality reflexivity is invalid for a
+standard-library IEEE numerical equality because NaN is not equal to itself.
 
 Ordinary Thyrym equality and other user-defined comparisons remain above this intrinsic foundation.
 Their contracts and established Propositions can provide derived knowledge, but cannot redefine
@@ -480,7 +637,7 @@ One solver orchestrates three cooperating mechanisms.
 
 #### Decide
 
-Decision is compiler-defined, direct, and context-independent. Native comparators decide atomic
+Decision is compiler-defined, direct, and context-independent. Intrinsic comparators decide atomic
 comparisons when their operands provide enough information. Compiler-owned logical patterns can
 also decide propositions such as `P and not P`, where `P` may be an arbitrary nested proposition.
 An unknown child must not prematurely block whole-formula reasoning such as normalizing or deciding
@@ -524,7 +681,8 @@ These are not exposed as source-level proposition variables, so user rules canno
 Normalization must not search `Context` or require unproven prerequisites. Domain-specific
 equalities and mathematical laws belong to contextual application. Normalizers must be sound in
 the selected theory, deterministic, idempotent at a fixed point, and oriented to avoid oscillation.
-Fixed-width overflow and IEEE behavior prevent blindly applying real-number algebra.
+Operation domains, representation-sensitive bit behavior, and higher-level contracts prevent
+blindly applying real-number algebra.
 
 #### Apply
 
@@ -535,9 +693,9 @@ rules with explicit applicability conditions. Contextual Propositions may establ
 conditions or provide derived knowledge, but an ordinary Thyrym equality does not define a new
 substitution rule.
 
-This matters for relations such as float numerical equality and bit identity. Replacing `+0.0`
-with `-0.0` in an arbitrary bit-sensitive expression is unsound even though they are numerically
-equal under IEEE equality.
+This matters for relations such as standard-library float numerical equality and intrinsic bit
+identity. Replacing `+0.0` with `-0.0` in an arbitrary bit-sensitive expression is unsound even
+though they are numerically equal under IEEE equality.
 
 ### Local Simplification Fixed Point
 
@@ -682,6 +840,13 @@ Avoid displaying trivial intermediates unless needed to explain a result. Source
 still be able to identify terminal whole formulas and vacuous, contradictory, or redundant nested
 components.
 
+Expensive proof results may be memoized within one compilation when the cache key preserves every
+relevant dependency. A future module or intermediate artifact may carry validated proofs and their
+dependency information for cross-module and incremental reuse. Reuse is sound only while the
+definitions, Propositions, assumptions, imports, visibility, target capabilities, and other context
+on which a result depends remain compatible. The exact artifact and invalidation design is
+unresolved.
+
 ### Proof Examples
 
 #### Comparison Application
@@ -694,10 +859,10 @@ goal:  x (uint <) 8
 ```
 
 The unsigned comparator can propose an application because the lesser expressions match. One
-possible replacement expresses that the known upper bound is no greater than the requested bound:
+possible replacement expresses that the requested bound is not less than the known upper bound:
 
 ```text
-R: 7 (uint <) 8 or 7 (bits =) 8
+R: not (8 (uint <) 7)
 direction: ReplacementImpliesGoal
 ```
 

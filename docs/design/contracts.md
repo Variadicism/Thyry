@@ -19,7 +19,7 @@ unsigned integer interpretation is less than `7`.
 Constraints may also mention ordinary Thyrym operators:
 
 ```text
-sin(it) (float64 <) 7
+sin(it) < 7
 ```
 
 Such an assertion may be provable when the context contains established laws that provide a
@@ -72,8 +72,8 @@ designed. General unsafe effects cannot automatically receive diagnostic treatme
 - Every ordinary logical form needed by proof reasoning should also be expressible in source.
   Compiler-internal whole-formula metavariables are the exception.
 - Ranges and intervals are ordinary combinations of logical comparisons and logical forms.
-- Initial type satisfaction requires equal bit sizes. Future implicit source conversions must
-  appear as explicit conversion `Op`s in the constructed expression.
+- Direct `NativeBitsType` satisfaction requires equal logical bit sizes. This does not require
+  intrinsic `sint`/`uint` arithmetic or ordering to use equal-width operands.
 - There is no separate logical-function category. Ordinary Thyrym operators are used in logical
   expressions.
 - Contextual knowledge lives in `Context`, alongside the available `Op`s.
@@ -103,11 +103,10 @@ designed. General unsafe effects cannot automatically receive diagnostic treatme
 
 ### Built-In, Source, And Foreign Implementations
 
-Native comparisons, fixed-width arithmetic, division, transcendental functions, and other
-operations need explicit contracts. The proof engine may directly decide concrete expressions when
-their selected semantics permit it, such as unsigned comparison of two concrete integers. It may
-also reason symbolically through normalization and established contextual rules. This does not
-permit arbitrary symbolic applications to be replaced by native execution.
+Intrinsic bit and integer operations and standard-library mathematical operators need explicit
+contracts. The proof engine may directly decide concrete intrinsic expressions, such as unsigned
+comparison of concrete integers, and reason symbolically through normalization and contextual
+rules. This does not permit arbitrary symbolic applications to be replaced by native execution.
 
 Standard-library operations may use foreign functions and native representations. In discussions
 of these declarations, `uint*` denotes the family of unsigned integer types such as `uint8_t` and
@@ -122,9 +121,10 @@ author asserts that its implementation satisfies the contract; the compiler does
 prove foreign machine code correct. Reviewed shared foreign libraries should be preferred because
 an incorrect declaration makes the program's proof foundation unsound.
 
-Contracts for integers and floats must explicitly address widths, overflow, signed arithmetic,
-division edge cases, NaN, infinities, signed zero, rounding modes, and permitted fast-math behavior.
-The design must not silently inherit undefined or implementation-defined C behavior.
+Intrinsic integer contracts define exact mathematical results, proof-guided widths, signed
+arithmetic, and division edge cases without inheriting C overflow or shift behavior. Floating-point
+formats and arithmetic are standard-library concerns whose contracts must address NaN, infinities,
+signed zero, subnormals, rounding, exceptions, and any permitted fast-math behavior.
 
 ### Symbolic Reasoning Versus Compile-Time Execution
 
@@ -186,11 +186,12 @@ substitution must not proceed as though the host result supplied a proof.
 
 ### Equality Relations
 
-The intrinsic proof foundation distinguishes representation equality, integer-value equality,
-floating-point numerical equality, and approximate equivalence with explicit error bounds. The
-spelling `~=` is established in the related Thyrym design, but its exact tolerance semantics remain
-open here. Approximate equivalence is generally not transitive and must never silently authorize
-exact substitution.
+The intrinsic proof foundation includes exact bit equality and distinct signed and unsigned
+ordering. Cross-width numeric equality, floating-point numerical equality, and approximate
+equivalence are higher-level relations built from contracts and intrinsic foundations. The spelling
+`~=` is established in the related Thyrym design, but its exact tolerance semantics remain open
+here. Approximate equivalence is generally not transitive and must never silently authorize exact
+substitution.
 
 Ordinary Thyrym `=` is a higher-level, potentially domain-specific operator. It may deliberately
 ignore fields that are irrelevant to a domain's identity. Its truth can supply derived knowledge
@@ -198,10 +199,10 @@ through a validated contract or Proposition, but it does not merely by being tru
 foundational substitution authority.
 
 Only intrinsic logical comparators and rules may define foundational substitution behavior. Any
-substitution needs explicit applicability conditions that the solver establishes first. IEEE
-numerical equality, for example, treats signed zeros differently from bit equality and is not
-reflexive for NaN. The exhaustive intrinsic substitution rules and exceptional-value behavior are
-not settled here.
+substitution needs explicit applicability conditions that the solver establishes first. A
+standard-library IEEE equality can treat signed zeros differently from bit equality and is not
+reflexive for NaN; its contract does not make floating-point comparison intrinsic. Exhaustive
+substitution rules and higher-level exceptional-value behavior are not settled here.
 
 ## Contract And Optimization Guardrails
 
@@ -408,9 +409,10 @@ or
 (it (bits =) no and not (A (uint <) B))
 ```
 
-Signed and IEEE float props use the corresponding comparator. For floats, `<` returns `no` when an
-operand is NaN. Ordinary operator resolution selects the semantic declaration; width alone does
-not determine unsigned, signed, or floating interpretation.
+Signed props use the corresponding `sint` comparator. Floating-point comparison is defined in the
+standard library from exact bit and integer foundations, with its behavior supplied by validated
+contracts rather than an intrinsic floating comparator. Width alone does not identify a float
+format: binary16 and bfloat16, for example, are both 16 bits with different layouts.
 
 A return contract does not implement an operation. The runtime `Op` still requires a valid
 implementation. The proof system reasons about established implementation properties without

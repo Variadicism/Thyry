@@ -26,6 +26,8 @@ backward and may need a graph rather than one independent type per value.
 - Ordinary output must preserve promised relationships even without an explicit equality check.
 - Public and FFI boundaries remain observation roots for unknown callers.
 - Props used only for proof may be absent from generated code, but remain part of static checking.
+- Logical bit width and target materializability remain semantic even when code generation uses
+  packed bits, registers, shared storage, or another physical representation.
 - The terms and representation remain unresolved.
 
 ## Unsafe Diagnostics

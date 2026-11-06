@@ -25,7 +25,7 @@ unsafe effects are not automatically non-semantic.
 - [Contracts and type validation](design/contracts.md) covers portable operation contracts,
   symbolic reasoning versus execution, equality, preconditions, satisfaction, and validation.
 - [Proof system](design/proof-system.md) covers logical formulas, contextual propositions, solver
-  behavior, scoped proof knowledge, proof artifacts, and worked examples.
+  behavior, intrinsic bit/integer operations, scoped proof knowledge, and proof artifacts.
 - [Observability, acts, and diagnostics](design/observability.md) covers compiler-derived
   observation requirements, versioned effect knowledge, ordinary acts, and proposed diagnostics.
 - [Implementation plan](design/implementation.md) assigns responsibilities, records integration
@@ -56,6 +56,8 @@ unsafe effects are not automatically non-semantic.
   `LogicalComparator`, and `LogicalExpression` proof machinery.
 - A **contract** describes allowed results and relationships. Pure implementations prove their
   contracts; foreign declarations are trusted boundaries.
+- Intrinsic operation names use **`bits`** for uninterpreted sequences, **`uint`** for unsigned
+  interpretation, and **`sint`** for signed two's-complement interpretation.
 - **Observable type** is provisional terminology for compiler-derived preservation requirements.
   **Observation contract** may be a more accurate name because requirements can be relational and
   path-sensitive. The representation and final name remain unresolved.

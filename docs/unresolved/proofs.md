@@ -29,15 +29,15 @@ The following questions remain deliberately unresolved.
 8. **Fresh symbolic subjects.** Specify construction and validation so type declarations use an
    arbitrary unrefined subject and cannot prove themselves circularly.
 9. **Comparator-aware substitution.** Define which intrinsic comparators permit replacement inside
-   each expression and comparator context, with which explicit conditions, especially for floats,
-   signed zero, and raw bits.
+   each expression and comparator context, with which explicit conditions, especially across
+   numeric interpretations and representation-sensitive bit operations.
 10. **Search strategy.** Determine useful ordering among direct decisions, whole-goal applications,
     nested applications, and alternative branches without making heuristic failure a disproof.
 11. **Context composition.** Design import and merge behavior, stable ID remapping, and diagnostic
     order for append-only rule histories.
 12. **Architecture audit.** Test nested conditionals, quantifier order, negation, symbolic
-    invocations, contradictory assumptions, NaN, and directional counterexamples before declaring
-    the implementation design complete.
+    invocations, contradictory assumptions, mixed-width operations, and directional counterexamples
+    before declaring the implementation design complete.
 13. **Recursion and convergence.** Design sound induction support and reconcile pursuit convergence
     with proof-search resource and cycle handling without assuming that they must be either unified
     or separate mechanisms.
@@ -53,22 +53,44 @@ The following questions remain deliberately unresolved.
 
 ## Numeric Contracts And Equality
 
-### Runtime and standard-library contracts
+### Formal intrinsic signatures
 
-Define exact integer widths, overflow, signed arithmetic, division edge cases, floating-point NaN,
-infinity, signed-zero behavior, rounding modes, fast-math permissions, trigonometric accuracy,
-comparison implementations, and conversion operations with independently validated contracts.
+Specify proof-guided result widths, signedness, operand Constraints, and type-level conditions for
+each numeric intrinsic, including mixed-width division and remainder, unsigned subtraction that may
+need a signed result, and exact results near target limits.
 
-### Exact and approximate equality syntax
+### Target capability and dynamic lengths
 
-Reconcile ordinary domain-specific Thyrym equality, approximate equivalence, intrinsic integer and
-floating numerical comparisons, and bit identity. Define explicit applicability conditions for
-sound intrinsic substitution without granting ordinary `=` foundational authority.
+Formalize `MaximumSupportedBitSequenceLength`, its default target profile, the result type of
+`(bits length)`, runtime-dependent length Constraints, upper-bound inference, and logical sequences
+that span allocations or use sharing. Distinguish a well-typed suspended operation from a demanded
+result whose full width would exceed the target capability.
 
-### Standard comparison laws
+### Equality and standard-library mathematics
 
-Define concrete standard-library equality and ordering laws at the Thyrym layer, including the
-domains on which they hold, without treating them as intrinsic proof semantics.
+Define generic numerical equality across widths, approximate equivalence, modular conveniences, and
+standard-library equality/ordering laws without adding signed, unsigned, or floating equality to the
+intrinsic kernel. Floating-point formats, rounding, exceptional values, and contracts are separate
+standard-library design work. Empty collection representations and additional mathematical
+operations are likewise deferred to their libraries.
+
+### Syntax details
+
+Confirm formal declarations and parsing for concatenation, count-based extraction, shifts, bit
+length, arithmetic families, and single-bit literals. `(bits length)` remains provisional; `++`,
+`*:`, and `:*` are selected communication spellings pending complete syntax work.
+
+### C backend
+
+Define portable lowering for arbitrary positive widths, exact signed and unsigned results, shifts,
+multiword values, and projection-based modular calculations while preserving interpreter/C parity
+and avoiding C undefined behavior.
+
+### Operation projections
+
+Specify trustworthy compositional rules for bounded extraction after supported arithmetic. Define
+typing and validation when no rule applies, and consider later whether user-defined operators may
+advertise proven projection laws.
 
 ## Observation Analysis
 
@@ -133,6 +155,18 @@ or a combination, and how scoped dependencies survive compiled module boundaries
 Decide whether a request `from FILE` may succeed without using evidence from `FILE`; this is an open
 language and architecture choice. Also design conflict diagnostics, dependency versioning, proof
 caching, module import cycles, and incremental checking.
+
+### Suspended operation representation
+
+Specify how an unevaluated operation preserves intrinsic identity, operands, bindings, wrappers, and
+proof knowledge through higher-order use. Define when a consumer may inspect it and how return
+materializability differs from representability of the operation value itself.
+
+### Proof cache artifacts
+
+Design dependency-aware proof memoization within one compilation and future module or intermediate
+artifacts for cross-module and incremental reuse. Validity must account for definitions,
+Propositions, assumptions, imports, visibility, and relevant context.
 
 ## Related documents
 
