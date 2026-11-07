@@ -30,7 +30,7 @@ An intrinsic `LogicalComparator` owns the following responsibilities. Existing
 
 ```text
 semantic interpretation of concrete bits
-operand type and width validation
+operand type and logical-length validation
 context-independent atomic decisions
 comparison-specific candidate applications with sound directions
 ```
@@ -58,7 +58,7 @@ append-only rule history, obviation status, and provenance
 `NativeBitsType` owns:
 
 ```text
-its exact bit width
+its exact logical bit length
 its subject-accepting Constraint template
 ```
 
@@ -66,10 +66,15 @@ Static contract validation owns:
 
 ```text
 checking source implementations against declared result contracts
+recognizing deterministic extensional purity as implicit in every pure operation
 recording trusted foreign declarations as explicit trust boundaries
 keeping all constraints and props in the authoritative static type
 distinguishing exact proof from a host-selected concrete result
 ```
+
+Operation identity analysis must distinguish declarations, resolved dispatch, bindings, captures,
+and effective inputs. It supplies the evidence needed to apply intrinsic pure extensionality without
+equating unrelated operations that happen to share syntax or result types.
 
 Observation analysis owns:
 
@@ -83,11 +88,18 @@ tracking which executable prop implementations remain reachable
 Implementation selection and code generation own:
 
 ```text
-choosing host, target, foreign, or source implementations within validated contracts
+choosing implementations that reproduce one exact pure mapping
+respecting explicit target specialization for platform-specific pure operations
 preserving every derived observation requirement together
 removing unobservable materializations and unreachable runtime prop code
 retaining proof or audit evidence required for transformation verification
 ```
+
+A portable source definition, compile-time evaluator, interpreter, native backend, and foreign
+implementation of one operation must agree on exact logical results. Incomplete return Constraints
+do not license differing answers. Compile-time execution of a platform-specific operation requires
+target-correct semantics, whether supplied by a compatible evaluator or emulation; otherwise it
+must abstain.
 
 The future act/diagnostic classification owns the boundary between semantic effects and
 non-semantic instrumentation. Until that boundary is specified, observation analysis must not infer
@@ -121,7 +133,7 @@ NativeBitsType 1
 Construction helpers may reduce migration cost. Display and structural equality need the same
 placeholder-instantiation technique already used by `NativeType.properties`.
 
-`NativeBitsType.satisfies` must replace its narrower-than-or-equal width check with exact equality.
+`NativeBitsType.satisfies` must replace its shorter-than-or-equal length check with exact equality.
 Any conversion is an explicit invocation with independently established properties.
 
 ### Thing And Category Integration
@@ -169,9 +181,10 @@ bounded equivalent computation. This path is source semantics rather than an opt
 heuristic. It does not make every operation projectable or every unmaterializable result valid.
 
 Closed symbolic expressions may eventually reduce through a dedicated safe, portable execution
-path when the compile-time evaluation policy permits it. This is a proof optimization or base case,
-not a general formula evaluator, and it must never execute unsafe acts or native FFI merely to prove
-a contract.
+path when the compile-time evaluation policy permits it. The evaluator must reproduce the exact
+selected semantics, including target specialization where applicable. This is a proof optimization
+or base case, not a general formula evaluator, and it must never execute unsafe acts or native FFI
+merely to prove a contract.
 
 ### Solver Safety And Diagnostics
 
@@ -189,7 +202,9 @@ meaning.
 
 ## Likely Implementation Phases
 
-The order may change as representation experiments expose dependencies.
+The order may change as representation experiments expose dependencies. Later items concerning
+acts, diagnostics, imports, resources, and concurrency are deferred integration work rather than
+blockers for the pure proof engine.
 
 1. Add general logical formula forms and intrinsic comparator definitions without type-checker
    integration.
@@ -206,7 +221,7 @@ The order may change as representation experiments expose dependencies.
    loop/resource handling for a deliberately limited logical subset.
 10. Expand application semantics through tests for conjunction, disjunction, negation, implication,
     and quantified forms; do not claim completeness before the architecture audit.
-11. Add exact-width `NativeBitsValue` and `NativeBitsType` satisfaction using instantiated,
+11. Add exact-length `NativeBitsValue` and `NativeBitsType` satisfaction using instantiated,
     solver-ready Constraint templates.
 12. Add standalone type-declaration validation and nested vacuity, redundancy, and uninhabitability
     diagnostics.
@@ -214,24 +229,29 @@ The order may change as representation experiments expose dependencies.
 14. Add parser/build support for Constraints, Propositions, quantifiers, `assuming`, and intrinsic
     comparator syntax.
 15. Add exact arbitrary-width `sint`/`uint` arithmetic, intrinsic bit operations, target logical
-    width capability, and proof-guided result sizing. Build floating-point behavior in the standard
-    library rather than the intrinsic kernel.
+    length capability, and proof-selected static result lengths and signedness. Keep runtime
+    physical representation independent, and build floating-point behavior in the standard library
+    rather than the intrinsic kernel.
 16. Validate portable contracts for pure source implementations and record foreign declarations as
-    explicit trust boundaries, including relational compatibility across implementations.
+    explicit trust boundaries. Enforce exact result agreement among implementations of one portable
+    pure operation and explicit target semantics for platform-specific operations.
 17. Prototype an observation IR with ordinary performed acts and public interfaces as roots, then
     add backward path-sensitive and relational propagation.
-18. Add contract-compatible implementation selection and verify cross-host/target examples,
-    exact-syntax requirements, branch thresholds, formatting, and separately compiled boundaries.
+18. Add exact-behavior implementation selection and verify cross-host/target agreement,
+    target-specific compile-time restrictions, exact-syntax requirements, branch thresholds,
+    formatting, and separately compiled boundaries.
 19. Remove unreachable runtime prop implementations only after reachability and public-boundary
     analysis, while preserving their static proof role.
 20. Add non-semantic diagnostic behavior only after the diagnostic classification and the distinct
-    guarantees of `unsafely once` and `unsafely each time` have been specified and tested.
+    guarantees of `unsafely once`, `unsafely each time`, and `unsafely recursively` have been
+    specified and tested.
 21. Add lexical Proposition visibility and consumer-directed proof imports using only selected
     public module knowledge plus the importing context.
 22. Integrate affine resource versions, effect contracts, external-state stability, and concurrent
     observations into proof-context validity.
-23. Add safe portable compile-time execution separately from symbolic proof. Never execute unsafe
-    acts or native FFI merely to prove contracts.
+23. Add safe exact compile-time execution separately from symbolic proof. Require target-compatible
+    semantics for target-specific operations, and never execute unsafe acts or native FFI merely to
+    prove contracts.
 24. Preserve suspended operation identity through higher-order paths and implement proof-validated
     bounded extraction for supported arithmetic projections.
 25. Lower arbitrary positive widths, shifts, exact arithmetic, and projections portably to C while

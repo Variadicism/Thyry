@@ -5,17 +5,20 @@ and observation-driven optimization for Thyry, the engine underlying Thyrym. It 
 documentation, not an implementation or a final source-language specification.
 
 The conceptual review is complete. Architecture design is the next phase; detailed Haskell types,
-classes, functions, and migration planning follow that review. No final syntax, solver algorithm, or
-compiler data representation is adopted here.
+classes, functions, and migration planning follow that review. No complete grammar, final solver
+algorithm, or compiler data representation is adopted here.
 
 `NativeBitsType` is intended to describe compile-time-checked propositions about the bits
 represented by a conforming `NativeBitsValue`. More generally, every typeable value has a complete
 static contract. Implementations must satisfy that contract, while generated code only needs to
-materialize distinctions that can reach a semantic observer.
+materialize distinctions that can reach a semantic observer. Every pure operation denotes a
+deterministic mapping: the same resolved operation with identical effective inputs has one exact
+logical result.
 
 > The static type describes what a value promises. Observation analysis describes what generated
 > code must make distinguishable to semantic observers. Properly designated diagnostic
 > instrumentation may inspect a selected implementation without becoming a semantic observer.
+> None of these distinctions permits different logical results for the same pure call.
 
 The diagnostic part of that formulation is conditional on an explicit diagnostic facility. General
 unsafe effects are not automatically non-semantic.
@@ -40,7 +43,8 @@ unsafe effects are not automatically non-semantic.
 ## Rationale
 
 - [Contract and equality rationale](rationale/contracts-and-equality.md) explains
-  contract-compatible evaluation and the separation of exact, approximate, IEEE, and bit equality.
+  deterministic pure semantics, implementation freedom, and the separation of exact, approximate,
+  IEEE, and bit equality.
 - [Proof-system rationale](rationale/proof-system.md) explains the fixed logical core, solver
   separation, directional application, proof outcomes, trust, and consumer-directed imports.
 - [Observability and diagnostic rationale](rationale/observability-and-diagnostics.md) explains the
@@ -54,8 +58,13 @@ unsafe effects are not automatically non-semantic.
 - A **Proposition** is standalone contextual logical knowledge, including an `assuming` statement.
 - Constraints and Propositions use shared `LogicalFormula`, `LogicalComparison`,
   `LogicalComparator`, and `LogicalExpression` proof machinery.
-- A **contract** describes allowed results and relationships. Pure implementations prove their
-  contracts; foreign declarations are trusted boundaries.
+- A **pure contract** describes one exact deterministic mapping, although its declared Constraints
+  and Propositions may expose only incomplete properties of that mapping. Pure implementations must
+  implement the same mapping; foreign declarations are trusted boundaries.
+- Portable, native, interpreted, precomputed, and compiler-host implementations of one portable
+  pure operation must agree on its exact logical result. A platform-specific pure operation may
+  define a different mapping for each supported target, but remains deterministic on the selected
+  target and requires target-correct compile-time evaluation.
 - Intrinsic operation names use **`bits`** for uninterpreted sequences, **`uint`** for unsigned
   interpretation, and **`sint`** for signed two's-complement interpretation.
 - **Observable type** is provisional terminology for compiler-derived preservation requirements.

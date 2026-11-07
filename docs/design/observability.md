@@ -13,6 +13,10 @@ Every typeable value retains its full static type under the ordinary [contract](
 applicable props, Constraints, approximation bounds, and relational guarantees. It is the
 basis for source checking and proof and is never rewritten to excuse an optimization.
 
+For a pure operation, that authoritative semantics includes one exact deterministic mapping from
+effective inputs to logical results even when the static type exposes only a loose bound. The bound
+is proof information, not a set from which each invocation or implementation may choose freely.
+
 Observation analysis derives a second description for code generation: the properties and
 relationships that must remain distinguishable to preserve the program's guaranteed external
 behavior. This provisional **observable type** is an optimization artifact, not an alternate source
@@ -44,7 +48,8 @@ The proposed analysis sequence is:
    language-defined observable failure, termination, concurrency, or resource behavior.
 3. Propagate required predicates, representations, props, path conditions, and value relationships
    backward through all uses.
-4. Select, specialize, or remove implementations while maintaining those requirements.
+4. Select, specialize, or remove implementations while preserving exact pure semantics and those
+   requirements.
 5. Verify that generated observable behavior refines the complete source contracts. Repeat analysis
    when eliminating one use can eliminate further requirements.
 
@@ -52,8 +57,9 @@ This is a proposed architecture, not an implementation mandate. In particular, f
 iteration, proof records for rewritten code, and summaries for separate compilation are unresolved.
 
 If the sole semantic observation is `C > 8`, with `C := B + 5` and `B := A * 10`, analysis may push
-the relevant predicate back through `B` to `A`. It need not preserve more precision in the three
-intermediate values than that observation and all operation contracts require.
+the relevant predicate back through `B` to `A`. It need not materialize the complete logical
+intermediate values or retain more physical precision than the exact final behavior and all
+operation contracts require.
 
 Likewise:
 
@@ -65,23 +71,22 @@ if R > 0,
 
 If the complete contracts and path context prove every legal `R` is positive, code may print the
 message without materializing `R`. If `R`'s allowed range crosses zero, the range alone cannot prove
-the branch. Whether an implementation may intentionally select a contract-valid result on one side
-is part of the unresolved permitted-implementation-choice semantics and must account for every
-contract, relationship, and effect.
+the branch. The compiler may not choose a different value within that range to force one side: the
+resolved pure operation's exact semantics already determines `R` for the effective input.
 
 #### What Preservation Requires
 
-The compiler preserves the behavior guaranteed by the program, not the intermediate bits produced
-by one hypothetical evaluation strategy. A hidden difference between `0.4999999` and `0.5000001`
-can be irrelevant when no semantic observer can distinguish it. It is relevant when it can affect a
-boundary comparison, exact equality, serialization, formatting, hashing, file contents, control
-flow, or a required relationship between values.
+The compiler preserves the exact logical behavior of deterministic pure computation, not the
+physical intermediates produced by one evaluation strategy. Instructions, registers, temporary
+buffers, layouts, and unused intermediates may differ. Two distinct logical answers such as
+`0.4999999` and `0.5000001` are not interchangeable results of one portable pure call merely because
+both satisfy a broad bound, even if a current program does not print the value.
 
-Observability is not limited to explicit equality tests. Two ordinary prints can expose an equality
-violation even when source code never prints `R = C`. In the [relational `sin`
-example](contracts.md#operator-return-contracts), ordinary prints inside the equality branch
-must not expose incompatible results. Generated code can arrange consistent values or outputs in
-any way that honors the source contract.
+Observability is not limited to explicit equality tests. In the [`sin`
+example](contracts.md#operator-return-contracts), once the branch proves identical effective inputs
+to the same resolved pure operation, `R` and `C` have the same exact logical result by purity. The
+compiler may reuse that result or compute it twice with exactly agreeing implementations; no
+separate relational return Constraint is needed.
 
 An exported function or dynamically reachable prop can be observed by an unknown caller. Local
 nonuse is therefore insufficient to erase behavior from a public ABI, module interface, or FFI
@@ -135,33 +140,34 @@ implementations.
 
 ### Unsafe Evaluation Modes
 
-The exact established names are:
+The established unsafe-mode names are:
 
 | Thyrym form | Closest Haskell analogy |
 |---|---|
 | `unsafely once` | `unsafePerformIO` |
 | `unsafely each time` | `unsafeDupablePerformIO` |
+| `unsafely recursively` | No analogy specified here |
 
 Normative documentation and future source work must not rename these forms to `unsafePerformIO`,
 `unsafe`, `debug`, or another invented spelling. The analogies are explanatory, not definitions.
-The modes must not be conflated, and this plan does not claim that either unconditionally executes
+The modes must not be conflated, and this plan does not claim that any mode unconditionally executes
 an effect exactly once or permits arbitrary duplication. Their precise guarantees under
 optimization and their separate interaction with diagnostics remain unresolved and must be checked
 against the authoritative Thyrym definitions when that integration is implemented.
 
-The compiler must not execute either unsafe mode during compilation. Their declared result types
-and Constraints remain available for symbolic reasoning, but those contracts do not provide a
-concrete result or imply that repeated executions return identical values. Only explicit
-cross-invocation contracts can establish such a relationship.
+The compiler must not execute an unsafe mode during compilation. Its declared result types and
+Constraints remain available for symbolic reasoning, but those contracts do not provide a concrete
+result or imply that repeated performances of an act return identical values. Determinism of a pure
+value that represents an act does not transfer to repeated performances of that act.
 
 ### Proposed Diagnostic Treatment
 
 The intended debugging model is that explicitly diagnostic logging inside pure code does not impose
-new observable constraints on logged values. Such a diagnostic may require a valid string-conversion
-prop during static checking and may reveal an implementation-selected approximation if one happens
-to be materialized. Subject to the selected unsafe mode, it may also be moved, omitted, or otherwise
-changed by optimization. It must not by itself force the compiler to compute, retain, or reconcile
-an otherwise unobservable exact intermediate.
+new semantic observation requirements on logged values. Such a diagnostic may require a valid
+string-conversion prop during static checking and may reveal labeled physical implementation details
+if the eventual facility permits that. Subject to the selected unsafe mode, it may also be moved,
+omitted, or otherwise changed by optimization. It must not by itself force an otherwise unused
+logical result or physical intermediate to be materialized.
 
 For example, using placeholders rather than proposed Thyrym syntax:
 
@@ -174,11 +180,11 @@ if Theta = 0.5,
     <ordinary print> (R = C)
 ```
 
-Diagnostic logs could expose physical approximations such as `0.47942553` and `0.47942554` while
-the ordinary output is `true`, because the ordinary behavior must preserve the abstract equality
-contract and the diagnostics are not authoritative snapshots of abstract source values. This is a
-deliberate and potentially surprising debugging tradeoff. Documentation must state conspicuously
-that a diagnostic or its value may be optimized out; tooling may report `optimized out` instead.
+If the branch establishes identical effective inputs, ordinary uses of `C` and `R` must reflect the
+same exact logical result by purity. Diagnostic status is not an exemption that allows the two pure
+calls to denote different answers. A future diagnostic may instead omit either value, report
+`optimized out`, or explicitly identify nonsemantic physical details rather than present them as
+different logical results.
 
 This treatment is conditional. An arbitrary unsafe act is not necessarily a diagnostic. An unsafe
 file write can affect a later ordinary read, and ignoring that dependency would change semantic

@@ -2,7 +2,9 @@
 
 [Proof design index](../design.md)
 
-The following questions remain deliberately unresolved.
+The following architecture, algorithm, syntax, standard-library, and effect-integration questions
+remain deliberately unresolved. They are not conceptual blockers for the pure proof-engine
+requirements.
 
 ## Proof System
 
@@ -28,9 +30,11 @@ The following questions remain deliberately unresolved.
    `for all`/`for some`, `it`/`one`, `assuming`, and `(uint <)` terminology.
 8. **Fresh symbolic subjects.** Specify construction and validation so type declarations use an
    arbitrary unrefined subject and cannot prove themselves circularly.
-9. **Comparator-aware substitution.** Define which intrinsic comparators permit replacement inside
-   each expression and comparator context, with which explicit conditions, especially across
-   numeric interpretations and representation-sensitive bit operations.
+9. **Comparator-aware substitution mechanics.** Exact `(bits =)` permits congruent substitution in
+   pure expressions while preserving typing and resolved operation context. Cross-length numeric
+   equality uses zero or sign extension followed by `(bits =)`, but does not equate the original
+   representations. Design the matcher, applicability records, and search strategy for this settled
+   policy.
 10. **Search strategy.** Determine useful ordering among direct decisions, whole-goal applications,
     nested applications, and alternative branches without making heuristic failure a disproof.
 11. **Context composition.** Design import and merge behavior, stable ID remapping, and diagnostic
@@ -41,11 +45,14 @@ The following questions remain deliberately unresolved.
 13. **Recursion and convergence.** Design sound induction support and reconcile pursuit convergence
     with proof-search resource and cycle handling without assuming that they must be either unified
     or separate mechanisms.
-14. **Compile-time evaluation.** Specify safe portable execution policy, budgets, caching, and
-    mechanics while keeping symbolic reasoning available for operators that cannot be executed.
-    Define when compilation needs a uniquely determined exact result rather than bounded knowledge.
-15. **Implementation alternatives.** Represent portable, native, foreign, and source implementations
-    and verify their individual and relational compatibility with one authoritative contract.
+14. **Compile-time evaluation.** Specify safe exact execution policy, budgets, caching, and
+    mechanics while keeping symbolic reasoning available for operators that cannot be executed. A
+    portable operation requires its exact mapping; a platform-specific operation requires
+    target-compatible semantics rather than a differing host implementation. Define when
+    compilation needs the exact value rather than bounded knowledge.
+15. **Implementation alternatives.** Represent portable, native, foreign, source, interpreted, and
+    precomputed implementations. Design verification of exact logical-result agreement for one
+    portable pure operation and target specialization for a platform-specific pure operation.
 16. **Foreign and unsafe provenance.** Define proof provenance and any optional foreign-contract
     validation without executing unsafe effects or treating validation as a replacement trust model.
 17. **Preconditions and fallible results.** Design diagnostics and proof obligations for invalid
@@ -55,30 +62,35 @@ The following questions remain deliberately unresolved.
 
 ### Formal intrinsic signatures
 
-Specify proof-guided result widths, signedness, operand Constraints, and type-level conditions for
-each numeric intrinsic, including mixed-width division and remainder, unsigned subtraction that may
-need a signed result, and exact results near target limits.
+The semantic result-length and signedness rules are settled: lengths have an input-length floor,
+shorter alternatives require proof, `Unproven` chooses the conservative length, and unsigned
+subtraction becomes signed unless nonnegativity is proven. Design implementation signatures,
+Constraint representation, diagnostics, and type-checking integration for those rules, including
+mixed-length division and remainder and exact results near target limits.
 
 ### Target capability and dynamic lengths
 
 Formalize `MaximumSupportedBitSequenceLength`, its default target profile, the result type of
 `(bits length)`, runtime-dependent length Constraints, upper-bound inference, and logical sequences
-that span allocations or use sharing. Distinguish a well-typed suspended operation from a demanded
-result whose full width would exceed the target capability.
+that span allocations or use sharing. Arithmetic result lengths are proof-selected during type
+checking rather than selected from runtime values; legitimate formulas may still depend on dynamic
+input lengths. Distinguish a well-typed suspended operation from a demanded result whose full length
+would exceed the target capability.
 
 ### Equality and standard-library mathematics
 
-Define generic numerical equality across widths, approximate equivalence, modular conveniences, and
-standard-library equality/ordering laws without adding signed, unsigned, or floating equality to the
-intrinsic kernel. Floating-point formats, rounding, exceptional values, and contracts are separate
-standard-library design work. Empty collection representations and additional mathematical
-operations are likewise deferred to their libraries.
+The intrinsic strategy is settled: exact equal-length `(bits =)` supplies congruent substitution,
+and cross-length integer equality extends the shorter representation before applying it. Define
+standard-library syntax and laws for generic numerical equality, approximate equivalence, modular
+conveniences, and domain equality without enlarging the intrinsic kernel. Floating-point formats,
+rounding, exceptional values, and contracts are separate standard-library design work. Empty
+collection representations and additional mathematical operations are likewise deferred.
 
 ### Syntax details
 
-Confirm formal declarations and parsing for concatenation, count-based extraction, shifts, bit
-length, arithmetic families, and single-bit literals. `(bits length)` remains provisional; `++`,
-`*:`, and `:*` are selected communication spellings pending complete syntax work.
+Confirm formal declarations and parsing for concatenation, count-based extraction, shifts,
+arithmetic families, and single-bit literals. `(bits length)` is selected; `++`, `*:`, and `:*` are
+current communication spellings pending complete grammar work.
 
 ### C backend
 
@@ -97,19 +109,20 @@ advertise proven projection laws.
 1. **Representation and naming.** Choose between a second type, a path-sensitive requirement graph,
    a value/relationship constraint set, or another IR. Define dependency and branch joins, and
    decide whether `observable type` or `observation contract` is the public or internal term.
-2. **Formal implementation-refinement test.** Define when generated behavior is permitted by an
-   approximation or relational contract, including when an implementation may select an arbitrary
-   contract-valid result rather than the literal result of particular source code. Decide whether
-   trusted FFI and proved source implementations differ here.
+2. **Formal implementation-refinement test.** Permissive value-level nondeterminism is rejected for
+   pure operations: generated behavior must preserve the operation's exact deterministic mapping,
+   even when declared Constraints are incomplete. Define the operational refinement algorithm and
+   how it verifies physical representation freedom, exact implementation agreement, and trusted FFI
+   boundaries.
 3. **Observation boundaries.** Decide exactly when formatting, raw representations, termination,
    exceptions, failures, concurrency, resource use, reflection, serialization, hashing, and foreign
    interaction are semantic observations.
 4. **Separate compilation.** Define observation summaries for exported functions, dynamic props,
    public ABIs, and modules whose future callers are unavailable.
-5. **Portable evaluation during compilation.** Specify the facilities used to execute or approximate
-   safe portable operations while preserving target contracts, and when compilation must abstain
-   from deciding a concrete result. Native or foreign code must not be run merely to prove its
-   contract.
+5. **Exact evaluation during compilation.** Specify facilities for exact portable evaluation and
+   target-compatible evaluation or emulation of platform-specific operations, plus when compilation
+   must abstain from deciding a concrete result. Native or foreign code must not be run merely to
+   prove its contract.
 6. **Optimization feedback and auditability.** Decide whether observation propagation and
    optimization run to a fixed point and which proof records survive rewriting so transformations
    can be audited.
@@ -122,7 +135,8 @@ advertise proven projection laws.
 
 ### Unsafe evaluation modes
 
-Specify separately what `unsafely once` and `unsafely each time` guarantee under optimization.
+Specify separately what `unsafely once`, `unsafely each time`, and `unsafely recursively` guarantee
+under optimization.
 Decide whether a diagnostic act needs an explicit contract, capability, or library designation and
 whether it must be barred from affecting files, process streams, global state, failure, or resource
 exhaustion.
@@ -135,8 +149,9 @@ fails, or conversion itself changes computation requirements. Determine when omi
 
 ### Unsafe execution identity
 
-Specify how the two unsafe modes affect cross-invocation identity and contract provenance without
-executing either mode during compilation or inferring equality from a declared result type alone.
+Specify how the unsafe modes affect cross-invocation identity and contract provenance without
+executing them during compilation or transferring pure-operation determinism to repeated act
+performances.
 
 ## Architecture And Integration
 

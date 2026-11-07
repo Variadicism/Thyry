@@ -28,14 +28,16 @@ proposition itself is not an executable operation.
 
 More generally, every typeable value has a complete statically assigned type, including applicable
 constraints and props. Implementations must satisfy that contract. The compiler may choose how and
-where to evaluate pure expressions, and may erase implementation distinctions only when every
-semantic observation still conforms to the complete source contract.
+where to evaluate pure expressions, but a pure operation denotes one exact result for each tuple of
+effective inputs under its selected program and target semantics. The compiler may erase physical
+implementation distinctions only while preserving that deterministic mapping.
 
 The central division of responsibility is:
 
 > The static type describes what a value promises. Observation analysis describes what generated
 > code must make distinguishable to semantic observers. Properly designated diagnostic
 > instrumentation may inspect a selected implementation without becoming a semantic observer.
+> Neither permits nondeterministic selection among values allowed by an incomplete Constraint.
 
 The final sentence is conditional on a diagnostic facility whose classification is not yet
 designed. General unsafe effects cannot automatically receive diagnostic treatment.
@@ -47,9 +49,10 @@ designed. General unsafe effects cannot automatically receive diagnostic treatme
 - A **Constraint** is a logical condition attached to a type. A **Proposition** is standalone
   contextual logical knowledge. Both use the [logical formula
   language](proof-system.md#logical-formula-language).
-- An operation's **contract** states the allowed result and relationships to arguments and other
-  values. A pure Thyrym function or prop implementation must prove its declared result contract. A
-  foreign declaration is a trusted contract and is an explicit soundness boundary.
+- A pure operation's **contract** includes its one deterministic mapping from effective inputs to
+  exact logical results. Declared result Constraints and Propositions may describe only incomplete
+  properties of that mapping. A pure Thyrym function or prop implementation must prove its declared
+  result contract. A foreign declaration is trusted and is an explicit soundness boundary.
 - **Observable type** is the provisional design term for the compiler-derived requirements that
   generated code must preserve for a value. **Observation contract** may be a more accurate internal
   name because requirements can be relational, path-sensitive, and graph-shaped. That naming and
@@ -72,7 +75,7 @@ designed. General unsafe effects cannot automatically receive diagnostic treatme
 - Every ordinary logical form needed by proof reasoning should also be expressible in source.
   Compiler-internal whole-formula metavariables are the exception.
 - Ranges and intervals are ordinary combinations of logical comparisons and logical forms.
-- Direct `NativeBitsType` satisfaction requires equal logical bit sizes. This does not require
+- Direct `NativeBitsType` satisfaction requires equal logical bit lengths. This does not require
   intrinsic `sint`/`uint` arithmetic or ordering to use equal-width operands.
 - There is no separate logical-function category. Ordinary Thyrym operators are used in logical
   expressions.
@@ -81,12 +84,15 @@ designed. General unsafe effects cannot automatically receive diagnostic treatme
 - Type/value satisfaction distinguishes `Proven`, `Disproven`, and `Unproven`. Failure to prove a
   required Constraint is a type mismatch, but is not automatically a disproof.
 - The complete static contract remains authoritative even when no runtime check or observer exists.
-- The evaluation stage and machine are intentionally unspecified for pure computations. Compilation
-  on a host, execution on a target, interpretation, and another valid strategy are implementation
-  choices rather than source-language properties.
+- Every pure operation is deterministic and extensionally pure by definition. The same resolved
+  operation, bindings, captures, dispatch evidence, and effective inputs imply the same exact
+  logical result without an additional user-authored return Constraint.
+- Evaluation stage and machine do not change a pure operation's selected semantics. Compilation on
+  a host, execution on a target, interpretation, and optimization are implementation choices, but
+  each must reproduce that operation's exact mapping.
 - Generated code must preserve source-level relationships, path conditions, effects, public
-  interfaces, and other semantic observations, not necessarily every physical intermediate bit
-  pattern from one possible evaluation strategy.
+  interfaces, exact pure results, and other semantic observations. It need not preserve every
+  physical instruction, register, buffer, memory layout, or unused intermediate representation.
 - Observation requirements propagate backward through all uses. A later branch or act can constrain
   an earlier materialization.
 - Exact equality and approximate equivalence are different relations. Approximate equivalence must
@@ -111,87 +117,92 @@ rules. This does not permit arbitrary symbolic applications to be replaced by na
 Standard-library operations may use foreign functions and native representations. In discussions
 of these declarations, `uint*` denotes the family of unsigned integer types such as `uint8_t` and
 `uint32_t`; it does not denote a C pointer. Different platforms may provide different foreign
-implementations so long as each conforms to the declaration's contract. A suitable source-language
-implementation may be used when no native implementation exists; absence of an FFI implementation
-does not inherently require compilation to fail.
+implementations. For one portable pure operation, every selected implementation must produce the
+same exact logical result; satisfying the same loose result Constraints is insufficient. A suitable
+source-language implementation may be used when no native implementation exists; absence of an FFI
+implementation does not inherently require compilation to fail.
 
 A pure source implementation must establish that its body's resulting type satisfies the declared
 result type and Constraints without circularly assuming that same contract. A foreign declaration's
-author asserts that its implementation satisfies the contract; the compiler does not independently
-prove foreign machine code correct. Reviewed shared foreign libraries should be preferred because
-an incorrect declaration makes the program's proof foundation unsound.
+author asserts that its implementation is side-effect-free, deterministic, and contract-correct;
+the compiler does not independently prove foreign machine code. Hidden ambient inputs such as a
+changing rounding mode must be fixed and restored, represented as effective inputs, or moved into
+an act. Reviewed shared foreign libraries should be preferred because an incorrect declaration
+makes the program's proof foundation unsound.
 
-Intrinsic integer contracts define exact mathematical results, proof-guided widths, signed
+Intrinsic integer contracts define exact mathematical results, proof-selected lengths, signed
 arithmetic, and division edge cases without inheriting C overflow or shift behavior. Floating-point
 formats and arithmetic are standard-library concerns whose contracts must address NaN, infinities,
-signed zero, subnormals, rounding, exceptions, and any permitted fast-math behavior.
+signed zero, subnormals, rounding, exceptions, and any separately defined deterministic fast-math
+semantics.
 
 ### Symbolic Reasoning Versus Compile-Time Execution
 
 The proof system may reason from a pure operator's declared contract even when its implementation
 cannot safely be executed during compilation. Actual compile-time execution is a separate, stricter
-capability: it requires an available, safe, suitably portable implementation and the convergence
-and resource evidence required for the demanded computation. Proving convergence does not itself
-require or authorize compile-time evaluation.
+capability: it requires an available, safe evaluator known to reproduce the exact required
+semantics, including target specialization where applicable, plus the convergence and resource
+evidence required for the demanded computation. Proving convergence does not itself require or
+authorize compile-time evaluation.
 
-The compiler must not execute acts through `unsafely once`, `unsafely each time`, or another unsafe
-effect escape during compilation. Apparent purity does not make the effect safe on the compiler
-host. The declared result type and Constraints remain available for symbolic reasoning, but the
-compiler cannot obtain a concrete result by executing the act.
+The compiler must not execute acts through `unsafely once`, `unsafely each time`,
+`unsafely recursively`, or another unsafe effect escape during compilation. Apparent purity does
+not make the effect safe on the compiler host. The declared result type and Constraints remain
+available for symbolic reasoning, but the compiler cannot obtain a concrete result by executing the
+act.
 
 Likewise, native or foreign implementations are not run during compilation to prove their own
 contracts. Their declared argument and result contracts participate in reasoning as trusted
-programmer assertions. Compilation that actually requires evaluation needs an appropriate portable
-implementation; a target-only native function is insufficient. Optional foreign-contract
-validation tooling would not replace this trust boundary.
+programmer assertions. Compilation that actually requires evaluation needs an exact evaluator for
+the operation's selected semantics. A target-specific operation may use a target-compatible
+evaluator or emulator; the compilation host's differing implementation is insufficient. Optional
+foreign-contract validation tooling would not replace this trust boundary.
 
 Operators have no silently undefined results. Provable preconditions must exclude invalid domains,
 such as a zero divisor. Failures that cannot reliably be excluded beforehand, such as a file race,
 must be represented in the result rather than treated as though no result exists.
 
-### Contract Compatibility Across Host And Target
+### Exact Agreement Across Implementations
 
-Pure evaluation performed by the compiler need not produce bits identical to evaluation on the
-target. For an illustrative result contract:
+A portable pure operation has one exact logical result for each effective input. A source,
+interpreter, compiler-host, target, native, or foreign implementation of that operation may differ
+internally, but it must reproduce that result. If a portable implementation returns one NaN payload
+and a native implementation returns another, they are not interchangeable merely because both
+satisfy an `is NaN` Constraint.
 
-```text
-a float where it = 0.5 ± 0.000001
-```
+A compiler may select a native instruction only for inputs on which exact agreement is established,
+using an exact fallback elsewhere. Physical instructions, registers, temporary buffers, layouts,
+and unused intermediates need not match.
 
-a host result of `0.4999999` and a target result of `0.5000001` may each satisfy their individual
-bounds. Overlapping bounds do not make the values exactly equal, however, and individual validity is
-insufficient when a relational contract requires two results to agree. Generated behavior must
-satisfy all individual and relational obligations together.
-
-This contract-compatible model avoids requiring identical math-library, CPU, OS, and host-compiler
-floating-point bits. It does not give the compiler permission to expose contradictory ordinary
-results within one program. It may choose different valid results when compiling programs whose
-semantic observations differ, but only within the full contracts of each program.
-
-A portable deterministic implementation can support compile-time computation without becoming
-canonical truth for all implementations. Portable, native, foreign, and source alternatives must
-each satisfy the advertised contract, including every applicable cross-invocation relationship.
+A platform-specific pure operation may instead define exact semantics for each supported target.
+It remains deterministic and side-effect-free on the selected target. Distinct targets may define
+different mappings, but one compiled program cannot mix those answers under one operation identity,
+and the host must not fold a target call using incompatible host behavior.
 
 ### Compile-Time Execution Versus Exact Compile-Time Knowledge
 
 Executing an expression during compilation is not the same as proving that every valid
 implementation produces one exact value. Compile-time syntax construction, such as producing a
 string that is substituted into operator syntax, requires a string proven equal to one exact value.
-Portable exact integer and string operations may establish that fact. Merely obtaining one
-floating-point approximation on the host does not.
+Portable exact operations or a target-correct evaluator may establish that fact. Merely obtaining
+one host approximation, or knowing that the deterministic result lies in a range, does not.
 
-Approximate computation at compilation remains permitted for other purposes when the resulting
-program is contract-compatible. If constraints do not establish one exact syntax string, syntax
-substitution must not proceed as though the host result supplied a proof.
+A separately defined approximation operation may be evaluated when its own deterministic semantics
+are reproduced exactly. If Constraints do not establish one exact syntax string, syntax
+substitution must not proceed as though determinism alone made that result known or computable.
 
 ### Equality Relations
 
-The intrinsic proof foundation includes exact bit equality and distinct signed and unsigned
-ordering. Cross-width numeric equality, floating-point numerical equality, and approximate
-equivalence are higher-level relations built from contracts and intrinsic foundations. The spelling
-`~=` is established in the related Thyrym design, but its exact tolerance semantics remain open
-here. Approximate equivalence is generally not transitive and must never silently authorize exact
-substitution.
+The intrinsic proof foundation contains exactly bit equality plus signed and unsigned less-than.
+Proven `A (bits =) B` means equal-length, identical bit sequences and authorizes congruent
+substitution of those bit payloads in pure expressions while preserving typing, resolved operation
+identity, bindings, and other applicability conditions.
+
+Cross-length numerical equality first extends the shorter representation to the longer length—zero
+extension for `uint`, sign extension for `sint`—then uses `(bits =)`. This numeric equality does not
+make the original unequal-length representations substitutable in length-sensitive or bit-sensitive
+operations. Floating-point numerical equality and approximate equivalence are likewise higher-level
+relations. The spelling `~=` is established, but its exact tolerance semantics remain open.
 
 Ordinary Thyrym `=` is a higher-level, potentially domain-specific operator. It may deliberately
 ignore fields that are irrelevant to a domain's identity. Its truth can supply derived knowledge
@@ -202,16 +213,19 @@ Only intrinsic logical comparators and rules may define foundational substitutio
 substitution needs explicit applicability conditions that the solver establishes first. A
 standard-library IEEE equality can treat signed zeros differently from bit equality and is not
 reflexive for NaN; its contract does not make floating-point comparison intrinsic. Exhaustive
-substitution rules and higher-level exceptional-value behavior are not settled here.
+substitution rules for exact bit identity are conceptually settled; their matcher and representation
+remain architecture work. Higher-level exceptional-value behavior is not settled here.
 
 ## Contract And Optimization Guardrails
 
-1. **No circular evidence.** A function's return annotation cannot establish its own extensional or
-   numerical contract. Use a separately checked implementation proof or a trusted FFI declaration.
+1. **No circular evidence.** A function's return annotation cannot establish its own numerical or
+   other declared result properties. Use a separately checked implementation proof or a trusted FFI
+   declaration. Extensional determinism follows from purity, not from that annotation.
 2. **No approximate substitution.** Overlapping error intervals and approximate equivalence do not
    imply exact equality or authorize transitive replacement.
 3. **No stage-dependent semantics.** Host compile-time and target runtime evaluation are
-   implementation choices unless a separate source feature explicitly says otherwise.
+   implementation choices and must reproduce the selected exact mapping. Explicit platform-specific
+   semantics select the target mapping rather than permitting accidental host behavior.
 4. **No local-only observation analysis.** Later uses, branches, acts, and interfaces can impose
    requirements on earlier values.
 5. **No loss of relational obligations.** Individually valid `R` and `C` can still violate an
@@ -225,6 +239,10 @@ substitution rules and higher-level exceptional-value behavior are not settled h
 9. **No silent omission of other behavior.** Exceptions, errors, nontermination, data races,
    external resources, and similar behavior limit elimination whenever the language defines them as
    observable.
+10. **No varying result for one pure call.** Identical effective inputs to the same resolved pure
+    operation have one exact logical result, even when its return Constraints describe only a range.
+11. **No substitution by return type alone.** Two implementations satisfying the same incomplete
+    Constraints are not interchangeable unless they implement the same exact pure mapping.
 
 ## Type Contracts And Validation
 
@@ -240,7 +258,7 @@ Standalone declaration validation over an explicitly arbitrary subject is a sepa
 Given a concrete value and a required bits type:
 
 ```text
-1. Require exact bit-width equality.
+1. Require exact bit-length equality.
 2. Instantiate each required Constraint template with the NativeBitsValue literal expression.
 3. Confirm recursively that the resulting logical formulas are solver-ready.
 4. Solve their conjunction using local simplification and contextual proof.
@@ -267,7 +285,7 @@ explicit invocation before its result is tested against a wider type.
 Given a candidate type and required type:
 
 ```text
-1. Require exact bit-width equality.
+1. Require exact bit-length equality.
 2. Create one fresh unconstrained symbolic subject of the shared unrefined bits type.
 3. Instantiate both types' templates with that same subject.
 4. Use the candidate constraint as local established knowledge.
@@ -319,19 +337,11 @@ used as evidence that the implementation satisfies itself. It must be establishe
 validated implementation behavior. Once validated, the return contract is available for downstream
 reasoning.
 
-A relational return contract can also state extensionality. In illustrative Thyrym notation, where
-`Theta` is the argument and `it` is the result of this invocation:
-
-```text
-a float where
-    for all Other Theta, a float,
-        if Theta = Other Theta,
-            it = sin(Other Theta)
-```
-
-The constrained result is `it`, not another occurrence of `sin(Theta)`. Exact binders and layout
-must be reconciled with the final grammar. Like every return contract, this assertion needs evidence
-from a validated pure implementation or a trusted foreign declaration and cannot prove itself.
+Extensionality is not an optional relational return Constraint. Purity itself supplies the semantic
+law that the same resolved operation with identical effective inputs returns the same exact logical
+value. The solver still needs evidence that operation identities, bindings, captures, dispatch, and
+inputs match. An explicit return Proposition remains useful for additional relationships that do not
+follow from purity, and those relationships require ordinary validation without circular evidence.
 
 Consider the following illustrative program:
 
@@ -345,13 +355,15 @@ if Theta = 0.5,
     print C
 ```
 
-Within the branch, a validated extensional contract requires `R = C` at the abstract source level.
-That remains true if `C` was evaluated on the compilation host and `R` would otherwise use a target
-library. The compiler may reuse one result, specialize the branch, select compatible
-implementations, or use another valid strategy; the source language guarantees no strategy.
+If the branch condition's validated equality establishes that `Theta` and `0.5` are identical
+effective inputs to the same resolved pure `sin`, purity itself requires `R` and `C` to have the
+same exact logical result. No special equality-in-return contract is needed. If `C` is evaluated
+during compilation while `R` uses target code, both paths must implement the same exact `sin`
+semantics. The compiler may reuse one result, specialize the branch, or use another equivalent
+strategy; the source language guarantees no strategy.
 
-The equality condition occurs after creation of `R`, but can still impose an obligation on how `R`
-and `C` are materialized. Contract and observation analysis therefore cannot be only local or
+The equality condition occurs after creation of `R`, but can still prove that an earlier invocation
+had the same effective input. Contract and observation analysis therefore cannot be only local or
 forward. It must discover later, path-sensitive uses and propagate their requirements backward.
 
 ### Declaration Diagnostics

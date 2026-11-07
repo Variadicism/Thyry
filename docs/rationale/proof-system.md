@@ -49,8 +49,14 @@ a cycle produces `Unproven`, never `Disproven`.
 
 ### Decision
 
-Every contextual application records whether its replacement obligation implies the goal, the goal
-implies the replacement, or the two are biimplicative.
+Every contextual application records an outcome-oriented direction:
+
+- **May Prove** when the replacement implies the goal (`R -> G`);
+- **May Disprove** when the goal implies the replacement (`G -> R`); or
+- **May Prove or Disprove** when they are biimplicative (`R <-> G`).
+
+These labels describe which eventual result may transfer. The actual solver judgments remain
+`Proven`, `Disproven`, and `Unproven`.
 
 ### Rationale
 
@@ -59,24 +65,31 @@ necessary condition can disprove a goal when false but cannot prove it when true
 rewrite as equivalence would therefore make both proof and disproof unsound, especially when a rule
 has an antecedent.
 
-For example, if `R -> G`, proving `R` proves `G`, while disproving `R` is inconclusive. If `G -> R`,
-disproving `R` disproves `G`, while proving `R` is inconclusive. Explicit direction makes this
-asymmetry part of the application artifact and its diagnostics.
+For example, **May Prove** transfers a proven `R` but not a disproven one. **May Disprove**
+transfers a disproven `R` but not a proven one. Explicit direction makes this asymmetry part of the
+application artifact and its diagnostics.
 
 ## Trust, Identity, And Provenance
 
 ### Decision
 
-Pure implementations prove their contracts without using those same contracts as circular evidence.
-Foreign declarations and explicit `assuming` declarations are visible trust boundaries. Rule
-history is append-only, with stable IDs and derivation provenance.
+Deterministic extensional behavior is intrinsic to every pure operation: identical effective inputs
+to the same resolved operation produce the same exact logical result. Pure implementations still
+prove declared result Constraints without circularly using them. Foreign purity declarations and
+explicit `assuming` declarations are visible trust boundaries. Rule history is append-only, with
+stable IDs and derivation provenance.
 
 ### Rationale
 
 Proofs are only useful when their evidence can be audited. Circular return-contract evidence would
 let any implementation certify itself. Foreign code cannot generally be verified by this solver, so
-its declaration must clearly carry responsibility for the asserted contract. Likewise, unproven
-source assertions require conspicuous syntax.
+its declaration must clearly carry responsibility for deterministic, side-effect-free behavior and
+the asserted result properties. Likewise, unproven source assertions require conspicuous syntax.
+
+Pure extensionality requires matching operation identity, bindings, captures, dispatch, and inputs;
+it does not equate unrelated operations that share a return type. Exact bit equality supplies
+foundational congruent substitution, while ordinary, approximate, IEEE, and cross-length numeric
+equalities retain their narrower meanings.
 
 Stable identities cannot depend on the current active-list position because rules may become
 obviated while remaining relevant to diagnostics. Append-only history and nested assertion paths

@@ -2,41 +2,46 @@
 
 [Proof design index](../design.md)
 
-## Contracts Rather Than Bit Identity
+## Deterministic Pure Semantics And Implementation Freedom
 
 ### Decision
 
-Safe, portable pure evaluation may occur on the compilation host, on the target, or by another
-valid strategy. Symbolic reasoning can use a declared contract even when no implementation may be
-executed during compilation. Conformance is defined by the complete contract, not by requiring
-every implementation to produce identical intermediate bits.
+Every pure operation denotes one deterministic mapping from its effective inputs to exact logical
+results. Portable, native, interpreted, precomputed, and compiler-host implementations of one
+portable operation must agree on that result. Declared Constraints may reveal only incomplete facts
+about the mapping; they never license different results for identical pure calls.
 
 ### Rationale
 
-Native math libraries, CPUs, operating systems, and compiler hosts can produce different valid
-floating-point approximations. Requiring bit-identical results would impose disproportionate
-portability and performance costs. Explicit contracts make the allowed variation visible while
-retaining source-level guarantees.
+A small exact bit/integer foundation makes portable deterministic mathematics possible, including
+future standard-library floating point. A native implementation that differs from the portable
+logical result needs an exact fallback, a restricted input domain on which it agrees, or an
+explicitly platform-specific operation identity. A platform-specific pure operation remains
+deterministic and must not be folded using incompatible host semantics.
 
-Individual bounds are insufficient when values have a relational contract. If equal inputs promise
-equal abstract outputs, generated code must preserve that relationship wherever it can be observed.
-Contract compatibility therefore permits hidden representational variation, not contradictory
-ordinary behavior.
+This requirement concerns logical values, not identical machine execution. Instructions, registers,
+temporary buffers, layouts, and unused intermediate representations may differ. Observation
+analysis may avoid materializing distinctions that no source use demands, but it does not turn a
+loose return bound into permission to choose another logical result.
 
-Compile-time execution also does not prove exact knowledge. Syntax construction requires proof of
-one exact string; one host-selected floating-point result cannot supply that proof.
+Compile-time execution also does not prove general knowledge. Syntax construction requires sound
+evidence for one exact string; determinism or one host-selected value alone cannot supply that
+proof.
 
 Separating reasoning from execution prevents the solver from performing unsafe acts or native FFI
 merely to obtain evidence. Their declarations remain useful as trusted logical contracts without
-pretending that execution is safe or that a result is host-independent.
+pretending that execution is safe or that target-specific semantics can be obtained from an
+incompatible host implementation.
 
 ### Consequences
 
-- Evaluation stage and machine are not source-language properties.
+- Evaluation stage and machine do not change one portable operation's exact logical result.
 - Foreign declarations are trusted soundness boundaries.
-- Platform edge cases require explicit contracts rather than inherited C behavior.
-- Observation analysis may erase hidden distinctions only after preserving every individual and
-  relational obligation.
+- Foreign purity promises determinism and absence of hidden effects; ambient state must be fixed,
+  explicit, or represented by an act.
+- Platform-specific pure semantics require target-correct evaluation.
+- Observation analysis may erase physical distinctions only while preserving deterministic source
+  semantics and every declared obligation.
 
 ## Exact And Approximate Equality
 
@@ -58,7 +63,10 @@ equal—that differs from bit identity. It belongs in a standard-library floatin
 the intrinsic kernel. Substitution must come only from intrinsic rules whose explicit applicability
 conditions have been established.
 
-Keeping the relations distinct lets each comparator own the correct interpretation of bits and
+Proven equal-length `(bits =)` does authorize congruent substitution of the identical bit payload in
+pure expressions while preserving typing and resolved operation context. Cross-length numeric
+equality first zero-extends `uint` or sign-extends `sint` before exact bit comparison; it does not
+make the original unequal-length representations interchangeable. Keeping the relations distinct
 prevents rewrites such as replacing `+0.0` with `-0.0` in a bit-sensitive expression.
 
 ## A Small Exact Intrinsic Foundation
@@ -74,21 +82,25 @@ that foundation.
 A small exact kernel gives the interpreter and C backend one portable meaning to decide and reason
 about. IEEE formats can still receive precise proof-backed contracts without making every format,
 rounding mode, exception model, or approximate variant trusted compiler semantics. Native hardware
-and software libraries remain implementation choices when they satisfy those contracts.
+and software remain implementation choices only where they reproduce the selected operation's exact
+logical result.
 
 ## Exact Arithmetic Rather Than Implicit Wrapping
 
 ### Decision
 
 Intrinsic integer arithmetic widens to represent exact mathematical results. Explicit extraction,
-not implicit overflow, requests modular low bits.
+not implicit overflow, requests modular low bits. Public result lengths are selected from proven
+static facts and retain the input-length floor; they do not vary with each runtime result's number
+of significant bits.
 
 ### Rationale
 
 Silent wrapping would make mathematical contracts depend on incidental operand widths and expose C
 overflow behavior. Exact results compose more predictably with proof-guided ranges. Retaining a
 meaningful logical width still preserves representation intent, while optimization may choose a
-narrower physical layout when no observer distinguishes it.
+narrower physical layout when no observer distinguishes it. Conservative static length selection
+also keeps `(bits length)`, extraction, and shifts stable regardless of runtime values.
 
 ## Bounded Extraction From Operation Values
 
