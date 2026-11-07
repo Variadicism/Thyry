@@ -315,6 +315,14 @@ it never changes the declared length according to the arithmetic value encounter
 Explicit low-bit extraction requests modular behavior. The intrinsic arithmetic families include
 addition, subtraction, multiplication, division, and remainder.
 
+This selection participates in context-sensitive operator resolution. At each source code locus,
+the available declarations, declaration ordering, applicable Constraints, and established proofs
+select one arithmetic operator during compilation. Runtime values cannot switch that resolution.
+Two loci with identical `(uint +)` spelling and operand representations may therefore resolve to
+different declarations: one with an `N`-bit result because fitting is proven, and another with an
+`N+1`-bit result because it is not. They share exact mathematical addition semantics but are
+distinct resolved operators with different bit-sequence representations.
+
 Arithmetic supports different operand lengths when interpretation is unambiguous, conceptually
 zero-extending `uint` values and sign-extending `sint` values. Signed and unsigned families remain
 distinct because interpretation, signedness, and proof-selected return lengths differ. Lengths may
@@ -498,6 +506,11 @@ logical result without an extra return Proposition. This does not make different
 same syntax or result type identical, and an ordinary domain equality does not establish matching
 bit payloads unless its validated semantics say so. A bare operator declaration and an invocation
 with bound arguments are also different expressions.
+
+Resolution itself is context-sensitive but not runtime-dependent. Each code locus resolves during
+compilation using the surrounding grammar, available declarations and ordering, Constraints, and
+established proofs. Identical syntax at another locus may resolve to another declaration. Purity is
+therefore keyed to the resolved operation identity and effective inputs rather than spelling alone.
 
 Operator identity should use declaration identity/location consistently with existing operator
 equality behavior.

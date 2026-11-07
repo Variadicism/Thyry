@@ -87,6 +87,12 @@ designed. General unsafe effects cannot automatically receive diagnostic treatme
 - Every pure operation is deterministic and extensionally pure by definition. The same resolved
   operation, bindings, captures, dispatch evidence, and effective inputs imply the same exact
   logical result without an additional user-authored return Constraint.
+- Operator resolution is context-sensitive. Available declarations, their ordering, applicable
+  Constraints, established proofs, and context-dependent grammar can determine which declaration a
+  source invocation denotes. Each code locus resolves to one specific operator during compilation;
+  runtime argument values do not change that choice.
+- Identical source spelling at different loci need not denote the same operation. Purity compares
+  invocations only after resolution establishes the same declaration and effective computation.
 - Evaluation stage and machine do not change a pure operation's selected semantics. Compilation on
   a host, execution on a target, interpretation, and optimization are implementation choices, but
   each must reproduce that operation's exact mapping.

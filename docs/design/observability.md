@@ -36,6 +36,9 @@ to every value. The representation and the final name remain open.
 
 Contracts still hold when analysis finds no observer. In that case generated code may avoid
 materializing a distinction, but source reasoning continues to use the complete static type.
+Optimization must preserve the operator selected for each code locus or an exactly equivalent
+implementation of that resolved computation; matching source spelling at another locus is
+insufficient evidence that the operations are interchangeable.
 
 #### Observation Roots And Backward Propagation
 

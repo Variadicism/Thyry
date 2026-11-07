@@ -65,6 +65,9 @@ unsafe effects are not automatically non-semantic.
   pure operation must agree on its exact logical result. A platform-specific pure operation may
   define a different mapping for each supported target, but remains deterministic on the selected
   target and requires target-correct compile-time evaluation.
+- Operator resolution is context-sensitive but fixed per code locus during compilation. Purity
+  follows the resolved declaration and its bindings, not source spelling alone; runtime argument
+  values never switch that resolution.
 - Intrinsic operation names use **`bits`** for uninterpreted sequences, **`uint`** for unsigned
   interpretation, and **`sint`** for signed two's-complement interpretation.
 - **Observable type** is provisional terminology for compiler-derived preservation requirements.

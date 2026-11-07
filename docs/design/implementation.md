@@ -76,6 +76,12 @@ Operation identity analysis must distinguish declarations, resolved dispatch, bi
 and effective inputs. It supplies the evidence needed to apply intrinsic pure extensionality without
 equating unrelated operations that happen to share syntax or result types.
 
+Context-sensitive resolution must assign one stable operator identity to each code locus during
+compilation. Resolution may use the surrounding grammar, available declarations and their ordering,
+applicable Constraints, and established proof knowledge, but must never defer the declaration choice
+to runtime argument values. Identically spelled loci may legitimately receive different identities
+and result types.
+
 Observation analysis owns:
 
 ```text

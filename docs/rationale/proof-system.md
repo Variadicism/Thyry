@@ -91,6 +91,12 @@ it does not equate unrelated operations that share a return type. Exact bit equa
 foundational congruent substitution, while ordinary, approximate, IEEE, and cross-length numeric
 equalities retain their narrower meanings.
 
+Source spelling is also insufficient identity because resolution is context-sensitive. Declarations
+and their ordering, applicable Constraints, established proofs, and even contextual grammar may make
+identical syntax at two loci denote distinct operators. Fixing one resolution per locus during
+compilation preserves deterministic purity while still allowing proof-selected arithmetic result
+lengths and other context-specific declarations.
+
 Stable identities cannot depend on the current active-list position because rules may become
 obviated while remaining relevant to diagnostics. Append-only history and nested assertion paths
 preserve derivation links and source locations without making disjunctive children independent
