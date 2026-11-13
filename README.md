@@ -15,6 +15,13 @@ At a high level, Thyrym treats declarations as both grammar rules and function s
 
 This repository is still a work in progress. The current interpreter already demonstrates the language model and several key mechanisms, but it is not yet a complete production implementation of Thyrym.
 
+## Plans
+
+The `plans` directory contains implementation plans. Work in progress lives under `plans/active`.
+After implementation and documentation reconciliation are complete, move the plan to
+`plans/archive` so future work can consult prior decisions and avoid regressions. Archived plans are
+historical context rather than current design authority.
+
 # Usage
 
 ## Requirements

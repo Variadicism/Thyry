@@ -1,9 +1,9 @@
-# Temporary Proof-System Implementation Plan
+# Active Proof-System Implementation Plan
 
-**Status:** Temporary planning material. Do not treat this directory as language semantics or a
-stable API reference.
+**Status:** Active planning material. Do not treat this directory as language semantics or a stable
+API reference.
 
-The permanent design under [`docs/`](../../docs/design.md) is authoritative. This directory
+The permanent design under [`docs/`](../../../docs/design.md) is authoritative. This directory
 translates that design into candidate Haskell structures, algorithm responsibilities, repository
 integration work, and implementation sequencing. If a proposal here conflicts with permanent
 design, stop and reconcile the conflict rather than changing semantics to fit the proposal.
@@ -39,11 +39,11 @@ effects, floating-point libraries, C lowering, or proof-cache artifacts.
 
 Read these permanent documents before implementing:
 
-1. [`docs/design/proof-system.md`](../../docs/design/proof-system.md)
-2. [`docs/design/contracts.md`](../../docs/design/contracts.md)
-3. [`docs/design/implementation.md`](../../docs/design/implementation.md)
-4. [`docs/unresolved/proofs.md`](../../docs/unresolved/proofs.md)
-5. [`docs/rationale/proof-system.md`](../../docs/rationale/proof-system.md)
+1. [`docs/design/proof-system.md`](../../../docs/design/proof-system.md)
+2. [`docs/design/contracts.md`](../../../docs/design/contracts.md)
+3. [`docs/design/implementation.md`](../../../docs/design/implementation.md)
+4. [`docs/unresolved/proofs.md`](../../../docs/unresolved/proofs.md)
+5. [`docs/rationale/proof-system.md`](../../../docs/rationale/proof-system.md)
 
 Then read this plan in order:
 
@@ -96,10 +96,10 @@ that limit rather than implying completeness.
 8. Run `cabal test` during implementation and add focused tests before widening the supported rule
    set.
 
-## Completion And Deletion Conditions
+## Completion And Archival Conditions
 
-Keep this directory during implementation. Delete `plans/proof-system/` only after all of the
-following are true:
+Keep this plan under `plans/active/` during implementation. Move it to
+`plans/archive/proof-system/` after all of the following are true:
 
 - the implemented rule subset and known limitations are tested;
 - exact Haskell interfaces are discoverable from code;
@@ -108,4 +108,5 @@ following are true:
 - migration work is complete and obsolete compatibility paths are removed; and
 - the permanent docs have been checked against observed implementation behavior.
 
-The plan must not become a second stale API manual after those conditions are met.
+Archived plans are historical context, not current API or semantic authority. Preserve them so
+future work can understand prior implementation decisions and avoid regressions.
