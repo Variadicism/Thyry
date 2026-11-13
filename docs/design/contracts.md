@@ -61,7 +61,7 @@ designed. General unsafe effects cannot automatically receive diagnostic treatme
   public interfaces are examples. A **diagnostic observation**, if explicitly supported, reveals
   implementation-selected details without adding value constraints to observation analysis.
 - Examples marked illustrative explain semantics only. They do not settle Thyrym grammar, binder
-  spelling, or the Haskell API.
+  spelling, or implementation interfaces.
 
 ## Design Principles And Boundaries
 
@@ -70,13 +70,17 @@ designed. General unsafe effects cannot automatically receive diagnostic treatme
   type.
 - A Constraint or Proposition is a logical formula. Logical expressions may contain ordinary
   Thyrym operators, but logical formulas are not themselves executable operations.
+- Logical formulas and expressions form a recursive hierarchy: general Logical values may contain
+  `It`, Constraint templates use `It` for one subject, and solver-ready Propositions contain no
+  `It` anywhere.
 - The compiler owns the meaning and fundamental laws of `and`, `or`, `not`, `if`, `for all`, and
   `for some`. Users may state domain-specific facts and assumptions, but may not redefine logic.
 - Every ordinary logical form needed by proof reasoning should also be expressible in source.
   Compiler-internal whole-formula metavariables are the exception.
 - Ranges and intervals are ordinary combinations of logical comparisons and logical forms.
-- Direct `NativeBitsType` satisfaction requires equal logical bit lengths. This does not require
-  intrinsic `sint`/`uint` arithmetic or ordering to use equal-width operands.
+- Structural satisfaction of bit types accounts for their admissible alternatives and logical
+  lengths. A fixed-length alternative satisfies another fixed-length alternative only at the same
+  logical length; explicit conversion is required between unequal representations.
 - There is no separate logical-function category. Ordinary Thyrym operators are used in logical
   expressions.
 - Contextual knowledge lives in `Context`, alongside the available `Op`s.
@@ -108,7 +112,7 @@ designed. General unsafe effects cannot automatically receive diagnostic treatme
   have no possible values is an error.
 - Anything representable in Thyrym code should generally be a `Thing`. Internal solver patterns and
   proof machinery need not be source-representable.
-- The architecture should be mathematically sound and extensible. This plan does not attempt to
+- The architecture should be mathematically sound and extensible. This design does not attempt to
   enumerate every theorem-proving strategy or native decision case before implementation.
 
 ## Portable Operation Contracts
@@ -136,11 +140,17 @@ changing rounding mode must be fixed and restored, represented as effective inpu
 an act. Reviewed shared foreign libraries should be preferred because an incorrect declaration
 makes the program's proof foundation unsound.
 
-Intrinsic integer contracts define exact mathematical results, proof-selected lengths, signed
-arithmetic, and division edge cases without inheriting C overflow or shift behavior. Floating-point
-formats and arithmetic are standard-library concerns whose contracts must address NaN, infinities,
-signed zero, subnormals, rounding, exceptions, and any separately defined deterministic fast-math
-semantics.
+Intrinsic integer contracts define exact mathematical results, relationally constrained return
+alternatives, signed arithmetic, and division edge cases without inheriting C overflow or shift
+behavior. Floating-point formats and arithmetic are standard-library concerns whose contracts must
+address NaN, infinities, signed zero, subnormals, rounding, exceptions, and any separately defined
+deterministic fast-math semantics.
+
+A relational union can admit several result representations while constraining when each is valid.
+For example, an addition contract may admit eight or nine bits but forbid the eight-bit alternative
+when the exact sum needs a ninth bit. This relationship does not divide the alternatives into
+compile-time and runtime cases. Exact source syntax and generalization beyond the motivating numeric
+contracts remain unresolved.
 
 ### Symbolic Reasoning Versus Compile-Time Execution
 
@@ -259,14 +269,22 @@ universal quantifier. For a particular unknown `it`, a goal such as `it < 7` is 
 the existence of other values greater than seven does not refute that specific unknown value.
 Standalone declaration validation over an explicitly arbitrary subject is a separate check.
 
+Type declarations and expressions are checked for well-formedness before proof search, including
+whether every invoked property exists. The solver may rely on that validation rather than repeatedly
+checking property existence in an established context.
+
+Types are first-class values. Quantified variables may range over type values, and the declared type
+of a later variable may depend on an earlier bound value or type. No separate `type of A` logical
+construct is required.
+
 #### NativeBitsValue Satisfies NativeBitsType
 
 Given a concrete value and a required bits type:
 
 ```text
-1. Require exact bit-length equality.
-2. Instantiate each required Constraint template with the NativeBitsValue literal expression.
-3. Confirm recursively that the resulting logical formulas are solver-ready.
+1. Determine which structural alternative can contain the value's actual bit length.
+2. Instantiate its required Constraint templates with the NativeBitsValue literal expression.
+3. Confirm recursively that the resulting logical formulas are solver-ready Propositions.
 4. Solve their conjunction using local simplification and contextual proof.
 5. Proven means the value satisfies the refinement.
 6. Disproven means it does not satisfy the refinement.
@@ -291,18 +309,21 @@ explicit invocation before its result is tested against a wider type.
 Given a candidate type and required type:
 
 ```text
-1. Require exact bit-length equality.
-2. Create one fresh unconstrained symbolic subject of the shared unrefined bits type.
-3. Instantiate both types' templates with that same subject.
-4. Use the candidate constraint as local established knowledge.
-5. Prove the required constraint for that subject.
-6. Proven means every candidate value must meet the requirement.
-7. Disproven or Unproven means type satisfaction fails, with distinct diagnostics when possible.
+1. Establish structural compatibility between candidate and required alternatives.
+2. Create one fresh symbolic subject for each compatible underlying domain.
+3. Instantiate candidate and required templates with the same subject.
+4. Prove, for every appropriate subject, that candidate Constraints imply required Constraints.
+5. Proven means every candidate value must meet one required alternative.
+6. Disproven or Unproven means satisfaction fails, with distinct diagnostics when possible.
 ```
 
 Candidate facts are local to the satisfaction check and do not mutate the original context. A
 candidate disjunction remains one disjunctive assertion; its children are not inserted as separate
 facts.
+
+Nested compatibility proof uses the context available where the outer proof began, not a prefix
+truncated at whichever Proposition is currently being applied. Scoped bindings and assumptions
+introduced during recursion may be added only with explicit scope and non-circularity safeguards.
 
 The common fresh subject replaces the old plan in which the solver matched a special `It`. Both
 templates have already been instantiated before proof begins.
@@ -342,6 +363,10 @@ Quantifier domains match the declared argument types. The required return Constr
 used as evidence that the implementation satisfies itself. It must be established from separately
 validated implementation behavior. Once validated, the return contract is available for downstream
 reasoning.
+
+The symbolic invocation may legitimately appear in the goal while its return contract is being
+validated. Circularity occurs only if that still-unvalidated contract is admitted as evidence, not
+from mentioning the invocation in the required formula.
 
 Extensionality is not an optional relational return Constraint. Purity itself supplies the semantic
 law that the same resolved operation with identical effective inputs returns the same exact logical

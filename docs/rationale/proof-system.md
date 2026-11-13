@@ -21,8 +21,8 @@ valuable, but allowing them to redefine implication, negation, or quantification
 meaning of every contract. Avoiding truth-constant proof nodes also keeps source propositions and
 derivations focused on meaningful obligations rather than simplifier artifacts.
 
-General and solver-ready formula categories are separate so the `it` template placeholder cannot
-survive recursively into proof search.
+The Logical → Constraint → Proposition hierarchy is recursively enforced so the `it` template
+placeholder cannot survive into proof search.
 
 ## Separate Solver Mechanisms
 
@@ -30,8 +30,8 @@ survive recursively into proof search.
 
 One solver coordinates three conceptually separate mechanisms:
 
-1. **Decide** performs direct, context-independent decisions.
-2. **Normalize** performs deterministic, meaning-preserving canonicalization without context search.
+1. **Normalize** performs deterministic, meaning-preserving canonicalization without context search.
+2. **Decide** performs depth-first, context-independent decisions.
 3. **Apply** uses established contextual assertions to produce directed proof obligations.
 
 ### Rationale
@@ -41,9 +41,10 @@ normalization deterministic, and makes contextual assumptions visible in derivat
 declaration validation inspect direct contradiction and vacuity without accidentally invoking an
 unbounded contextual search.
 
-Decision and normalization iterate to a guarded local fixed point. Contextual alternatives are then
-searched as separate branches with local bindings, backtracking, and resource limits. Exhaustion or
-a cycle produces `Unproven`, never `Disproven`.
+Simplification normalizes first and then decides depth-first. It repeats only when decision reduces
+the formula; normalization steps alone do not trigger another pass over an already normalized
+formula. Contextual alternatives are then searched as separate branches with local bindings,
+backtracking, and resource limits. Exhaustion or a cycle produces `Unproven`, never `Disproven`.
 
 ## Directional Contextual Applications
 
@@ -94,13 +95,63 @@ equalities retain their narrower meanings.
 Source spelling is also insufficient identity because resolution is context-sensitive. Declarations
 and their ordering, applicable Constraints, established proofs, and even contextual grammar may make
 identical syntax at two loci denote distinct operators. Fixing one resolution per locus during
-compilation preserves deterministic purity while still allowing proof-selected arithmetic result
-lengths and other context-specific declarations.
+compilation preserves deterministic purity while still allowing relational arithmetic return
+contracts and other context-specific declarations.
 
 Stable identities cannot depend on the current active-list position because rules may become
 obviated while remaining relevant to diagnostics. Append-only history and nested assertion paths
 preserve derivation links and source locations without making disjunctive children independent
 facts.
+
+Quantified variable identity combines the original declaration with the proof-step index that
+introduced or freshened it. This distinguishes repeated applications without treating display names
+or declared types as identity. Alpha-equivalence remains available for cycle detection.
+
+## Branch-Local Traces
+
+### Decision
+
+Every explored proof path has its own chronological trace, and each step ID is its zero-based index
+within that trace. Normalization, nested decisions, and contextual applications all contribute
+steps. A conclusive result returns only its proof or disproof path; `Unproven` retains the closest
+attempts together with their residual formulas.
+
+### Rationale
+
+A global search-history trace would mix abandoned branches with the evidence for a conclusion.
+Branch-local traces make backtracking functional and keep generated-variable identities tied to the
+actual transformation that introduced them. Residual formulas make unsuccessful diagnostics useful
+without letting a closeness heuristic influence soundness.
+
+## Relational Return Alternatives
+
+### Decision
+
+Operations may use relational union return contracts to admit alternative representations while
+constraining when each is valid. This supersedes unconditional conservative length selection when a
+fit cannot be proven. Exact syntax and generalization remain open.
+
+### Rationale
+
+A relational union describes the operation's result without inventing a semantic boundary between
+compile-time and runtime evaluation. It can permit a shorter representation when sufficient and
+forbid it when the exact value requires a longer one, while leaving implementation selection subject
+to the same contract.
+
+## Proof-Root Context
+
+### Decision
+
+Applying a Proposition and checking nested type compatibility use the complete context available
+where the current proof began, plus legitimately scoped branch-local knowledge. They do not use a
+context truncated at the position of the Proposition being applied.
+
+### Rationale
+
+The context stack records lexical availability and resolution order, not a restriction that older
+Propositions may rely only on older declarations. Truncation can hide valid newer operators,
+Constraints, and established facts from recursive obligations. Explicit branch-local scope and
+non-circularity checks address the actual soundness risks without discarding available knowledge.
 
 ## Three Proof Outcomes
 

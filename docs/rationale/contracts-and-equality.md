@@ -89,18 +89,18 @@ logical result.
 
 ### Decision
 
-Intrinsic integer arithmetic widens to represent exact mathematical results. Explicit extraction,
-not implicit overflow, requests modular low bits. Public result lengths are selected from proven
-static facts and retain the input-length floor; they do not vary with each runtime result's number
-of significant bits.
+Intrinsic integer arithmetic represents exact mathematical results. Explicit extraction, not
+implicit overflow, requests modular low bits. A relational union return contract may admit multiple
+lengths while constraining when each representation is valid.
 
 ### Rationale
 
 Silent wrapping would make mathematical contracts depend on incidental operand widths and expose C
-overflow behavior. Exact results compose more predictably with proof-guided ranges. Retaining a
-meaningful logical width still preserves representation intent, while optimization may choose a
-narrower physical layout when no observer distinguishes it. Conservative static length selection
-also keeps `(bits length)`, extraction, and shifts stable regardless of runtime values.
+overflow behavior. Exact results compose more predictably with relational Constraints. A union can
+permit a shorter result where it is sufficient and forbid it where the value needs a longer
+representation without inventing separate compile-time and runtime semantics. The chosen logical
+length remains observable through `(bits length)`, extraction, and shifts; physical storage may
+still differ when semantics are preserved.
 
 ## Bounded Extraction From Operation Values
 

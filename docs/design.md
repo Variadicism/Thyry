@@ -1,12 +1,11 @@
 # Proof Design
 
-This documentation describes the planned static contracts, logical formula language, proof system,
+This documentation describes the intended static contracts, logical formula language, proof system,
 and observation-driven optimization for Thyry, the engine underlying Thyrym. It is design
 documentation, not an implementation or a final source-language specification.
 
-The conceptual review is complete. Architecture design is the next phase; detailed Haskell types,
-classes, functions, and migration planning follow that review. No complete grammar, final solver
-algorithm, or compiler data representation is adopted here.
+The conceptual and high-level architecture reviews establish the current long-lived design. No
+complete grammar, final inference-rule inventory, or compiler data representation is adopted here.
 
 `NativeBitsType` is intended to describe compile-time-checked propositions about the bits
 represented by a conforming `NativeBitsValue`. More generally, every typeable value has a complete
@@ -31,8 +30,8 @@ unsafe effects are not automatically non-semantic.
   behavior, intrinsic bit/integer operations, scoped proof knowledge, and proof artifacts.
 - [Observability, acts, and diagnostics](design/observability.md) covers compiler-derived
   observation requirements, versioned effect knowledge, ordinary acts, and proposed diagnostics.
-- [Implementation plan](design/implementation.md) assigns responsibilities, records integration
-  constraints, and gives likely implementation phases.
+- [Implementation architecture](design/implementation.md) assigns long-lived responsibilities and
+  component boundaries without freezing implementation interfaces.
 
 ## Unresolved questions
 
@@ -46,7 +45,8 @@ unsafe effects are not automatically non-semantic.
   deterministic pure semantics, implementation freedom, and the separation of exact, approximate,
   IEEE, and bit equality.
 - [Proof-system rationale](rationale/proof-system.md) explains the fixed logical core, solver
-  separation, directional application, proof outcomes, trust, and consumer-directed imports.
+  separation and ordering, directional application, branch-local traces, identity, relational
+  returns, proof-root context, proof outcomes, trust, and consumer-directed imports.
 - [Observability and diagnostic rationale](rationale/observability-and-diagnostics.md) explains the
   separation of static and observable contracts and the conditional treatment of diagnostics.
 
@@ -73,7 +73,7 @@ unsafe effects are not automatically non-semantic.
 - **Observable type** is provisional terminology for compiler-derived preservation requirements.
   **Observation contract** may be a more accurate name because requirements can be relational and
   path-sensitive. The representation and final name remain unresolved.
-- Examples marked illustrative do not settle Thyrym grammar or Haskell APIs.
+- Examples marked illustrative do not settle Thyrym grammar or implementation interfaces.
 
 ## Documentation history
 
@@ -81,4 +81,4 @@ These documents replace `scratch space/Proofs.md`, which combined all design, un
 and rationale in one file. That file was previously named `Invariants.md`; the broader name
 reflected that logical formulas are one part of the complete proof and contract design. Older
 implementation sketches use names such as `Invariant` and `InvariantRule`; those names are legacy
-illustrations rather than adopted terminology or final Haskell APIs.
+illustrations rather than adopted terminology or final implementation interfaces.

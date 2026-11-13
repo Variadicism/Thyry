@@ -58,8 +58,7 @@ can change the program's semantic behavior. The design therefore needs an explic
 classification before this optimization is sound.
 
 `unsafely once`, `unsafely each time`, and `unsafely recursively` retain their established names and
-distinct semantics. Their precise optimization guarantees are unresolved; Haskell analogies are not
-definitions.
+distinct semantics. Their precise optimization guarantees remain unresolved.
 
 No unsafe mode may be executed during compilation. Keeping its declared result contract available
 for symbolic reasoning preserves useful knowledge without exposing compiler-host state or inventing

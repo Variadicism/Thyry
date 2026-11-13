@@ -11,71 +11,65 @@ requirements.
 1. **Generalized contextual application calculus.** Define exact proof and disproof transformations
    for deeply nested `and`, `or`, `not`, `if`, `for all`, and `for some`, while preserving the
    implication-direction contract.
-2. **Exact Haskell representations.** Map the conceptual `LogicalFormula`, `LogicalComparison`,
-   `LogicalComparator`, and `LogicalExpression` vocabulary onto recursive general/solver-ready
-   categories, structural views, symbolic invocations, internal formula patterns, and existential
-   wrappers. Legacy `Invariant*` sketches are not final APIs.
-3. **Decision and transformation result types.** Design signatures that retain ordered nested
-   provenance, bindings, paths, and application directions without treating current sketches as
-   final APIs.
-4. **Normalization inventory and termination.** Choose sound canonical forms and a matcher, define
-   theory-specific arithmetic limits, and ensure the combined decision/normalization loop cannot
-   oscillate.
-5. **Quantifier algorithms.** Specify freshening, witness discovery, universal reasoning,
+2. **Depth-first decision rules.** Specify intrinsic expression evaluation, connective
+   short-circuiting, nested partial reductions, and the boundary between expression values and
+   formula verdicts without losing individual decision provenance.
+3. **Normalization inventory and orientation.** Choose sound canonical forms for associativity,
+   ordering, negation, conditionals, and quantifiers. Determine whether transformations such as De
+   Morgan have a canonical direction and prove that normalization cannot oscillate.
+4. **Quantifier algorithms.** Specify freshening, witness discovery, universal reasoning,
    capture-avoiding substitution, and branch-local binding behavior in difficult nested cases.
-6. **Declaration consistency depth.** Decide how much contextual search to spend finding later
+5. **Declaration consistency depth.** Decide how much contextual search to spend finding later
    conflicts, uninhabitable types, vacuity, and redundancy. Unknownness must remain distinct from
    contradiction.
-7. **Source grammar.** Finalize Constraint and Proposition declarations beyond the illustrative
+6. **Source grammar.** Finalize Constraint and Proposition declarations beyond the illustrative
    `for all`/`for some`, `it`/`one`, `assuming`, and `(uint <)` terminology.
-8. **Fresh symbolic subjects.** Specify construction and validation so type declarations use an
+7. **Fresh symbolic subjects.** Specify construction and validation so type declarations use an
    arbitrary unrefined subject and cannot prove themselves circularly.
-9. **Comparator-aware substitution mechanics.** Exact `(bits =)` permits congruent substitution in
+8. **Comparator-aware substitution rules.** Exact `(bits =)` permits congruent substitution in
    pure expressions while preserving typing and resolved operation context. Cross-length numeric
-   equality uses zero or sign extension followed by `(bits =)`, but does not equate the original
-   representations. Design the matcher, applicability records, and search strategy for this settled
-   policy.
-10. **Search strategy.** Determine useful ordering among direct decisions, whole-goal applications,
-    nested applications, and alternative branches without making heuristic failure a disproof.
-11. **Context composition.** Design import and merge behavior, stable ID remapping, and diagnostic
+   equality does not equate the original representations. Define complete nested-expression
+   congruence and applicability rules without treating arbitrary implication as equality.
+9. **Search ordering and closeness.** Refine application ordering within iterative deepening and the
+   diagnostic closeness measure for failed branches. Preserve all closest ties initially, and ensure
+   neither heuristic can change a verdict.
+10. **Context composition.** Design import and merge behavior, stable ID remapping, and diagnostic
     order for append-only rule histories.
-12. **Architecture audit.** Test nested conditionals, quantifier order, negation, symbolic
+11. **Architecture audit.** Test nested conditionals, quantifier order, negation, symbolic
     invocations, contradictory assumptions, mixed-width operations, and directional counterexamples
     before declaring the implementation design complete.
-13. **Recursion and convergence.** Design sound induction support and reconcile pursuit convergence
+12. **Recursion and convergence.** Design sound induction support and reconcile pursuit convergence
     with proof-search resource and cycle handling without assuming that they must be either unified
     or separate mechanisms.
-14. **Compile-time evaluation.** Specify safe exact execution policy, budgets, caching, and
+13. **Compile-time evaluation.** Specify safe exact execution policy, budgets, caching, and
     mechanics while keeping symbolic reasoning available for operators that cannot be executed. A
     portable operation requires its exact mapping; a platform-specific operation requires
     target-compatible semantics rather than a differing host implementation. Define when
     compilation needs the exact value rather than bounded knowledge.
-15. **Implementation alternatives.** Represent portable, native, foreign, source, interpreted, and
-    precomputed implementations. Design verification of exact logical-result agreement for one
+14. **Implementation alternatives.** Define verification of exact logical-result agreement among
+    portable, native, foreign, source, interpreted, and precomputed implementations of one
     portable pure operation and target specialization for a platform-specific pure operation.
-16. **Foreign and unsafe provenance.** Define proof provenance and any optional foreign-contract
+15. **Foreign and unsafe provenance.** Define proof provenance and any optional foreign-contract
     validation without executing unsafe effects or treating validation as a replacement trust model.
-17. **Preconditions and fallible results.** Design diagnostics and proof obligations for invalid
+16. **Preconditions and fallible results.** Design diagnostics and proof obligations for invalid
     domains and the boundary between provably excluded inputs and failures represented as values.
 
 ## Numeric Contracts And Equality
 
-### Formal intrinsic signatures
+### Arithmetic return contracts
 
-The semantic result-length and signedness rules are settled: lengths have an input-length floor,
-shorter alternatives require proof, `Unproven` chooses the conservative length, and unsigned
-subtraction becomes signed unless nonnegativity is proven. Design implementation signatures,
-Constraint representation, diagnostics, and type-checking integration for those rules, including
-mixed-length division and remainder and exact results near target limits.
+Relational union return contracts supersede unconditional conservative length selection. Generalize
+the model across arithmetic families and signedness, including subtraction, mixed-length division
+and remainder, exact results near target limits, and alternatives whose validity depends on the
+exact result. Finalize source syntax and the type-satisfaction rules for these unions.
 
 ### Target capability and dynamic lengths
 
 Formalize `MaximumSupportedBitSequenceLength`, its default target profile, the result type of
 `(bits length)`, runtime-dependent length Constraints, upper-bound inference, and logical sequences
-that span allocations or use sharing. Arithmetic result lengths are proof-selected during type
-checking rather than selected from runtime values; legitimate formulas may still depend on dynamic
-input lengths. Distinguish a well-typed suspended operation from a demanded result whose full length
-would exceed the target capability.
+that span allocations or use sharing. Relational alternatives may depend on value relationships
+without creating different compile-time and runtime semantics. Distinguish a well-typed suspended
+operation from a demanded result whose full length would exceed the target capability.
 
 ### Equality and standard-library mathematics
 
@@ -173,8 +167,8 @@ caching, module import cycles, and incremental checking.
 
 ### Suspended operation representation
 
-Specify how an unevaluated operation preserves intrinsic identity, operands, bindings, wrappers, and
-proof knowledge through higher-order use. Define when a consumer may inspect it and how return
+Specify how an unevaluated operation preserves intrinsic identity, operands, bindings, and proof
+knowledge through higher-order use. Define when a consumer may inspect it and how return
 materializability differs from representability of the operation value itself.
 
 ### Proof cache artifacts
@@ -188,4 +182,4 @@ Propositions, assumptions, imports, visibility, and relevant context.
 - [Contracts and type validation](../design/contracts.md)
 - [Proof system](../design/proof-system.md)
 - [Observability, acts, and diagnostics](../design/observability.md)
-- [Implementation plan](../design/implementation.md)
+- [Implementation architecture](../design/implementation.md)

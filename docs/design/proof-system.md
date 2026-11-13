@@ -4,166 +4,64 @@
 
 ## Logical Formula Language
 
-The conceptual vocabulary is `LogicalFormula`, `LogicalComparison`, `LogicalComparator`, and
-`LogicalExpression`. A **Constraint** attaches a formula to a type; a **Proposition** introduces
-standalone contextual knowledge. The `Invariant*` names in the Haskell sketches below reflect the
-current prototype and are legacy illustrations, not proposed final APIs.
+The enduring vocabulary is `LogicalFormula`, `LogicalComparison`, `LogicalComparator`, and
+`LogicalExpression`. A **Constraint** attaches a formula template to a type; a **Proposition** is a
+standalone contextual statement. They share logical machinery but have different admissible
+contents and uses.
 
-### Existing Structures To Reuse
+### Logical, Constraint, And Proposition Categories
 
-`NativeBitsValue` represents concrete bits:
+Formulas and expressions form a conceptual hierarchy:
 
-```haskell
-data NativeBitsValue = NativeBitsValue {
-	bytes :: ByteString,
-	size :: Int }
-```
+1. **Logical** values are the general category and may contain the special `It` placeholder.
+2. **Constraint** values are type-constraint templates in which `It` denotes one consistently
+   chosen subject.
+3. **Proposition** values are solver-ready and contain no `It` recursively.
 
-`NativeBitsType` currently represents a bit size:
+The distinction applies recursively, including nested logical forms, comparison operands, symbolic
+invocations, and dependent type references. Merely labeling an outer formula as a Proposition is
+insufficient if one of its descendants can still contain `It`.
 
-```haskell
-data NativeBitsType = NativeBitsType { size :: Int }
-```
+Instantiating a Constraint replaces every occurrence of `It` with the same solver-ready subject and
+produces a Proposition. This is the conceptual responsibility named `withItAs`; its exact interface
+is not specified here. Solver-ready does not mean directly decidable or runtime-executable:
+quantified variables and symbolic operator invocations remain valid Proposition expressions.
 
-Its Constraint representation should follow the existing subject-accepting property design of
-`NativeType`, rather than storing already-instantiated propositions:
+Multiple Constraints attached to one type denote their conjunction. An empty collection adds no
+logical refinement.
 
-```haskell
-data NativeType = NativeType { properties :: SomeThing -> [SomeOperator] }
-data One = One
-```
-
-The conceptual extension is therefore similar to:
-
-```haskell
-data NativeBitsType = NativeBitsType {
-	size :: Int,
-	invariants :: SomeInvariantExpression -> [SomeInvariant] }
-```
-
-This is illustrative, not a settled signature or vocabulary. In particular, the final types must
-enforce the difference between general formula templates and solver-ready formulas described below.
-A list of type Constraints denotes their conjunction. An empty list means no additional refinement.
-
-As with `NativeType.properties`, display and structural equality can instantiate the function with
-a designated placeholder. Solver use instead instantiates it with an actual subject expression.
-
-`Context` currently controls available operators:
-
-```haskell
-data Context = Context {
-	precedence :: [Set Int],
-	ops :: [SomeOperator] }
-```
-
-It should be extended with contextual Propositions:
-
-```haskell
-data Context = Context {
-	precedence :: [Set Int],
-	ops :: [SomeOperator],
-	invariantRules :: [InvariantRule] }
-```
-
-The rule store remains append-only for stable identity and provenance. Obviated rules stay in the
-historical list and can be skipped during search. A new rule's local ID is the number of historical
-rules already in that context.
-
-The existing `Invocation` representation may inform symbolic invocation design:
-
-```haskell
-data Invocation op = Invocation {
-	operator :: op,
-	context :: Context,
-	location :: SomeLocation,
-	match :: SomeMatch,
-	returnType :: SomeConcreteThing }
-```
-
-`Beng.Invocations.getArgs` can recover named arguments from an invocation's `match`. Direct reuse
-is not decided. Materialized runtime data must be recursively concrete, but an operation may remain
-a first-class suspended value. Symbolic logical invocations may contain quantified variables and
-must not execute merely because they are present in a formula.
+`NativeBitsValue` retains the actual length of its concrete bits. `NativeBitsType` describes values
+through subject-dependent Constraint templates rather than fundamentally only a fixed integer
+length; type combinations can express structural alternatives. The exact representation is not part
+of the long-lived architecture.
 
 ### Core Model
 
-#### General And Solver-Ready Categories
-
-The representation must enforce a recursive distinction analogous to `Thing` and its specialized
-subsets:
-
-- **General formulas** may contain the display/template placeholder `It` and support ordinary
-  structural operations such as showing, equality, and inspection.
-- **Solver-ready formulas** contain no unresolved `It` anywhere, including inside nested logical
-  forms, comparison operands, or symbolic invocations.
-- Solver-ready does not mean decidable and does not mean runtime-executable. Quantified variables
-  and symbolic operation applications remain valid solver expressions.
-
-Logical forms and atomic expressions should be parameterized, directly or indirectly, by this
-category so readiness propagates recursively. Existential wrappers can preserve heterogeneous
-children. An unchecked marker instance on a compound value is insufficient because a nested child
-could still contain `It`.
-
-The exact Haskell encoding is open. The sketches below omit category parameters when they would
-obscure the semantic point.
-
 #### Logical Formula Forms
 
-The current legacy sketch contains:
+The formula language contains:
 
 ```text
-ComparisonInvariant
-AndInvariant
-OrInvariant
-NotInvariant
-IfInvariant
-ForAllInvariant
-ForSomeInvariant
+comparison
+and
+or
+not
+if
+for all
+for some
 ```
 
 These forms can nest arbitrarily. Source terminology is `for all` and `for some`. Constraints and
 Propositions use this same logical formula language; there is no narrower rule-only language.
 
-Illustrative shapes are:
+Quantifier representation must preserve scope, variable identity, declaration order, dependent
+types, and capture-avoiding substitution. Conjunction and disjunction should contain at least two
+children. Construction should avoid unnecessary one-child wrappers. An empty conjunction or
+disjunction is an internal construction case, not a user-facing logical formula.
 
-```haskell
-data ComparisonInvariant comparator = ComparisonInvariant {
-	leftExpression :: SomeInvariantExpression,
-	comparator :: comparator,
-	rightExpression :: SomeInvariantExpression }
-
-data AndInvariant = AndInvariant {
-	invariants :: Populace2 SomeInvariant }
-
-data OrInvariant = OrInvariant {
-	invariants :: Populace2 SomeInvariant }
-
-data NotInvariant = NotInvariant {
-	invariant :: SomeInvariant }
-
-data IfInvariant = IfInvariant {
-	antecedent :: SomeInvariant,
-	consequent :: SomeInvariant }
-
-data ForAllInvariant = ForAllInvariant {
-	variable :: InvariantVariable,
-	invariant :: SomeInvariant }
-
-data ForSomeInvariant = ForSomeInvariant {
-	variable :: InvariantVariable,
-	invariant :: SomeInvariant }
-```
-
-These declarations are not final APIs. Quantifier representation in particular must preserve
-scope, variable identity, order, and capture-avoiding substitution.
-
-`AndInvariant` and `OrInvariant` should contain at least two children. Construction should avoid
-unnecessary one-child wrappers. An empty conjunction or disjunction is an internal construction
-case, not a user-facing logical formula.
-
-Do not add user-expressible `TrueInvariant` or `FalseInvariant` constructors. A simplification or
-proof step may decide a formula as true or false, but its enclosing logical form consumes that
-decision before reconstructing any remaining formula. For example:
+Do not add user-expressible truth-constant formula forms. A simplification or proof step may decide
+a formula as true or false, but its enclosing logical form consumes that decision before
+reconstructing any remaining formula. For example:
 
 ```text
 A and true  -> A
@@ -198,13 +96,10 @@ make IEEE comparison intrinsic.
 
 #### Structural Views
 
-The solver needs structural views for logical formulas and expressions so it can inspect
-existential wrappers without ad-hoc casts. An expanded `InvariantView` must cover all seven forms,
-and an expression view must cover literals, variables, and symbolic invocations.
-
-The exact view types depend on the general/solver-ready category design and are not settled. Any
-design must prevent a structural view from bypassing the recursive no-`It` guarantee at solver
-entry.
+The solver must be able to inspect every logical form and expression kind, including literals,
+variables, and symbolic invocations, without weakening the recursive category guarantees. The
+architecture does not prescribe a view representation. Structural inspection must not reintroduce
+`It` into solver-ready Propositions.
 
 #### Intrinsic Bit And Integer Foundation
 
@@ -310,78 +205,44 @@ source length. These are facts about the listed operations, not requests for mor
 ##### Exact Integer Arithmetic
 
 Intrinsic `uint` and `sint` arithmetic denotes exact mathematical results rather than fixed-length
-wrapping. The type system selects each public result length from facts proven during type checking;
-it never changes the declared length according to the arithmetic value encountered at runtime.
-Explicit low-bit extraction requests modular behavior. The intrinsic arithmetic families include
-addition, subtraction, multiplication, division, and remainder.
-
-This selection participates in context-sensitive operator resolution. At each source code locus,
-the available declarations, declaration ordering, applicable Constraints, and established proofs
-select one arithmetic operator during compilation. Runtime values cannot switch that resolution.
-Two loci with identical `(uint +)` spelling and operand representations may therefore resolve to
-different declarations: one with an `N`-bit result because fitting is proven, and another with an
-`N+1`-bit result because it is not. They share exact mathematical addition semantics but are
-distinct resolved operators with different bit-sequence representations.
+wrapping. Explicit low-bit extraction requests modular behavior. The intrinsic arithmetic families
+include addition, subtraction, multiplication, division, and remainder.
 
 Arithmetic supports different operand lengths when interpretation is unambiguous, conceptually
 zero-extending `uint` values and sign-extending `sint` values. Signed and unsigned families remain
-distinct because interpretation, signedness, and proof-selected return lengths differ. Lengths may
-be arbitrary positive lengths within target capability; there is no intrinsic 8-, 16-, 32-, or
-64-bit limit.
+distinct because interpretation, signedness, and return relationships differ. Lengths may be
+arbitrary positive lengths within target capability; there is no intrinsic 8-, 16-, 32-, or 64-bit
+limit. Unary arithmetic negation needs no intrinsic because subtraction from zero expresses it.
 
-Let `a` and `b` be the declared logical lengths of `A` and `B`, and let
-`Base = max(a, b)`. Define the following proof judgments:
+Arithmetic return contracts may use relational union types when more than one representation is
+valid. For example, the following illustrative contract permits an eight- or nine-bit sum while
+forbidding the shorter alternative when the value needs a ninth bit:
 
 ```text
-FitsUnsigned(V, n) := Proven(0 <= V and V < 2^n)
-FitsSigned(V, n)   := Proven(-2^(n-1) <= V and V < 2^(n-1))
+8 bits or 9 bits where not (A + B >= 256 and Length of it = 8)
 ```
 
-The mathematical relations inside these judgments denote facts expressible through the three
-intrinsic comparators, extension, and logical connectives; they are not additional comparator
-constructors.
+The relationship constrains the selected result; it does not classify one alternative as a
+compile-time result and the other as a runtime result. The exact syntax and general rules for these
+unions remain unresolved. In particular, this design supersedes the older rule that `Unproven`
+overflow automatically selected one unconditional conservative length.
 
-If a fit is `Unproven`, the type checker uses the conservative longer alternative. Every result
-retains at least one bit and has the following declared interpretation and length:
-
-- `(uint +)` is unsigned. Its length is `Base` if `FitsUnsigned(A+B, Base)`, otherwise
-  `Base+1`.
-- `(sint +)` is signed. Its length is `Base` if `FitsSigned(A+B, Base)`, otherwise `Base+1`.
-- `(uint -)` is unsigned with length `Base` if `Proven(A >= B)`. Otherwise it is signed,
-  with length `Base` if `FitsSigned(A-B, Base)`, otherwise `Base+1`.
-- `(sint -)` is signed. Its length is `Base` if `FitsSigned(A-B, Base)`, otherwise `Base+1`.
-- `(uint *)` is unsigned. Its length is the smallest proven fitting length from `Base` through
-  `a+b`, conservatively `a+b`.
-- `(sint *)` is signed. Its length is the smallest proven fitting length from `Base` through
-  `a+b`, conservatively `a+b`.
-- `(uint /)` and `(uint %)` are unsigned with length `Base`; their divisor must be proven nonzero.
-- `(sint %)` is signed with length `Base`; its divisor must be proven nonzero.
-- `(sint /)` is signed with length `Base` when the minimum-value divided by `-1` case is proven
-  absent. Otherwise its length is `max(Base, a+1)`. Its divisor must be proven nonzero.
-
-For unsigned multiplication, a one-bit operand may permit `Base` from intrinsic range reasoning
-alone. Result types may retain proof-backed magnitude and high-bit Constraints even when the input
-length floor prevents a shorter type. Unary arithmetic negation needs no intrinsic because
-subtraction from zero expresses it.
-
-For example, adding two 8-bit unsigned operands produces a logical 8-bit result only when their sum
-is proven to fit; otherwise it produces a logical 9-bit result even when one runtime sum happens to
-be `7`. An optimizer may store that value in fewer physical bits, but `(bits length)`, extraction,
-and shifts must continue to observe the statically declared length. Dynamic input-dependent lengths,
-such as concatenation lengths, remain valid; only actual-value-dependent arithmetic result lengths
-are forbidden.
+At each source locus, context-sensitive resolution still selects one specific operator during
+compilation. That choice may depend on available declarations, ordering, Constraints, and
+established proofs, but not on runtime argument values. A relational return type does not make
+operator identity runtime-dependent.
 
 Arithmetic never silently truncates, wraps, or inherits C signed-overflow behavior. A backend may
-use unsigned instructions, multiple machine words, or narrower physical storage while preserving
-the statically selected logical type.
+use unsigned instructions, multiple machine words, or another representation only when it preserves
+the exact arithmetic result and the selected relational contract.
 
 ##### Division, Remainder, And Ordering
 
 Division requires proof that the divisor is nonzero. Signed division truncates toward zero, with
-the corresponding remainder convention. The minimum `a`-bit signed value divided by `-1` yields
-its exact positive negation and needs `a+1` signed bits unless `Base` is already larger. Arithmetic
-right shift is sign-filling and is not a substitute for truncation-toward-zero division on negative
-values.
+the corresponding remainder convention. The minimum signed value divided by `-1` yields its exact
+positive negation; its return contract must admit a representation that can contain that result.
+Arithmetic right shift is sign-filling and is not a substitute for truncation-toward-zero division
+on negative values.
 All demanded result lengths remain subject to target materialization capability. Established
 Constraints, control-flow refinements, contextual Propositions, or an explicit non-disproven
 assumption may discharge a precondition; `Unproven` alone never does.
@@ -479,18 +340,26 @@ not missing mathematical intrinsics.
 #### Logical Expressions, Variables, And Symbolic Invocations
 
 Logical expressions include concrete bit literals, explicitly scoped quantified variables, and
-symbolic operation applications. The exact class and existential wrappers remain open.
+symbolic operation applications.
 
-Every quantified value variable has a type:
+Every quantified variable records its original declaration identity or location, the proof step
+that introduced or freshened it, and its declared parameterized type. Variable identity consists of
+the declaration origin together with the introducing proof-step ID. A display name and declared type
+do not constitute identity.
 
-```haskell
-data InvariantVariable = InvariantVariable {
-	name :: String,
-	variableType :: SomeParameterizedThing }
-```
+Freshening the same declaration in two applications produces distinct variables. Within one
+application, every occurrence—including references in dependent parameterized types—must receive
+the same fresh identity. Substitution is capture-avoiding. Alpha-equivalence is separate from
+identity and is used when comparing goals for search-cycle detection.
 
-This is a conceptual shape. Implementations also need identities that distinguish shadowed or
-freshened variables independently of display names.
+Universal and existential binders use the same kind of variable; the enclosing `for all` or
+`for some` supplies the quantifier kind. Types are first-class values, so variables may range over
+types and later declarations may use earlier bound values or types as parameters. No special
+`type of A` expression is needed.
+
+Constraints from a quantified variable's declared type remain part of the reasoning. Universal
+constraints act as implications, while existential constraints act as conjunctions. Structural
+domains and logical Constraints remain distinct, and neither may be silently discarded.
 
 Symbolic applications such as `sin(x)` are propositions about operation results. They must preserve
 operator identity, bindings, argument structure, captures, dispatch evidence, and result type
@@ -512,8 +381,8 @@ compilation using the surrounding grammar, available declarations and ordering, 
 established proofs. Identical syntax at another locus may resolve to another declaration. Purity is
 therefore keyed to the resolved operation identity and effective inputs rather than spelling alone.
 
-Operator identity should use declaration identity/location consistently with existing operator
-equality behavior.
+Operator identity must use declaration identity rather than a printed rendering. Its exact
+representation and interaction with invocation equality are not specified here.
 
 #### `one` And `it`
 
@@ -532,29 +401,15 @@ instantiate it with a fresh, unconstrained symbolic expression of the unrefined 
 Do not pass the type object as though it were a runtime value, and do not assume the type's own
 refinements while validating those refinements.
 
-Existing code establishes that `One` is a `Thing`, `ConcreteThing`, and `ParameterizedThing`.
-Whether a similarly represented `It` should be a `ConcreteThing` depends on the chosen category
-encoding. The architectural requirement is recursive removal before solver entry, not a particular
-subclass declaration.
+The architectural requirement is recursive removal of `It` before solver entry, not any particular
+implementation category or wrapper.
 
 ## Propositions And Context
 
 ### Propositions With Metadata
 
 A contextual Proposition is an arbitrary logical formula plus metadata. It does not have separate
-`premises` and `conclusions` fields. The following declaration uses legacy prototype names:
-
-```haskell
-type InvariantRuleId = Natural
-
-data InvariantRule = InvariantRule {
-	ruleId :: InvariantRuleId,
-	justification :: InvariantRuleJustification,
-	assertion :: SomeInvariant,
-	obviatedBy :: Maybe InvariantId }
-```
-
-This is an illustrative declaration. The proposition itself contains implication and quantifiers:
+`premises` and `conclusions` fields. The proposition itself contains implication and quantifiers:
 
 ```text
 for all x, y, z:
@@ -596,30 +451,13 @@ unknownness, and contradiction.
 
 #### Provenance And Identity
 
-Rule IDs remain stable within append-only context history. Formulas established from rules need
-identities independent of active-list ordering:
+Proposition identities remain stable within append-only context history and do not depend on active
+list positions. Nested paths may identify a component for derivation and diagnostics, but do not
+turn a child of a disjunction into independently established knowledge.
 
-```haskell
-data InvariantId = InvariantId {
-	ruleId :: InvariantRuleId,
-	assertionPath :: InvariantPath }
-
-data InvariantPath = InvariantPath [Int]
-```
-
-Names are illustrative. A path can identify a nested component for derivation and diagnostics, but
-does not turn a child of an `OrInvariant` into an independently known fact.
-
-Justifications should preserve source or builtin locations and derivation links:
-
-```haskell
-data InvariantRuleJustification =
-	DeclaredInvariantRule { location :: SomeLocation } |
-	DerivedInvariantRule { sources :: Populace InvariantId }
-```
-
-Additional justification forms may be needed for compiler-owned decisions and normalizations.
-Locations belong to justifications rather than directly to every rule.
+Justifications preserve source or intrinsic locations, derivation links, and trust provenance.
+Compiler-owned decisions and normalizations also record their reasons. Exact record representations
+are not specified here.
 
 ### Compiler Logic Versus Contextual Libraries
 
@@ -704,22 +542,10 @@ not satisfy an external query unless the module deliberately exports an appropri
 
 ### Three Solver Mechanisms
 
-One solver orchestrates three cooperating mechanisms.
-
-#### Decide
-
-Decision is compiler-defined, direct, and context-independent. Intrinsic comparators decide atomic
-comparisons when their operands provide enough information. Compiler-owned logical patterns can
-also decide propositions such as `P and not P`, where `P` may be an arbitrary nested proposition.
-An unknown child must not prematurely block whole-formula reasoning such as normalizing or deciding
-`P or not P`.
-
-A decision attempt can report `Proven`, `Disproven`, or `Unproven`/no direct decision. The last
-outcome allows normalization and contextual proof search to continue; it is not evidence that the
-formula is false. A terminal decision does not construct a truth-constant formula. Child
-decisions are consumed by the enclosing logical form and retain their parent/path context. The
-exact result type may represent `Unproven` as absence of a direct decision rather than as a third
-constructor, but the semantic distinction must remain.
+One solver orchestrates normalization, decision, and contextual application. Conceptually,
+`simplify` coordinates the first two, `search` finds contextual alternatives, and `prove` controls
+recursive exploration and verdict interpretation. These are responsibilities rather than frozen
+implementation interfaces.
 
 #### Normalize
 
@@ -755,6 +581,23 @@ the selected theory, deterministic, idempotent at a fixed point, and oriented to
 Operation domains, representation-sensitive bit behavior, and higher-level contracts prevent
 blindly applying real-number algebra.
 
+#### Decide
+
+Decision is compiler-defined, direct, and context-independent. It proceeds depth-first through
+constituent expressions and subformulas before deciding their enclosing form, while permitting
+sound short-circuiting. Intrinsic comparators decide atomic comparisons when their operands provide
+enough information. Compiler-owned logical patterns can also decide propositions such as
+`P and not P`, where `P` may be an arbitrary nested proposition.
+
+A decision attempt may settle the whole formula, partially reduce it, or make no progress. A
+partial reduction records every individual nested decision with its rule and affected path; one
+summary rule is insufficient when several children were decided. Expression decisions may produce
+values, while formula decisions produce truth judgments. Exact result representations remain open.
+
+No progress is not evidence that the formula is false. A terminal decision does not construct a
+truth-constant formula. Decided children are consumed by their enclosing logical forms, with their
+individual reasons retained in the trace.
+
 #### Apply
 
 Application consults established contextual assertions and transforms a goal into obligations with
@@ -771,44 +614,53 @@ though they are numerically equal under IEEE equality.
 
 ### Local Simplification Fixed Point
 
-The decision/normalization phase must be independently callable, or its history must be reliably
-separable from contextual proof history. A callable local phase is preferred because source
-declaration validation needs to identify direct and nested vacuity or contradiction.
+Local simplification is independently callable so source declaration validation can identify direct
+and nested vacuity or contradiction without contextual search.
 
-Local simplification proceeds recursively:
+It proceeds in this order:
 
 ```text
-1. Run decision over the formula and its children.
-2. Consume terminal child decisions in their enclosing logical forms.
-3. Return a whole-formula terminal, or a possibly reduced formula, with ordered history.
-4. Normalize the remaining formula recursively, recording transformations and justifications.
-5. Repeat decision followed by normalization until terminal or at a combined fixed point.
+1. Normalize the current formula to normal form, recording each transformation in order.
+2. Run depth-first decision over the normalized formula and its constituents.
+3. If decision settles the formula, return Proven or Disproven.
+4. If decision produces a residual formula, repeat from normalization on that residual.
+5. If decision makes no progress, return the normalized residual as locally Unproven.
 ```
 
-The history records the rule identity, bindings, affected path/subexpression, and justification.
-The combined cycle must have a termination guard in addition to well-oriented rules.
+Normalization is not repeated merely because it produced trace steps: it has already reached normal
+form. A new pass occurs only after decision reduces the formula. The history records each rule,
+bindings, affected path or subexpression, and justification. Normalization and combined iteration
+require termination safeguards.
 
 ### Contextual Proof Search
 
-After local simplification reaches a fixed point without deciding the goal:
+After local simplification leaves a residual goal, `search` finds contextual applications and
+`prove` explores them:
 
 ```text
-1. Check branch-local loop and resource limits.
-2. Find applicable contextual assertions and construct possible transformed obligations before
-   spending time proving their conditions.
-3. Enumerate candidate applications. Each candidate records obligations, implication direction,
-   bindings, target path, and justification. One rule may yield multiple matches.
-4. Explore candidates as separate branches with branch-local bindings and backtracking. Do not
-   destructively accumulate unrelated candidate rewrites into one goal.
-5. Recursively solve each candidate's obligations, restarting with local simplification.
-6. Interpret the result according to the application's implication direction.
-7. Try other paths when one is inconclusive.
-8. Return Proven, Disproven, or Unproven with provenance.
+1. Check branch-local cycle and resource limits.
+2. Enumerate applicable contextual assertions from most recent to oldest, subject to scope and
+   visibility. One assertion may yield multiple applications.
+3. Record each application's obligation, direction, bindings, target path, and justification.
+4. Explore applications as separate immutable branches; do not accumulate unrelated rewrites into
+   one goal or split a conjunction in a way that loses cross-dependencies or quantifier scope.
+5. Recursively prove each candidate, beginning again with normalization and decision.
+6. Interpret a conclusive result according to that application's direction.
+7. Backtrack when a branch is inconclusive and retain the closest failed attempts.
 ```
 
 A loop, timeout, exhausted resource budget, or lack of a matching path yields `Unproven`, not
 `Disproven`. An application need not pass a speculative complexity-progress test. Soundness,
 applicability, fixed-point termination, and global cycle/resource guards are the controls.
+
+Branch-local cycle detection compares normalized, alpha-equivalent goals together with the relevant
+context. Iterative deepening is favored over unrestricted depth-first wandering; application count
+is a suitable initial depth measure. The closeness heuristic for unsuccessful paths is diagnostic
+only and must never alter the verdict.
+
+Application and nested type-compatibility checks use the context in which the current proof began,
+not a context prefix truncated at the proposition being applied. Recursive reasoning may add
+properly scoped branch-local bindings and assumptions, but must not admit circular evidence.
 
 Encountering the original goal again through a cycle such as `A -> B` and `B -> A` does not prove
 either formula. A nonproductive cycle remains `Unproven` unless independent evidence closes it.
@@ -825,8 +677,8 @@ For replacement obligations `R` and original goal `G`:
 
 An unproven replacement is inconclusive in all three cases. “May” identifies which eventual solver
 outcome the direction can transfer; it is not itself a proof result. The actual judgments remain
-`Proven`, `Disproven`, and `Unproven`. Older constructor-like names may remain in legacy sketches,
-but explanatory prose uses these outcome-oriented labels.
+`Proven`, `Disproven`, and `Unproven`. These are conceptual labels rather than prescribed
+constructor names.
 
 Direction remains important when a rule itself has a condition. If the rule has antecedent `P`,
 its consequent comparison applies to `G`, and the comparison application produces `R`, then:
@@ -894,12 +746,22 @@ requires an actual refutation, counterexample, or logically established negation
 knowledge, time, or resources yields `Unproven`. When a program requires the goal, `Unproven` is
 insufficient unless the programmer introduces an explicit, non-disproven `assuming` premise.
 
-Resource exhaustion and cycle detection may have more specific `Unproven` result types. Typeclass
-legacy wrappers similar to `InvariantProof`, `InvariantDisproof`, and `InvariantUnproven` may let
-signatures restrict acceptable outcomes, but exact Haskell sums and classes are not finalized.
+Each explored path has its own chronologically ordered proof trace. Normalization, decision, and
+contextual application all append individual steps. A step records the formula or expression before
+the transformation, the rule or reason, and relevant path, location, bindings, and provenance. The
+final result or residual supplies the endpoint, so each step need not duplicate an `after` value.
 
-Decision, normalization, and application may use distinct result types if the solver composes them
-into coherent history. Useful proof artifacts record:
+A proof-step ID is the zero-based index of that step in its trace. Step zero is the initial goal.
+The same index may identify different steps in different branches, and a step does not redundantly
+store its own ID. Variables introduced by a transformation refer to the actual introducing step
+index, so trace construction and variable construction must remain consistent.
+
+Successful proof and disproof results retain only the conclusive path. An `Unproven` result retains
+a nonempty collection of the closest attempts; every attempt contains both its trace and its final
+unresolved formula. All ties are retained. Optional debug logs may record every explored path, but
+they are separate from returned proof traces.
+
+Useful proof artifacts record:
 
 ```text
 the rule or native decision used
@@ -910,16 +772,17 @@ the implication direction for contextual applications
 branch-local loop/resource information
 ```
 
+There is no cross-trace result cache in the initial architecture. Future memoization must preserve
+every relevant contextual dependency and must not compromise trace and variable identity.
+
 Avoid displaying trivial intermediates unless needed to explain a result. Source validation must
 still be able to identify terminal whole formulas and vacuous, contradictory, or redundant nested
 components.
 
-Expensive proof results may be memoized within one compilation when the cache key preserves every
-relevant dependency. A future module or intermediate artifact may carry validated proofs and their
-dependency information for cross-module and incremental reuse. Reuse is sound only while the
-definitions, Propositions, assumptions, imports, visibility, target capabilities, and other context
-on which a result depends remain compatible. The exact artifact and invalidation design is
-unresolved.
+A future module or intermediate artifact may carry validated proofs and their dependency information
+for cross-module and incremental reuse. Reuse is sound only while definitions, Propositions,
+assumptions, imports, visibility, target capabilities, and every other dependency remain compatible.
+The exact artifact and invalidation design is unresolved.
 
 ### Proof Examples
 
@@ -1034,5 +897,6 @@ the consequent.
 ## Related documents
 
 - [Contracts and type validation](contracts.md)
+- [Implementation architecture](implementation.md)
 - [Proof-system rationale](../rationale/proof-system.md)
 - [Unresolved proof design](../unresolved/proofs.md)

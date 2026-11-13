@@ -130,9 +130,8 @@ stability.
 ### Ordinary Acts
 
 An effect-producing operation such as `print`, a file write, or process creation returns **`an
-act`**, comparable in purpose to a Haskell `IO` action. Constructing an act and performing it are
-different. A performed ordinary act is a semantic observation root; constructing an unperformed act
-does not by itself expose its argument.
+act`**. Constructing an act and performing it are different. A performed ordinary act is a semantic
+observation root; constructing an unperformed act does not by itself expose its argument.
 
 An act demands the properties needed for its guaranteed observable behavior, not automatically
 every mathematical constraint on every argument. Printing the result of `R > 0` observes that
@@ -143,20 +142,13 @@ implementations.
 
 ### Unsafe Evaluation Modes
 
-The established unsafe-mode names are:
-
-| Thyrym form | Closest Haskell analogy |
-|---|---|
-| `unsafely once` | `unsafePerformIO` |
-| `unsafely each time` | `unsafeDupablePerformIO` |
-| `unsafely recursively` | No analogy specified here |
-
-Normative documentation and future source work must not rename these forms to `unsafePerformIO`,
-`unsafe`, `debug`, or another invented spelling. The analogies are explanatory, not definitions.
-The modes must not be conflated, and this plan does not claim that any mode unconditionally executes
-an effect exactly once or permits arbitrary duplication. Their precise guarantees under
-optimization and their separate interaction with diagnostics remain unresolved and must be checked
-against the authoritative Thyrym definitions when that integration is implemented.
+The established unsafe-mode names are `unsafely once`, `unsafely each time`, and
+`unsafely recursively`. Normative documentation and future source work must not replace these with
+invented spellings. The modes must not be conflated, and this architecture does not claim that any
+mode unconditionally executes an effect exactly once or permits arbitrary duplication. Their
+precise guarantees under optimization and their separate interaction with diagnostics remain
+unresolved and must be checked against the authoritative Thyrym definitions when that integration
+is implemented.
 
 The compiler must not execute an unsafe mode during compilation. Its declared result types and
 Constraints remain available for symbolic reasoning, but those contracts do not provide a concrete
