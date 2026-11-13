@@ -14,7 +14,8 @@ demonstrated separation of responsibility.
 - `prove` owns simplification, recursive candidate exploration, backtracking, verdict transfer, and
   closest-failure selection.
 - `simplify` owns normalization-before-decision iteration and its ordered steps.
-- `normalize` owns deterministic context-free canonicalization.
+- `normalize` owns deterministic context-free canonicalization of formulas and expressions, with
+  outputs of the corresponding kind.
 - `decide` owns depth-first context-free evaluation and logical decision.
 - `search` owns enumeration of contextual applications, not recursive proof of their obligations.
 - `apply` owns one sound transformation with its bindings, target, and direction.
@@ -71,6 +72,10 @@ partial-reduction result types.
 **Agreed architectural requirement:** normalization is deterministic, context-independent,
 meaning-preserving, and convergent. It may increase expression size and must not use arbitrary
 contextual equality.
+
+Formula normalization returns a formula. Expression normalization returns an expression. Neither
+operation returns a verdict; decision remains responsible for truth judgments and concrete
+expression evaluation.
 
 **Candidate implementation:** begin with a deliberately small set of unquestionably oriented rules,
 such as double-negation elimination, after their interactions are tested. Keep rule identity and the

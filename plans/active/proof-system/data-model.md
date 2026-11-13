@@ -107,9 +107,9 @@ or final result supplies the endpoint.
 **Candidate representation:** normalization and decision intermediate records may resemble:
 
 ```haskell
-data Normalization = Normalization {
+data Normalization a = Normalization {
 	steps :: [NormalizationStep],
-	result :: SomePropositionFormula }
+	result :: a }
 
 data Decision =
 	Undecided |
@@ -121,6 +121,9 @@ data Decision =
 		result :: SomePropositionFormula }
 ```
 
+The normalization result parameter allows formula normalization to return a formula and expression
+normalization to return an expression. The exact constraints and existential wrappers remain open.
+
 `Decided` must not contain `Unproven`. The actual design may encode this more strongly. Use
 `SimplificationStep` for steps emitted by `simplify`; do not introduce a second `LocalStep` synonym.
 
@@ -128,8 +131,22 @@ data Decision =
 residual formula together with its ordered `[SimplificationStep]`. Its exact constructors should
 follow the decision representation once the decision rules are designed.
 
-**Open:** exact step variants, formula-versus-expression payloads, rule identities, and how nested
-paths are represented.
+**Open:** exact step variants, formula-versus-expression payloads, rule-metadata payloads, and how
+nested paths are represented.
+
+## Compiler Rule Inventories
+
+**Candidate representation:** `NormalizationRuleId` and `DecisionRuleId` are indexes into separate,
+compiler-defined ordered rule inventories. Normalization and decision steps store the corresponding
+ID so traces can recover the exact rule and diagnostics can describe it without embedding a complete
+rule value in every step.
+
+The two ID domains remain distinct; neither is a global proof-step ID. Inventory order defines the
+index within one compiler version and need not be stable across versions unless a future artifact
+format requires that guarantee.
+
+**Open:** index types, inventory ownership, versioning, and how rule metadata is exposed to
+diagnostics.
 
 ## Logical Variables
 
@@ -149,6 +166,10 @@ data LogicalVariable = LogicalVariable {
 Do not add a separate `LogicalVariableId` record unless implementation needs justify it. Universal
 and existential variables share this representation; their formula constructor supplies quantifier
 kind. Dependent type occurrences must be freshened consistently with their binder.
+
+**Open:** decide how a source-declared logical variable is represented before any proof trace and
+introducing step exist, and how it acquires its trace-relative identity when proof begins. Do not
+improvise a sentinel step index or synthetic trace entry without resolving this lifecycle.
 
 **Open:** display-name storage, ordering, alpha-equivalence representation, and whether
 `SomeParameterizedThing` is sufficient for all dependent declarations.

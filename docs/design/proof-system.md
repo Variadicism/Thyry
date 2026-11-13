@@ -550,8 +550,12 @@ implementation interfaces.
 #### Normalize
 
 Normalization is compiler-defined, context-independent, deterministic, meaning-preserving
-canonicalization. It always produces another formula rather than a truth constant. Examples
-include:
+canonicalization of both logical formulas and logical expressions. Formula normalization produces
+another formula rather than a truth judgment or truth-constant node. Expression normalization
+produces another expression rather than a decision result. In either case, normalization may change
+the concrete form while preserving meaning.
+
+Formula-normalization examples include:
 
 ```text
 not (not P) -> P

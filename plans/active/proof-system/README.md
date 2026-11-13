@@ -74,6 +74,8 @@ Then read this plan in order:
 - Complete normalization inventory and canonical orientation.
 - General contextual-application calculus, including nested polarity and quantifiers.
 - Quantifier opening, witness selection, local assumptions, and dependent-type scope.
+- Representation of source-declared logical variables before a proof trace assigns an introducing
+  step index.
 - Exact classes, associated types, existential wrappers, leaves, modules, and field names.
 - Relational union syntax and generalized arithmetic contracts.
 - Failed-path closeness heuristic and resource defaults.

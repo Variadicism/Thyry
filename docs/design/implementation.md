@@ -10,7 +10,8 @@ one implementation language or transient migration sequence.
 The solver coordinates three separate activities:
 
 - **Normalization** performs deterministic, context-independent, meaning-preserving
-  canonicalization and records each transformation.
+  canonicalization of formulas and expressions, returning the corresponding kind and recording each
+  transformation.
 - **Decision** works depth-first and context-independently, deciding intrinsic expressions and
   logical forms where possible. It records every individual nested decision.
 - **Contextual application** searches established Propositions and produces alternative directed
